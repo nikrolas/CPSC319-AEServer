@@ -9,7 +9,14 @@
         <maven.compiler.target>1.8</maven.compiler.target>
         <jackson.version>2.9.4</jackson.version>
         <tomcat.version>7.0.84</tomcat.version>
+
+        <!--For WAR deployment-->
+        <start-class>com.discovery.channel.Application</start-class>
+
     </properties>
+
+    <!--For WAR deployment-->
+    <packaging>war</packaging>
 
     <groupId>com.discovery.channel</groupId>
     <artifactId>DiscoveryChannel</artifactId>
@@ -30,6 +37,19 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
+        </dependency>
+
+        <!--For WAR deployment-->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-tomcat</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>mysql</groupId>
+            <artifactId>mysql-connector-java</artifactId>
+            <version>5.1.45</version>
         </dependency>
         <dependency>
             <groupId>com.jayway.jsonpath</groupId>
