@@ -45,4 +45,10 @@ public class HelloWorld {
                 ok(record, MediaType.APPLICATION_JSON).
                 build();*/
     }
+
+    @RequestMapping(value = "/goodbye", method = RequestMethod.GET)
+    @Produces(MediaType.APPLICATION_JSON)
+    public Record goodbye() {
+        return new Record(1, "The first record.");
+    }
 }
