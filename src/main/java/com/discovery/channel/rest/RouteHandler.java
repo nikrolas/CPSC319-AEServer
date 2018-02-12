@@ -1,4 +1,4 @@
-package com.discovery.channel;
+package com.discovery.channel.rest;
 
 import com.discovery.channel.database.DBUtil;
 import com.discovery.channel.model.Record;
@@ -10,7 +10,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 
 @RestController
-public class HelloWorld {
+public class RouteHandler {
 
 
     @RequestMapping(
