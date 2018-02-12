@@ -2,11 +2,9 @@ package com.discovery.channel.database;
 
 import com.discovery.channel.model.Record;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
-import java.sql.ResultSet;
+import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
 
 
 /**
@@ -31,23 +29,48 @@ public class DBUtil {
     }
 
     // Find record with give ID; If not, return null
-    private static String GET_RECORD_BY_ID_SQL = "SELECT * " +
-            "FROM records " +
-            "WHERE Id = ?";
+//    private static String GET_RECORD_BY_ID_SQL = "SELECT * " +
+//            "FROM records " +
+//            "WHERE Id = ?";
 
-    public static Record getRecordById(int recordId){
-        try(Connection conn = DriverManager.getConnection(getJdbcUrl(DEFAULT_DATABASE), USERNAME, PASSWORD);
-            PreparedStatement ps = conn.prepareStatement(GET_RECORD_BY_ID_SQL)) {
-            ps.setInt(1, recordId);
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    // TODO need a way to unify access to table fields
-                    return new Record(recordId, rs.getString("Title"));
-                }
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
+
+
+    public static List<Record> getRecordByNumber(String recordNumber) throws SQLException{
+        List<Record> records = new ArrayList<>();
+        Connection conn = DriverManager.getConnection(getJdbcUrl(DEFAULT_DATABASE), USERNAME, PASSWORD);
+        Statement statement = conn.createStatement();
+        String query = "SELECT * FROM records WHERE Number LIKE " + "'%" + recordNumber + "%'";
+        ResultSet results = statement.executeQuery(query);
+        while(results.next()){
+            records.add(new Record(results));
         }
-        return null;
+
+        return records;
+    }
+
+
+    public static List<Record> getAllRecords() throws SQLException{
+
+        List<Record> records = new ArrayList<>();
+        Connection conn = DriverManager.getConnection(getJdbcUrl(DEFAULT_DATABASE), USERNAME, PASSWORD);
+        Statement statement = conn.createStatement();
+        String query = "SELECT * FROM records ORDER BY UpdatedAt LIMIT 20";
+        ResultSet results = statement.executeQuery(query);
+        while(results.next()){
+            records.add(new Record(results));
+        }
+        return records;
+    }
+
+    public static Record getRecordById(Integer id) throws SQLException {
+        Connection conn = DriverManager.getConnection(getJdbcUrl(DEFAULT_DATABASE), USERNAME, PASSWORD);
+        Statement statement = conn.createStatement();
+        String query = "SELECT * FROM records WHERE id = " + id;
+        ResultSet result = statement.executeQuery(query);
+        result.next();
+        Record record = new Record(result);
+
+        return record;
+
     }
 }

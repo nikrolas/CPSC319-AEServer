@@ -7,25 +7,25 @@ import org.springframework.boot.web.support.SpringBootServletInitializer;
 
 // For WAR deployment
 
-@SpringBootApplication
-public class Application extends SpringBootServletInitializer{
-
-    @Override
-    protected SpringApplicationBuilder configure(SpringApplicationBuilder application) {
-        return application.sources(Application.class);
-    }
-
-    public static void main(String[] args) {
-        SpringApplication.run(Application.class, args);
-    }
-}
+//@SpringBootApplication
+//public class Application extends SpringBootServletInitializer{
+//
+//    @Override
+//    protected SpringApplicationBuilder configure(SpringApplicationBuilder application) {
+//        return application.sources(Application.class);
+//    }
+//
+//    public static void main(String[] args) {
+//        SpringApplication.run(Application.class, args);
+//    }
+//}
 
 // For local deployment
-/*
+
 @SpringBootApplication
 public class Application {
 
     public static void main(String[] args) {
         SpringApplication.run(Application.class, args);
     }
-}*/
+}
