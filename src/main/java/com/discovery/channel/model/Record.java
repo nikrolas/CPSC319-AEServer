@@ -37,6 +37,7 @@ public class Record {
     private String container;
     private String scheduleYear;
 
+    //Todo convert date to proper format
 
     public Record(ResultSet result) throws SQLException{
 
@@ -52,8 +53,6 @@ public class Record {
         this.createdAt = result.getDate("CreatedAt");
         this.updatedAt = result.getDate("UpdatedAt");
         this.closedAt = result.getDate("ClosedAt");
-
-        //Todo convert date to proper format
 
     }
 

@@ -12,7 +12,19 @@ import java.util.List;
 @RestController
 public class RouteHandler {
 
+    private DBUtil database;
 
+    public RouteHandler(){
+        this.database = new DBUtil();
+    }
+
+
+    /**
+     * Single record get by ID
+     *
+     * @param  id
+     * @return a single record
+     */
     @RequestMapping(
             value = "records/{id}",
             params = {"userId"},
@@ -20,18 +32,16 @@ public class RouteHandler {
     public Record getRecordById(@PathVariable("id") Integer id,
                                 @RequestParam("userId") int userId) throws SQLException {
 
-        return DBUtil.getRecordById(id);
+        return database.getRecordById(id);
     }
 
 
-    @RequestMapping(
-            value = "records/{id}",
-            params = {"userId"},
-            method = RequestMethod.PUT)
-    public int updateOneRecord(@RequestParam("userId") int userId){
-        return 1;
-    }
-
+    /**
+     * Retrieve all records
+     *
+     * @param
+     * @return a list of records, currently limit 20 order by UpdatedAt
+     */
     @RequestMapping(
             value = "records",
             params = { "userId"},
@@ -39,10 +49,17 @@ public class RouteHandler {
     @ResponseBody
     public List<Record> getAllRecords(@RequestParam("userId") int userId) throws SQLException{
 
-        return DBUtil.getAllRecords();
+        return database.getAllRecords();
 
     }
 
+
+    /**
+     * Search records by record number
+     *
+     * @param  num
+     * @return a list of records filtered by search content
+     */
     @RequestMapping(
             value = "records",
             params = { "userId" , "num"},
@@ -51,10 +68,23 @@ public class RouteHandler {
     public List<Record> searchRecordsByNumber(@RequestParam("userId") int userId,
                                       @RequestParam("num") String num) throws SQLException{
 
-        return DBUtil.getRecordByNumber(num);
+        return database.getRecordByNumber(num);
 
     }
 
+    /**
+     * Update a record by record id
+     *
+     * @param  id
+     * @return a list of records filtered by search content
+     */
+    @RequestMapping(
+            value = "records/{id}",
+            params = {"userId"},
+            method = RequestMethod.PUT)
+    public int updateOneRecord(@PathVariable("id") Integer id, @RequestParam("userId") int userId){
+        return 1;
+    }
 
 
 
