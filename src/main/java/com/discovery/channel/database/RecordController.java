@@ -8,10 +8,8 @@ import java.util.HashMap;
 import java.util.List;
 
 
-/**
- * Created by Qiushan on 2018/1/20.
- */
-public class DBUtil extends dbConnect{
+
+public class RecordController extends dbConnect{
 
     private Connection connection;
     private Statement statement;
@@ -19,7 +17,7 @@ public class DBUtil extends dbConnect{
     /**
      * Get DB connection
      */
-    public DBUtil(){
+    public RecordController(){
         this.dbConnect();
         this.connection = this.getConnection();
     }

@@ -1,21 +1,19 @@
 package com.discovery.channel.rest;
 
-import com.discovery.channel.database.DBUtil;
+import com.discovery.channel.database.RecordController;
 import com.discovery.channel.model.Record;
 import org.springframework.web.bind.annotation.*;
 
 import java.sql.SQLException;
-import java.time.Instant;
-import java.util.LinkedHashMap;
 import java.util.List;
 
 @RestController
 public class RouteHandler {
 
-    private DBUtil database;
+    private RecordController database;
 
     public RouteHandler(){
-        this.database = new DBUtil();
+        this.database = new RecordController();
     }
 
 

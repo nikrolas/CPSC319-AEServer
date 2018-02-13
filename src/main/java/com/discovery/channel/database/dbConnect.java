@@ -4,6 +4,8 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 
+
+
 public class dbConnect {
 
     public static String HOSTNAME = "cs319-discoverychannel.csgbwdrdx2ye.us-east-2.rds.amazonaws.com";
@@ -15,6 +17,10 @@ public class dbConnect {
 
     public static String DEFAULT_DATABASE = "recordr";
 
+
+    /**
+     * Get DB connection
+     */
     public void dbConnect(){
 
         connection = null;
@@ -29,6 +35,9 @@ public class dbConnect {
 
     }
 
+    /**
+     * Format DB credential
+     */
     private static String getJdbcUrl(String database){
 
         //String template = "jdbc:%s://%s:%s/%s?useSSL=false";
