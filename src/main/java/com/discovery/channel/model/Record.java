@@ -30,6 +30,13 @@ public class Record {
     private Date updatedAt;
     private Date closedAt;
 
+    private String location;
+    private String schedule;
+    private String type;
+    private String state;
+    private String container;
+    private String scheduleYear;
+
 
     public Record(ResultSet result) throws SQLException{
 
@@ -50,6 +57,30 @@ public class Record {
 
     }
 
+    public Record(ResultSet result, String scheduleName, String scheduleYear,String typeName, String stateName, String containerName, String locationName) throws SQLException{
+
+        this.state = stateName;
+        this.container = containerName;
+        this.location = locationName;
+        this.schedule = scheduleName;
+        this.scheduleYear = scheduleYear;
+        this.type = typeName;
+
+        this.id = result.getInt("id");
+        this.title = result.getString("Title");
+        this.number = result.getString("Number");
+        this.scheduleId = result.getInt("ScheduleId");
+        this.typeId = result.getInt("TypeId");
+        this.consignmentCode = result.getString("ConsignmentCode");
+        this.stateId = result.getInt("StateId");
+        this.containerId = result.getInt("ContainerId");
+        this.locationId = result.getInt("LocationId");
+        this.createdAt = result.getDate("CreatedAt");
+        this.updatedAt = result.getDate("UpdatedAt");
+        this.closedAt = result.getDate("ClosedAt");
+
+
+    }
 
     public String getTitle() {
         return title;
