@@ -80,7 +80,7 @@ public class RecordController extends dbConnect{
             String locationName = getLocationName(results);
             String typeName = getTypeName(results);
             String stateName = getStateName(results);
-            String containerName = getContainerNumber(results);
+            String containerNumber = getContainerNumber(results);
 
             HashMap schedule = getScheduleName(results);
             String scheduleName = schedule.get("Name").toString();
@@ -91,7 +91,7 @@ public class RecordController extends dbConnect{
                     scheduleYear,
                     typeName,
                     stateName,
-                    containerName,
+                    containerNumber,
                     locationName));
         }
     }
@@ -128,7 +128,7 @@ public class RecordController extends dbConnect{
         String locationName = getLocationName(result);
         String typeName = getTypeName(result);
         String stateName = getStateName(result);
-        String containerName = getContainerNumber(result);
+        String containerNumber = getContainerNumber(result);
 
         HashMap schedule = getScheduleName(result);
         String scheduleName = schedule.get("Name").toString();
@@ -140,7 +140,7 @@ public class RecordController extends dbConnect{
                 scheduleYear,
                 typeName,
                 stateName,
-                containerName,
+                containerNumber,
                 locationName);
 
         return record;
