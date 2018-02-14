@@ -61,13 +61,39 @@ public class RecordController extends dbConnect{
     public List<Record> getRecordByNumber(String recordNumber) throws SQLException{
 
         List<Record> records = new ArrayList<>();
-        String query = "SELECT * FROM records WHERE Number LIKE " + "'%" + recordNumber + "%'";
+        String query = "SELECT * FROM records WHERE Number LIKE " + "'%" + recordNumber + "%'"
+                + "ORDER BY UpdatedAt LIMIT 20";
         ResultSet results = getResult(query);
-        while(results.next()){
-            records.add(new Record(results));
-        }
+        getListOfRecords(records, results);
 
         return records;
+    }
+
+    /**
+     * Join tables for retrieve multiple records
+     *
+     * @param records
+     * @param results
+     */
+    private void getListOfRecords(List<Record> records, ResultSet results) throws SQLException {
+        while(results.next()){
+            String locationName = getLocationName(results);
+            String typeName = getTypeName(results);
+            String stateName = getStateName(results);
+            String containerName = getContainerNumber(results);
+
+            HashMap schedule = getScheduleName(results);
+            String scheduleName = schedule.get("Name").toString();
+            String scheduleYear = schedule.get("Years").toString();
+
+            records.add(new Record(results,
+                    scheduleName,
+                    scheduleYear,
+                    typeName,
+                    stateName,
+                    containerName,
+                    locationName));
+        }
     }
 
 
@@ -81,9 +107,8 @@ public class RecordController extends dbConnect{
         List<Record> records = new ArrayList<>();
         String query = "SELECT * FROM records ORDER BY UpdatedAt LIMIT 20";
         ResultSet results = getResult(query);
-        while(results.next()){
-            records.add(new Record(results));
-        }
+        getListOfRecords(records, results);
+
         return records;
     }
 
