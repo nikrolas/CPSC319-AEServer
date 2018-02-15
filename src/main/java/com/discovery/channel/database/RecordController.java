@@ -9,7 +9,7 @@ import java.util.List;
 
 
 
-public class RecordController extends dbConnect{
+public class RecordController extends DbConnect {
 
     private Connection connection;
     private Statement statement;

@@ -2,6 +2,8 @@ package com.discovery.channel.rest;
 
 import com.discovery.channel.database.RecordController;
 import com.discovery.channel.model.Record;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.*;
 
 import java.sql.SQLException;
@@ -9,6 +11,7 @@ import java.util.List;
 
 @RestController
 public class RouteHandler {
+    private static final Logger LOGGER = LoggerFactory.getLogger(RouteHandler.class);
 
     private RecordController database;
 
@@ -29,7 +32,7 @@ public class RouteHandler {
             method = RequestMethod.GET)
     public Record getRecordById(@PathVariable("id") Integer id,
                                 @RequestParam("userId") int userId) throws SQLException {
-
+        LOGGER.info("Received request to get records by id {} from user {}", id, userId);
         return database.getRecordById(id);
     }
 
