@@ -16,7 +16,9 @@ public class AppConfig {
             public void addCorsMappings(CorsRegistry registry) {
                 registry.addMapping("/**")
                 .allowedOrigins("http://staging-aeclient.azurewebsites.net",
-                        "https://staging-aeclient.azurewebsites.net");
+                        "https://staging-aeclient.azurewebsites.net",
+                        "http://aeclient.azurewebsites.net",
+                        "https://aeclient.azurewebsites.net");
             }
         };
     }
