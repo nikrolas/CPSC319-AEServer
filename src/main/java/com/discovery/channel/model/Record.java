@@ -1,13 +1,9 @@
 package com.discovery.channel.model;
-
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
 
 import java.sql.Date;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.time.Instant;
 
 /**
  * Created by Qiushan on 2018/1/20.
@@ -32,53 +28,82 @@ public class Record {
 
     private String location;
     private String schedule;
+
     private String type;
     private String state;
     private String container;
-    private String scheduleYear;
+    private int scheduleYear;
 
     //Todo convert date to proper format
 
-    public Record(ResultSet result) throws SQLException{
-
-        this.id = result.getInt("id");
-        this.title = result.getString("Title");
-        this.number = result.getString("Number");
-        this.scheduleId = result.getInt("ScheduleId");
-        this.typeId = result.getInt("TypeId");
-        this.consignmentCode = result.getString("ConsignmentCode");
-        this.stateId = result.getInt("StateId");
-        this.containerId = result.getInt("ContainerId");
-        this.locationId = result.getInt("LocationId");
-        this.createdAt = result.getDate("CreatedAt");
-        this.updatedAt = result.getDate("UpdatedAt");
-        this.closedAt = result.getDate("ClosedAt");
-
+    public Record(Integer id,
+                  String title,
+                  String number,
+                  int scheduleId,
+                  int typeId,
+                  String consignmentCode,
+                  int stateId,
+                  int containerId,
+                  int locationId,
+                  Date createdAt,
+                  Date updatedAt,
+                  Date closedAt) {
+        this.id = id;
+        this.title = title;
+        this.number = number;
+        this.scheduleId = scheduleId;
+        this.typeId = typeId;
+        this.consignmentCode = consignmentCode;
+        this.stateId = stateId;
+        this.containerId = containerId;
+        this.locationId = locationId;
+        this.createdAt = createdAt;
+        this.updatedAt = updatedAt;
+        this.closedAt = closedAt;
     }
 
-    public Record(ResultSet result, String scheduleName, String scheduleYear,String typeName, String stateName, String containerName, String locationName) throws SQLException{
+    public int getScheduleId() {
+        return scheduleId;
+    }
 
-        this.state = stateName;
-        this.container = containerName;
-        this.location = locationName;
-        this.schedule = scheduleName;
+    public int getTypeId() {
+        return typeId;
+    }
+
+    public int getStateId() {
+        return stateId;
+    }
+
+    public int getContainerId() {
+        return containerId;
+    }
+
+    public int getLocationId() {
+        return locationId;
+    }
+
+    public void setLocation(String location) {
+        this.location = location;
+    }
+
+    public void setSchedule(String schedule) {
+        this.schedule = schedule;
+    }
+
+    public void setType(String type) {
+        this.type = type;
+    }
+
+    public void setState(String state) {
+        this.state = state;
+    }
+
+    public void setContainer(String container) {
+        this.container = container;
+    }
+
+    public void setScheduleYear(int scheduleYear) {
         this.scheduleYear = scheduleYear;
-        this.type = typeName;
-
-        this.id = result.getInt("id");
-        this.title = result.getString("Title");
-        this.number = result.getString("Number");
-        this.scheduleId = result.getInt("ScheduleId");
-        this.typeId = result.getInt("TypeId");
-        this.consignmentCode = result.getString("ConsignmentCode");
-        this.stateId = result.getInt("StateId");
-        this.containerId = result.getInt("ContainerId");
-        this.locationId = result.getInt("LocationId");
-        this.createdAt = result.getDate("CreatedAt");
-        this.updatedAt = result.getDate("UpdatedAt");
-        this.closedAt = result.getDate("ClosedAt");
-
-
     }
 
 }

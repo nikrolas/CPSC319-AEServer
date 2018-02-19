@@ -1,50 +1,61 @@
 package com.discovery.channel.database;
 
 import com.discovery.channel.properties.DefaultProperties;
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.SQLException;
 
 
-
 public class DbConnect {
+    private static final Logger LOGGER = LoggerFactory.getLogger(DbConnect.class);
     private static DefaultProperties PROPERTIES = DefaultProperties.getInstance();
 
     private static String HOSTNAME = PROPERTIES.getProperty("DATABASE.HOST");
     public static int PORT = PROPERTIES.getIntProperty("DATABASE.PORT");
     public static final String DRIVER = PROPERTIES.getProperty("DATABASE.DRIVER");
     public static final String USERNAME = PROPERTIES.getProperty("DATABASE.USERNAME");
-    public static final String PASSWORD =  PROPERTIES.getProperty("DATABASE.PASSWORD");
+    public static final String PASSWORD = PROPERTIES.getProperty("DATABASE.PASSWORD");
     public static final String DEFAULT_DATABASE = PROPERTIES.getProperty("DATABASE");
     private static final String JDBC_URL = String.format(PROPERTIES.getProperty("DATABASE.JDBC.TEMPLATE"), DRIVER, HOSTNAME, PORT, DEFAULT_DATABASE, USERNAME, PASSWORD);
 
-    private Connection connection;
+    // Init connection pool properties
+    private static HikariDataSource dataSource;
 
-    /**
-     * Get DB connection
-     */
-    public void dbConnect(){
+    static {
+        HikariConfig config = new HikariConfig();
+        config.setJdbcUrl(getJdbcUrl());
+        config.setUsername(USERNAME);
+        config.setPassword(PASSWORD);
+        config.addDataSourceProperty("cachePrepStmts", "true");
+        config.addDataSourceProperty("prepStmtCacheSize", "250");
+        config.addDataSourceProperty("prepStmtCacheSqlLimit", "2048");
 
-        connection = null;
 
+        dataSource = new HikariDataSource(config);
+    }
+
+    // Hide constructor
+    private DbConnect() {
+    }
+
+    public static Connection getConnection() {
         try {
-            connection = DriverManager.getConnection(getJdbcUrl(DEFAULT_DATABASE), USERNAME, PASSWORD);
-            connection.setAutoCommit(false);
+            return dataSource.getConnection();
         } catch (SQLException e) {
-            System.out.println("Connection Failed. Check output console");
-            e.printStackTrace();
+            LOGGER.error("Failed to get connection from connection pool", e);
+            return null;
         }
-
     }
 
     /**
      * Format DB credential
      */
-    private static String getJdbcUrl(String database){
-        return String.format(JDBC_URL, DRIVER, HOSTNAME, PORT, database, USERNAME, PASSWORD);
+    private static String getJdbcUrl() {
+        return String.format(JDBC_URL, DRIVER, HOSTNAME, PORT, DEFAULT_DATABASE);
     }
-
-    public Connection getConnection(){return connection;}
 
 }
