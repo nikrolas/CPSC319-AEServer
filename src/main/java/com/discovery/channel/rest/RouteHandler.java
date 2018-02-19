@@ -12,14 +12,8 @@ import java.util.List;
 @RestController
 public class RouteHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger(RouteHandler.class);
-
-    private RecordController database;
-
     public RouteHandler(){
-        this.database = new RecordController();
     }
-
-
     /**
      * Single record get by ID
      *
@@ -33,7 +27,7 @@ public class RouteHandler {
     public Record getRecordById(@PathVariable("id") Integer id,
                                 @RequestParam("userId") int userId) throws SQLException {
         LOGGER.info("Received request to get records by id {} from user {}", id, userId);
-        return database.getRecordById(id);
+        return RecordController.getRecordById(id);
     }
 
 
@@ -49,8 +43,8 @@ public class RouteHandler {
             method = RequestMethod.GET)
     @ResponseBody
     public List<Record> getAllRecords(@RequestParam("userId") int userId) throws SQLException{
-
-        return database.getAllRecords();
+        LOGGER.info("Retriving all records");
+        return RecordController.getAllRecords();
 
     }
 
@@ -68,8 +62,8 @@ public class RouteHandler {
     @ResponseBody
     public List<Record> searchRecordsByNumber(@RequestParam("userId") int userId,
                                       @RequestParam("num") String num) throws SQLException{
-
-        return database.getRecordByNumber(num);
+        LOGGER.info("Searching records by number {}", num);
+        return RecordController.getRecordByNumber(num);
 
     }
 

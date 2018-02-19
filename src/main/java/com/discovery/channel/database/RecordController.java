@@ -1,56 +1,18 @@
 package com.discovery.channel.database;
 
 import com.discovery.channel.model.Record;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 
-
-public class RecordController extends DbConnect {
-
-    private Connection connection;
-    private Statement statement;
-
-
-//    private static String GET_RECORD_BY_ID_SQL = "SELECT * " +
-//            "FROM records " +
-//            "WHERE Id = ?";
-
-
-    /**
-     * Get DB connection
-     */
-    public RecordController(){
-        this.dbConnect();
-        this.connection = this.getConnection();
-    }
-
-
-    /**
-     * Prepare SQL statement
-     *
-     * @param
-     * @return SQL query
-     */
-    public Statement getStatement() throws SQLException {
-        this.statement = connection.createStatement();
-        return this.statement;
-    }
-
-
-    /**
-     * Execute SQL statement
-     *
-     * @param
-     * @return SQL result after executing SQL query
-     */
-    public ResultSet getResult(String query) throws SQLException {
-        return this.getStatement().executeQuery(query);
-    }
-
+public class RecordController {
+    private static final Logger LOGGER = LoggerFactory.getLogger(RecordController.class);
 
     /**
      * Retrieve records filtered by record number
@@ -58,57 +20,45 @@ public class RecordController extends DbConnect {
      * @param recordNumber
      * @return a list of records
      */
-    public List<Record> getRecordByNumber(String recordNumber) throws SQLException{
-
+    private static final String GET_RECORD_BY_NUMBER = "SELECT Id FROM records " +
+            "WHERE Number LIKE ? " +
+            "ORDER BY UpdatedAt LIMIT 20";
+    public static List<Record> getRecordByNumber(String recordNumber) throws SQLException {
         List<Record> records = new ArrayList<>();
-        String query = "SELECT * FROM records WHERE Number LIKE " + "'%" + recordNumber + "%'"
-                + "ORDER BY UpdatedAt LIMIT 20";
-        ResultSet results = getResult(query);
-        getListOfRecords(records, results);
-
+        try (Connection connection = DbConnect.getConnection();
+             PreparedStatement ps = connection.prepareStatement(GET_RECORD_BY_NUMBER)) {
+            ps.setString(1, "%" + recordNumber + "%");
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Record record = parseResultSet(rs);
+                    loadRecordDetail(record);
+                    records.add(record);
+                }
+            }
+        }
         return records;
     }
-
-    /**
-     * Join tables for retrieve multiple records
-     *
-     * @param records
-     * @param results
-     */
-    private void getListOfRecords(List<Record> records, ResultSet results) throws SQLException {
-        while(results.next()){
-            String locationName = getLocationName(results);
-            String typeName = getTypeName(results);
-            String stateName = getStateName(results);
-            String containerNumber = getContainerNumber(results);
-
-            HashMap schedule = getScheduleName(results);
-            String scheduleName = schedule.get("Name").toString();
-            String scheduleYear = schedule.get("Years").toString();
-
-            records.add(new Record(results,
-                    scheduleName,
-                    scheduleYear,
-                    typeName,
-                    stateName,
-                    containerNumber,
-                    locationName));
-        }
-    }
-
 
     /**
      * Retrieve all records
      *
      * @return a list of records, currently limit 20 order by UpdatedAt
      */
-    public List<Record> getAllRecords() throws SQLException{
-
+    private static final String GET_ALL_RECORDS = "SELECT Id " +
+            "FROM records " +
+            "ORDER BY UpdatedAt LIMIT 20";
+    public static List<Record> getAllRecords() throws SQLException {
         List<Record> records = new ArrayList<>();
-        String query = "SELECT * FROM records ORDER BY UpdatedAt LIMIT 20";
-        ResultSet results = getResult(query);
-        getListOfRecords(records, results);
-
+        try (Connection connection = DbConnect.getConnection();
+             PreparedStatement ps = connection.prepareStatement(GET_ALL_RECORDS)) {
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Record record = parseResultSet(rs);
+                    loadRecordDetail(record);
+                    records.add(record);
+                }
+            }
+        }
         return records;
     }
 
@@ -119,55 +69,96 @@ public class RecordController extends DbConnect {
      * @param id
      * @return a single record
      */
-    public Record getRecordById(Integer id) throws SQLException {
-
-        String query = "SELECT * FROM records WHERE id = " + id;
-        ResultSet result = getResult(query);
-        result.next();
-
-        String locationName = getLocationName(result);
-        String typeName = getTypeName(result);
-        String stateName = getStateName(result);
-        String containerNumber = getContainerNumber(result);
-
-        HashMap schedule = getScheduleName(result);
-        String scheduleName = schedule.get("Name").toString();
-        String scheduleYear = schedule.get("Years").toString();
-
-
-        Record record = new Record(result,
-                scheduleName,
-                scheduleYear,
-                typeName,
-                stateName,
-                containerNumber,
-                locationName);
-
-        return record;
-
+    private static final String GET_RECORD_BY_ID =
+            "SELECT * " +
+                    "FROM records WHERE Id = ?";
+    public static Record getRecordById(Integer id) throws SQLException {
+        try (Connection connection = DbConnect.getConnection();
+             PreparedStatement ps = connection.prepareStatement(GET_RECORD_BY_ID)) {
+            ps.setInt(1, id);
+            try (ResultSet resultSet = ps.executeQuery()) {
+                if (resultSet.next()) {
+                    Record record = parseResultSet(resultSet);
+                    loadRecordDetail(record);
+                    return record;
+                }
+            }
+        }
+        LOGGER.info("Record {} does not exist");
+        return null;
     }
 
     /**
-     * Join records table with locations table to get location name
+     * Load record details, including location, type, state, and retention schedule
      *
+     * @param record
+     * @throws SQLException
+     */
+    private static void loadRecordDetail(Record record) throws SQLException {
+        record.setLocation(getLocationName(record.getLocationId()));
+        record.setType(getTypeName(record.getTypeId()));
+        record.setState(getStateName(record.getStateId()));
+        record.setContainer(getContainerNumber(record.getContainerId()));
+        Map<String, String> schedule = getRetentionSchedule(record.getScheduleId());
+        record.setSchedule(schedule.get("Name"));
+        record.setScheduleYear(Integer.valueOf(schedule.get("Years")));
+    }
+
+    /**
+     * Parse result set from record table
      * @param resultSet
+     * @return
+     * @throws SQLException
+     */
+    private static Record parseResultSet(ResultSet resultSet) throws SQLException {
+            int id = resultSet.getInt("Id");
+            String title = resultSet.getString("Title");
+            String number = resultSet.getString("Number");
+            int scheduleId = resultSet.getInt("ScheduleId");
+            int typeId = resultSet.getInt("TypeId");
+            String consignmentCode = resultSet.getString("ConsignmentCode");
+            int stateId = resultSet.getInt("StateId");
+            int containerId = resultSet.getInt("ContainerId");
+            int locationId = resultSet.getInt("LocationId");
+            Date createdAt = resultSet.getDate("CreatedAt");
+            Date updatedAt = resultSet.getDate("UpdatedAt");
+            Date closedAt = resultSet.getDate("ClosedAt");
+            return new Record(id,
+                    title,
+                    number,
+                    scheduleId,
+                    typeId,
+                    consignmentCode,
+                    stateId,
+                    containerId,
+                    locationId,
+                    createdAt,
+                    updatedAt,
+                    closedAt);
+    }
+
+
+    /**
+     * Retrieve name for a location given location id
+     *
+     * @param location id
      * @return location name
      */
-    private String getLocationName(ResultSet resultSet) throws SQLException{
+    private static final String GET_LOCATION_NAME_BY_ID = "SELECT Name " +
+            "FROM locations " +
+            "WHERE Id=?";
 
-        if(resultSet.getString("LocationId") != null){
-            String queryLocation = "SELECT locations.Name FROM records "
-                    + "Inner JOIN recordr.locations on records.LocationId = locations.id"
-                    + " WHERE records.id = " + resultSet.getString("id");
-
-            ResultSet result = getResult(queryLocation);
-            result.next();
-            return result.getString("Name");
-
-        }else{
-            return null;
+    private static String getLocationName(int locationId) throws SQLException {
+        try (Connection con = DbConnect.getConnection();
+             PreparedStatement ps = con.prepareStatement(GET_LOCATION_NAME_BY_ID)) {
+            ps.setInt(1, locationId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getString("Name");
+                }
+            }
         }
-
+        return null;
     }
 
 
@@ -177,52 +168,47 @@ public class RecordController extends DbConnect {
      * @param resultSet
      * @return type name
      */
-    private String getTypeName(ResultSet resultSet) throws SQLException{
+    private static final String GET_TYPE_BY_ID = "SELECT Name " +
+            "FROM recordtypes " +
+            "WHERE Id = ?";
 
-        if(resultSet.getString("TypeId") != null){
-
-            String queryType = "SELECT recordtypes.Name FROM records "
-                    + "Inner JOIN recordr.recordtypes on records.TypeId = recordtypes.Id"
-                    + " WHERE records.id = " + resultSet.getString("id");
-
-            ResultSet result = getResult(queryType);
-            result.next();
-            return result.getString("Name");
-
-        }else{
-            return null;
+    private static String getTypeName(int typeId) throws SQLException {
+        try (Connection con = DbConnect.getConnection();
+             PreparedStatement ps = con.prepareStatement(GET_TYPE_BY_ID)) {
+            ps.setInt(1, typeId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getString("Name");
+                }
+            }
         }
-
+        return null;
     }
 
 
     /**
-     * Join records table with retentionschedules table to get schedule name and years
+     * retentionschedules table to get schedule name and years by Id
      *
-     * @param resultSet
+     * @param retention schedule id
      * @return schedule name and years
      */
-    private HashMap<String, String> getScheduleName(ResultSet resultSet) throws SQLException{
+    private static final String GET_RECORD_SCHEDULE = "SELECT * " +
+            "FROM retentionschedules " +
+            "WHERE Id=?";
 
-        if(resultSet.getString("ScheduleId") != null){
-
-            String querySchedule = "SELECT * FROM records "
-                    + "Inner JOIN recordr.retentionschedules on records.ScheduleId = retentionschedules.Id"
-                    + " WHERE records.id = " + resultSet.getString("id");
-
-            ResultSet result = getResult(querySchedule);
-            result.next();
-
-            HashMap<String, String> scheduleDict = new HashMap<>();
-            scheduleDict.put("Name", result.getString("Name"));
-            scheduleDict.put("Years", result.getString("Years"));
-
-            return scheduleDict;
-
-        }else{
-            return null;
+    private static Map<String, String> getRetentionSchedule(int id) throws SQLException {
+        Map<String, String> schedule = new HashMap<String, String>();
+        try (Connection con = DbConnect.getConnection();
+             PreparedStatement ps = con.prepareStatement(GET_RECORD_SCHEDULE)) {
+            ps.setInt(1, id);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    schedule.put("Name", rs.getString("Name"));
+                    schedule.put("Years", String.valueOf(rs.getInt("Years")));
+                }
+            }
         }
-
+        return schedule;
     }
 
 
@@ -232,46 +218,44 @@ public class RecordController extends DbConnect {
      * @param resultSet
      * @return container name
      */
-    private String getContainerNumber(ResultSet resultSet) throws SQLException{
+    private static final String GET_CONTAINER_NAME = "SELECT Number " +
+            "FROM containers " +
+            "WHERE Id = ?";
 
-        if(resultSet.getString("ContainerId") != null){
-
-            String queryContainer = "SELECT containers.Number FROM records "
-                    + "Inner JOIN recordr.containers on records.ContainerId = containers.Id"
-                    + " WHERE records.id = " + resultSet.getString("id");
-
-            ResultSet result = getResult(queryContainer);
-            result.next();
-            return result.getString("Number");
-
-        }else{
-            return null;
+    private static String getContainerNumber(int containerId) throws SQLException {
+        try (Connection con = DbConnect.getConnection();
+             PreparedStatement ps = con.prepareStatement(GET_CONTAINER_NAME)) {
+            ps.setInt(1, containerId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getString("Number");
+                }
+            }
         }
-
+        return null;
     }
 
 
     /**
-     * Join records table with recordstates table to get state name
+     * Get state name by id
      *
-     * @param resultSet
+     * @param stateId
      * @return state name
      */
-    private String getStateName(ResultSet resultSet) throws SQLException {
+    private static final String GET_STATE_BY_ID = "SELECT Name " +
+            "FROM recordstates " +
+            "WHERE Id = ?";
 
-        if(resultSet.getString("StateId") != null){
-
-            String queryState = "SELECT recordstates.Name FROM records "
-                    + "Inner JOIN recordr.recordstates on records.StateId = recordstates.Id"
-                    + " WHERE records.id = " + resultSet.getString("id");
-            ResultSet result = getResult(queryState);
-
-            result.next();
-            return result.getString("Name");
-
-        }else{
-            return null;
+    private static String getStateName(int stateId) throws SQLException {
+        try (Connection con = DbConnect.getConnection();
+             PreparedStatement ps = con.prepareStatement(GET_STATE_BY_ID)) {
+            ps.setInt(1, stateId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getString("Name");
+                }
+            }
         }
-
+        return null;
     }
 }
