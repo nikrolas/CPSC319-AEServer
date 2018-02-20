@@ -1,5 +1,6 @@
 package com.discovery.channel.database;
 
+import com.discovery.channel.exception.NoResultsFoundException;
 import com.discovery.channel.model.Container;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,12 +12,6 @@ import java.util.List;
 public class ContainerController {
     private static final Logger LOGGER = LoggerFactory.getLogger(ContainerController.class);
 
-    /**
-     * Parse result set from containers table
-     * @param resultSet
-     * @return
-     * @throws SQLException
-     */
     private static Container parseResultSet(ResultSet resultSet) throws SQLException {
         int id = resultSet.getInt("Id");
         String number = resultSet.getString("Number");
@@ -35,7 +30,7 @@ public class ContainerController {
     private static final String GET_RECORD_IDS_IN_CONTAINER =
             "SELECT Id FROM records " +
             "WHERE ContainerId = ?";
-    private static final List<Integer> getRecordIdsInContainer(int containerId) throws SQLException{
+    static final List<Integer> getRecordIdsInContainer(int containerId) throws SQLException{
         List<Integer> recordIds = new LinkedList<>();
         try (Connection connection = DbConnect.getConnection();
              PreparedStatement ps = connection.prepareStatement(GET_RECORD_IDS_IN_CONTAINER)) {
@@ -58,9 +53,17 @@ public class ContainerController {
              PreparedStatement ps = connection.prepareStatement(GET_CONTAINER_BY_ID)) {
             ps.setInt(1, id);
             try (ResultSet rs = ps.executeQuery()){
+                verifyResultNotEmpty(rs);
                 rs.next();
                 return parseResultSet(rs);
             }
+        }
+    }
+
+    //todo: consider moving this to a more general location to be used by other controllers
+    public static void verifyResultNotEmpty(ResultSet rs) throws SQLException {
+        if (!rs.isBeforeFirst()){
+            throw new NoResultsFoundException("The query returned no results");
         }
     }
 }

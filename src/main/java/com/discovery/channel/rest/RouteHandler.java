@@ -6,6 +6,9 @@ import com.discovery.channel.model.Container;
 import com.discovery.channel.model.Record;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.sql.SQLException;
@@ -28,7 +31,6 @@ public class RouteHandler {
             method = RequestMethod.GET)
     public Record getRecordById(@PathVariable("id") Integer id,
                                 @RequestParam("userId") int userId) throws SQLException {
-        LOGGER.info("Received request to get records by id {} from user {}", id, userId);
         return RecordController.getRecordById(id);
     }
 
@@ -45,7 +47,6 @@ public class RouteHandler {
             method = RequestMethod.GET)
     @ResponseBody
     public List<Record> getAllRecords(@RequestParam("userId") int userId) throws SQLException{
-        LOGGER.info("Retriving all records");
         return RecordController.getAllRecords();
 
     }
@@ -64,9 +65,25 @@ public class RouteHandler {
     @ResponseBody
     public List<Record> searchRecordsByNumber(@RequestParam("userId") int userId,
                                       @RequestParam("num") String num) throws SQLException{
-        LOGGER.info("Searching records by number {}", num);
         return RecordController.getRecordByNumber(num);
 
+    }
+
+    /**
+     * Update a record by record id
+     *
+     * @param
+     * @return a list of records filtered by search content
+     */
+    @RequestMapping(
+            value = "record",
+            params = {"userId"},
+            method = RequestMethod.POST,
+            consumes = MediaType.APPLICATION_JSON_UTF8_VALUE)
+    @ResponseBody
+    public ResponseEntity<Record> createRecord(@RequestParam("userId") int userId,
+                                               @RequestBody Record record) throws SQLException {
+        return new ResponseEntity(RecordController.createRecord(record, userId), HttpStatus.CREATED);
     }
 
     /**
