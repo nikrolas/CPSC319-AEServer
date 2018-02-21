@@ -1,6 +1,8 @@
 package com.discovery.channel.rest;
 
+import com.discovery.channel.database.ContainerController;
 import com.discovery.channel.database.RecordController;
+import com.discovery.channel.model.Container;
 import com.discovery.channel.model.Record;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -82,6 +84,18 @@ public class RouteHandler {
         return 1;
     }
 
-
-
+    /**
+     * Get a container by id
+     *
+     * @param  id
+     * @return the container with the given id
+     */
+    @RequestMapping(
+            value = "containers/{id}",
+            params = {"userId"},
+            method = RequestMethod.GET)
+    public Container getContainerById(@PathVariable("id") Integer id, @RequestParam("userId") int userId) throws SQLException{
+        LOGGER.info("Searching for container with id {}", id);
+        return ContainerController.getContainerById(id);
+    }
 }
