@@ -1,6 +1,8 @@
 package com.discovery.channel.database;
 
 import com.discovery.channel.model.Container;
+import com.google.gson.Gson;
+import com.google.gson.JsonElement;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -62,5 +64,11 @@ public class ContainerController {
         if (!rs.isBeforeFirst()){
             throw new NoResultsFoundException("The query returned no results");
         }
+    }
+
+    public static final Container createAndReturnNewContainer(String requestBody){
+        JsonElement element = new Gson().fromJson(requestBody, JsonElement.class);
+        int i=3;
+        return null;
     }
 }
