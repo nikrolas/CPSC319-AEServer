@@ -7,17 +7,15 @@ import lombok.Setter;
 import java.sql.Date;
 import java.util.List;
 
-@Getter
-@Setter
 @AllArgsConstructor
 public class Container {
 
-    private int id;
-    private String number;
-    private String title;
-    private Date createdAt;
-    private Date updatedAt;
-    private List<Integer> childRecordIds;
+    @Getter private int id;
+    @Getter private String number;
+    @Getter private String title;
+    @Getter private Date createdAt;
+    @Getter private Date updatedAt;
+    @Getter private List<Integer> childRecordIds;
 
     private String consignmentCode;
     private int stateId;
