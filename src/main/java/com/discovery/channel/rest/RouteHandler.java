@@ -2,6 +2,7 @@ package com.discovery.channel.rest;
 
 import com.discovery.channel.database.ContainerController;
 import com.discovery.channel.database.RecordController;
+import com.discovery.channel.form.UpdateRecordForm;
 import com.discovery.channel.model.Container;
 import com.discovery.channel.model.Record;
 import org.slf4j.Logger;
@@ -109,10 +110,11 @@ public class RouteHandler {
     @RequestMapping(
             value = "records/{id}",
             params = {"userId"},
-            method = RequestMethod.PUT)
-    public int updateOneRecord(@PathVariable("id") Integer id, @RequestParam("userId") int userId){
-        //Todo continue on updating a record
-        return 1;
+            method = RequestMethod.PUT,
+            consumes = MediaType.APPLICATION_JSON_UTF8_VALUE)
+    public Record updateOneRecord(@PathVariable("id") Integer id, @RequestParam("userId") int userId,  @RequestBody UpdateRecordForm updateForm) throws SQLException {
+        RecordController.updateRecord(id, userId, updateForm);
+        return RecordController.getRecordById(id);
     }
 
     /**
