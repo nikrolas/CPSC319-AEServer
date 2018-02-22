@@ -3,6 +3,7 @@ package com.discovery.channel.database;
 import com.discovery.channel.authenticator.Authenticator;
 import com.discovery.channel.authenticator.Role;
 import com.discovery.channel.exception.AuthenticationException;
+import com.discovery.channel.exception.NoResultsFoundException;
 import com.discovery.channel.model.Classification;
 import com.discovery.channel.model.Record;
 import com.discovery.channel.model.RecordState;
@@ -364,6 +365,42 @@ public class RecordController {
                 ps.addBatch();
             }
             ps.executeBatch();
+        }
+    }
+
+    /**
+     * Delete a record by Id
+     *
+     * @param id
+     * @param userId
+     * @return
+     */
+    private static final String DELETE_RECORD_BY_ID = "DELETE FROM records " +
+            "where Id=?";
+    public static boolean deleteRecord(Integer id, int userId) throws SQLException {
+        // TODO : delete note
+        // TODO : audit log
+        if (!Authenticator.authenticate(userId, Role.RMC)) {
+            throw new AuthenticationException(String.format("User %d is not authenticated to create record", userId));
+        }
+
+        Record record = getRecordById(id);
+
+        if (record == null) {
+            throw new NoResultsFoundException(String.format("Record %d does not exist", id));
+        }
+
+        if (!Authenticator.authenticateLocation(userId, record.getLocationId())) {
+            throw new AuthenticationException(String.format("User %d is not authenticated to delete record under localtion %d", userId, record.getLocationId()));
+        }
+
+        LOGGER.info("About to delete record {}", id);
+
+        try (Connection conn = DbConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(DELETE_RECORD_BY_ID)){
+            ps.setInt(1, id);
+            int rowsModified = ps.executeUpdate();
+            return rowsModified == 1;
         }
     }
 }

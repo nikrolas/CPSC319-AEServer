@@ -70,10 +70,10 @@ public class RouteHandler {
     }
 
     /**
-     * Update a record by record id
+     * Create a record
      *
      * @param
-     * @return a list of records filtered by search content
+     * @return record created
      */
     @RequestMapping(
             value = "record",
@@ -84,6 +84,20 @@ public class RouteHandler {
     public ResponseEntity<Record> createRecord(@RequestParam("userId") int userId,
                                                @RequestBody Record record) throws SQLException {
         return new ResponseEntity(RecordController.createRecord(record, userId), HttpStatus.CREATED);
+    }
+
+    /**
+     * Delete a record
+     *
+     * @param  id
+     * @return a list of records filtered by search content
+     */
+    @RequestMapping(
+            value = "record/{id}",
+            params = {"userId"},
+            method = RequestMethod.DELETE)
+    public boolean deleteRecord (@PathVariable("id") Integer id, @RequestParam("userId") int userId) throws SQLException {
+        return RecordController.deleteRecord(id, userId);
     }
 
     /**
