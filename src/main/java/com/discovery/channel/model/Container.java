@@ -2,7 +2,7 @@ package com.discovery.channel.model;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
-import lombok.Setter;
+import lombok.NonNull;
 
 import java.sql.Date;
 import java.util.List;
@@ -26,11 +26,11 @@ public class Container {
     private String scheduleName;
     private int type;
 
-    public Container(int id,
-                     String number,
-                     String title,
-                     Date createdAt,
-                     Date updatedAt,
+    public Container(@NonNull int id,
+                     @NonNull String number,
+                     @NonNull String title,
+                     @NonNull Date createdAt,
+                     @NonNull Date updatedAt,
                      List<Integer> childRecordIds){
         this.id = id;
         this.number = number;

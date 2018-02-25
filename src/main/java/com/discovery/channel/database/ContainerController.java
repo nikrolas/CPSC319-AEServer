@@ -2,11 +2,11 @@ package com.discovery.channel.database;
 
 import com.discovery.channel.model.Container;
 import com.google.gson.Gson;
-import com.google.gson.JsonElement;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.sql.*;
+import java.util.Calendar;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -66,9 +66,40 @@ public class ContainerController {
         }
     }
 
-    public static final Container createAndReturnNewContainer(String requestBody){
-        JsonElement element = new Gson().fromJson(requestBody, JsonElement.class);
-        int i=3;
-        return null;
+    public static final Container createAndReturnNewContainer(String requestBody) throws SQLException{
+        Container c = new Gson().fromJson(requestBody, Container.class);
+        Date createdAt = new Date(Calendar.getInstance().getTimeInMillis());
+        int id = getNewContainerId();
+        createNewContainer(c, createdAt, id);
+        return getContainerById(id);
+    }
+
+    private static final String GET_MAX_CONTAINER_ID =
+            "SELECT MAX(Id) FROM containers";
+    private static int getNewContainerId() throws SQLException {
+        try (Connection connection = DbConnect.getConnection();
+             PreparedStatement ps = connection.prepareStatement(GET_MAX_CONTAINER_ID)) {
+            try (ResultSet rs = ps.executeQuery()){
+                rs.next();
+                return rs.getInt("MAX(Id)") + 1;
+            }
+        }
+    }
+
+
+    private static final String CREATE_CONTAINER =
+            "INSERT INTO containers(Id, Number, Title, ConsignmentCode, CreatedAt, UpdatedAt)" +
+            "VALUES(?, ?, ?, ?, ?, ?)";
+    private static void createNewContainer(Container c, Date createdAt, int id) throws SQLException {
+        try (Connection connection = DbConnect.getConnection();
+             PreparedStatement ps = connection.prepareStatement(CREATE_CONTAINER)) {
+            ps.setInt(1, id);
+            ps.setString(2, c.getNumber());
+            ps.setString(3, c.getTitle());
+            ps.setString(4, "temporaryCode"); //todo: I think it would make more sense to have this be nullable
+            ps.setDate(5, createdAt);
+            ps.setDate(6, createdAt);
+            ps.executeUpdate();
+        }
     }
 }
