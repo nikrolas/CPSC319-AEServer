@@ -37,11 +37,13 @@ public class ContainerController {
         try (Connection connection = DbConnect.getConnection();
              PreparedStatement ps = connection.prepareStatement(GET_RECORD_IDS_IN_CONTAINER)) {
             ps.setInt(1, containerId);
-            ResultSet rs = ps.executeQuery();
-            while(rs.next()){
-                recordIds.add(rs.getInt("Id"));
+            try (ResultSet rs = ps.executeQuery()){
+                while(rs.next()){
+                    recordIds.add(rs.getInt("Id"));
+                }
+                return recordIds;
             }
-            return recordIds;
+
         }
     }
 
@@ -52,10 +54,18 @@ public class ContainerController {
         try (Connection connection = DbConnect.getConnection();
              PreparedStatement ps = connection.prepareStatement(GET_CONTAINER_BY_ID)) {
             ps.setInt(1, id);
-            ResultSet rs = ps.executeQuery();
-            verifyResultNotEmpty(rs);
-            rs.next();
-            return parseResultSet(rs);
+            try (ResultSet rs = ps.executeQuery()){
+                verifyResultNotEmpty(rs);
+                rs.next();
+                return parseResultSet(rs);
+            }
+        }
+    }
+
+    //todo: consider moving this to a more general location to be used by other controllers
+    public static void verifyResultNotEmpty(ResultSet rs) throws SQLException {
+        if (!rs.isBeforeFirst()){
+            throw new NoResultsFoundException("The query returned no results");
         }
     }
 
