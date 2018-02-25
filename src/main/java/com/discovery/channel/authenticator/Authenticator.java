@@ -61,7 +61,7 @@ public class Authenticator {
             "SELECT * FROM userlocations " +
                     "WHERE UserId = ?" +
                     " AND LocationId = ?";
-    public static boolean authenticateLocation(int userId, int locationId) throws SQLException {
+    public static boolean isUserAuthenticatedForLocation(int userId, int locationId) throws SQLException {
         try (Connection conn = DbConnect.getConnection();
              PreparedStatement ps = conn.prepareStatement(GET_USER_LOCATIONS)) {
             ps.setInt(1, userId);

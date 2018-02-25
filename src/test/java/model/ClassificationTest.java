@@ -14,7 +14,7 @@ public class ClassificationTest {
     private static final String VALID_CLASSIFICATION = "PROJECT MANAGEMENT/Budgets and Schedules";
     private static final String INVALID_CLASSIFICATION_SHORT = "PROJECT MANAGEMENT";
     private static final String INVALID_CLASSIFICATION_WRONG_ROOT = "Budgets and Schedules/PROJECT MANAGEMENT";
-    private static final String INVALID_CLASSIFICATION_NOT_EXIST = "PROJECT MANAGEMENT/A NON-EXISTENT CLASSIFICATION/";
+    private static final String INVALID_CLASSIFICATION_NOT_EXIST = "PROJECT MANAGEMENT/A NON-EXISTENT CLASSIFICATION";
 
     @Test
     public void testValidateClassifications() throws SQLException {

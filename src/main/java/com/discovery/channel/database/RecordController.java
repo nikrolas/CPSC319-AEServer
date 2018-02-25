@@ -1,9 +1,7 @@
 package com.discovery.channel.database;
 
-import ch.qos.logback.core.db.dialect.DBUtil;
 import com.discovery.channel.authenticator.Authenticator;
 import com.discovery.channel.authenticator.Role;
-import com.discovery.channel.common.Utils;
 import com.discovery.channel.exception.AuthenticationException;
 import com.discovery.channel.exception.NoResultsFoundException;
 import com.discovery.channel.form.UpdateRecordForm;
@@ -12,6 +10,7 @@ import com.discovery.channel.model.Record;
 import com.discovery.channel.model.RecordState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.util.StringUtils;
 
 import java.sql.*;
 import java.util.ArrayList;
@@ -286,7 +285,7 @@ public class RecordController {
             throw new AuthenticationException(String.format("User %d is not authenticated to create record", userId));
         }
 
-        if (!Authenticator.authenticateLocation(userId, record.getLocationId())) {
+        if (!Authenticator.isUserAuthenticatedForLocation(userId, record.getLocationId())) {
             throw new AuthenticationException(String.format("User %d is not authenticated to create record under localtion %d", userId, record.getLocationId()));
         }
 
@@ -393,7 +392,7 @@ public class RecordController {
             throw new NoResultsFoundException(String.format("Record %d does not exist", id));
         }
 
-        if (!Authenticator.authenticateLocation(userId, record.getLocationId())) {
+        if (!Authenticator.isUserAuthenticatedForLocation(userId, record.getLocationId())) {
             throw new AuthenticationException(String.format("User %d is not authenticated to delete record under localtion %d", userId, record.getLocationId()));
         }
 
@@ -420,20 +419,20 @@ public class RecordController {
             throw new NoResultsFoundException(String.format("Record %d does not exist", id));
         }
 
-        if (!Authenticator.authenticateLocation(userId, record.getLocationId())) {
+        if (!Authenticator.isUserAuthenticatedForLocation(userId, record.getLocationId())) {
             throw new AuthenticationException(String.format("User %d is not authenticated to update record under localtion %d", userId, record.getLocationId()));
         }
 
-        String newTitle = Utils.isEmptyString(updateForm.getTitle()) ? record.getTitle() : updateForm.getTitle();
+        String newTitle = StringUtils.isEmpty(updateForm.getTitle()) ? record.getTitle() : updateForm.getTitle();
         int newRetentionScheduleId = updateForm.getScheduleId() <=0? record.getScheduleId() : updateForm.getScheduleId();
         //TODO save notes
-        String newClassifications = Utils.isEmptyString(updateForm.getClassifications())? record.getClassifications() : updateForm.getClassifications();
+        String newClassifications = StringUtils.isEmpty(updateForm.getClassifications())? record.getClassifications() : updateForm.getClassifications();
         int newStateId = updateForm.getStateId() <= 0? record.getStateId() : updateForm.getStateId();
-        String newConsignmentCode = Utils.isEmptyString(updateForm.getConsignmentCode()) ? record.getConsignmentCode() : updateForm.getConsignmentCode();
+        String newConsignmentCode = StringUtils.isEmpty(updateForm.getConsignmentCode()) ? record.getConsignmentCode() : updateForm.getConsignmentCode();
         int newContainerId = updateForm.getContainerId() <= 0? record.getContainerId() : updateForm.getContainerId();
 
         // RMC can't move a record to a location tht they're not a part of
-        if (!Authenticator.authenticateLocation(userId, record.getLocationId())) {
+        if (!Authenticator.isUserAuthenticatedForLocation(userId, record.getLocationId())) {
             throw new AuthenticationException(String.format("User %d is not authenticated to update record under localtion %d", userId, record.getLocationId()));
         }
 

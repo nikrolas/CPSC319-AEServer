@@ -16,6 +16,8 @@ public class Classification {
     private static final String CLASSIFICATION_SEPARATOR = "/";
 
     private int id;
+    private String name;
+    private CLASSIFICATION_TYPE keyword;
 
     public int getId() {
         return id;
@@ -28,9 +30,6 @@ public class Classification {
     public CLASSIFICATION_TYPE getKeyword() {
         return keyword;
     }
-
-    private String name;
-    private CLASSIFICATION_TYPE keyword;
 
     public Classification(int id, String name, CLASSIFICATION_TYPE keyWord) {
         this.id = id;
