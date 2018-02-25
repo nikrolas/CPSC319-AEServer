@@ -69,13 +69,6 @@ public class ContainerController {
         }
     }
 
-    //todo: consider moving this to a more general location to be used by other controllers
-    public static void verifyResultNotEmpty(ResultSet rs) throws SQLException {
-        if (!rs.isBeforeFirst()){
-            throw new NoResultsFoundException("The query returned no results");
-        }
-    }
-
     public static final Container createAndReturnNewContainer(String requestBody) throws SQLException{
         Container c = new Gson().fromJson(requestBody, Container.class);
         Date createdAt = new Date(Calendar.getInstance().getTimeInMillis());
