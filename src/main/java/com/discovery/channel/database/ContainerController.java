@@ -1,5 +1,6 @@
 package com.discovery.channel.database;
 
+import com.discovery.channel.exception.NoResultsFoundException;
 import com.discovery.channel.model.Container;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

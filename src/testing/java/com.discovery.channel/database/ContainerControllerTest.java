@@ -1,5 +1,6 @@
 package com.discovery.channel.database;
 
+import com.discovery.channel.exception.NoResultsFoundException;
 import com.discovery.channel.model.Container;
 import org.junit.jupiter.api.Test;
 
@@ -9,8 +10,7 @@ import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.*;
+
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class ContainerControllerTest {
