@@ -28,7 +28,7 @@ public class RecordController {
      * @param recordNumber
      * @return a list of records
      */
-    private static final String GET_RECORD_BY_NUMBER = "SELECT Id FROM records " +
+    private static final String GET_RECORD_BY_NUMBER = "SELECT * FROM records " +
             "WHERE Number LIKE ? " +
             "ORDER BY UpdatedAt LIMIT 20";
     public static List<Record> getRecordByNumber(String recordNumber) throws SQLException {
@@ -52,7 +52,7 @@ public class RecordController {
      *
      * @return a list of records, currently limit 20 order by UpdatedAt
      */
-    private static final String GET_ALL_RECORDS = "SELECT Id " +
+    private static final String GET_ALL_RECORDS = "SELECT * " +
             "FROM records " +
             "ORDER BY UpdatedAt LIMIT 20";
     public static List<Record> getAllRecords() throws SQLException {
