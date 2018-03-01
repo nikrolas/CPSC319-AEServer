@@ -30,7 +30,9 @@ public class Application extends SpringBootServletInitializer{
                                 "http://aeclient.azurewebsites.net",
                                 "https://aeclient.azurewebsites.net",
                                 "http://localhost:3000",
-                                "http://localhost:5000");
+                                "http://localhost:5000")
+                        .allowedMethods("GET", "PUT", "POST", "DELETE",
+                                "HEAD", "OPTIONS");
             }
         };
     }
