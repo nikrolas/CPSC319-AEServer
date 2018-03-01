@@ -1,8 +1,16 @@
 package com.discovery.channel.database;
 
+import com.discovery.channel.authenticator.Authenticator;
+import com.discovery.channel.authenticator.Role;
+import com.discovery.channel.exception.AuthenticationException;
+import com.discovery.channel.exception.NoResultsFoundException;
+import com.discovery.channel.form.UpdateRecordForm;
+import com.discovery.channel.model.Classification;
 import com.discovery.channel.model.Record;
+import com.discovery.channel.model.RecordState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.util.StringUtils;
 
 import java.sql.*;
 import java.util.ArrayList;
@@ -20,7 +28,7 @@ public class RecordController {
      * @param recordNumber
      * @return a list of records
      */
-    private static final String GET_RECORD_BY_NUMBER = "SELECT Id FROM records " +
+    private static final String GET_RECORD_BY_NUMBER = "SELECT * FROM records " +
             "WHERE Number LIKE ? " +
             "ORDER BY UpdatedAt LIMIT 20";
     public static List<Record> getRecordByNumber(String recordNumber) throws SQLException {
@@ -44,7 +52,7 @@ public class RecordController {
      *
      * @return a list of records, currently limit 20 order by UpdatedAt
      */
-    private static final String GET_ALL_RECORDS = "SELECT Id " +
+    private static final String GET_ALL_RECORDS = "SELECT * " +
             "FROM records " +
             "ORDER BY UpdatedAt LIMIT 20";
     public static List<Record> getAllRecords() throws SQLException {
@@ -96,12 +104,18 @@ public class RecordController {
      */
     private static void loadRecordDetail(Record record) throws SQLException {
         record.setLocation(getLocationName(record.getLocationId()));
-        record.setType(getTypeName(record.getTypeId()));
+        record.setType(RecordTypeController.getTypeName(record.getTypeId()));
         record.setState(getStateName(record.getStateId()));
         record.setContainer(getContainerNumber(record.getContainerId()));
         Map<String, String> schedule = getRetentionSchedule(record.getScheduleId());
         record.setSchedule(schedule.get("Name"));
         record.setScheduleYear(Integer.valueOf(schedule.get("Years")));
+        List<Integer> classIds = getRecordClassifications(record.getId());
+        List<Classification> classifications = new ArrayList<>();
+        for (int classId : classIds) {
+            classifications.add(ClassificationController.findClassificationById(classId));
+        }
+        record.setClassifications(Classification.buildClassificationString(classifications));
     }
 
     /**
@@ -163,30 +177,6 @@ public class RecordController {
 
 
     /**
-     * Join records table with recordtypes table to get type name
-     *
-     * @param resultSet
-     * @return type name
-     */
-    private static final String GET_TYPE_BY_ID = "SELECT Name " +
-            "FROM recordtypes " +
-            "WHERE Id = ?";
-
-    private static String getTypeName(int typeId) throws SQLException {
-        try (Connection con = DbConnect.getConnection();
-             PreparedStatement ps = con.prepareStatement(GET_TYPE_BY_ID)) {
-            ps.setInt(1, typeId);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    return rs.getString("Name");
-                }
-            }
-        }
-        return null;
-    }
-
-
-    /**
      * retentionschedules table to get schedule name and years by Id
      *
      * @param retention schedule id
@@ -195,7 +185,6 @@ public class RecordController {
     private static final String GET_RECORD_SCHEDULE = "SELECT * " +
             "FROM retentionschedules " +
             "WHERE Id=?";
-
     private static Map<String, String> getRetentionSchedule(int id) throws SQLException {
         Map<String, String> schedule = new HashMap<String, String>();
         try (Connection con = DbConnect.getConnection();
@@ -258,4 +247,255 @@ public class RecordController {
         }
         return null;
     }
+
+    /**
+     * Get ordered list of classifications Ids for a record
+     *
+     * @param recordId
+     * @return
+     * @throws SQLException
+     */
+    private static final String GET_RECORD_CLASS_IDS =
+            "SELECT ClassId " +
+                    "FROM recordclassifications " +
+                    "WHERE RecordId=? ORDER BY Ordinal ASC";
+    private static List<Integer> getRecordClassifications(int recordId) throws SQLException {
+        List<Integer> classIds = new ArrayList<>();
+        try (Connection conn = DbConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(GET_RECORD_CLASS_IDS)) {
+            ps.setInt(1, recordId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    classIds.add(rs.getInt("ClassId"));
+                }
+            }
+        }
+        return classIds;
+    }
+
+    /**
+     * Create a record
+     *
+     * @param record
+     * @param userId
+     * @return
+     */
+    public static Record createRecord (Record record, int userId) throws SQLException {
+        if (!Authenticator.authenticate(userId, Role.RMC)) {
+            throw new AuthenticationException(String.format("User %d is not authenticated to create record", userId));
+        }
+
+        if (!Authenticator.isUserAuthenticatedForLocation(userId, record.getLocationId())) {
+            throw new AuthenticationException(String.format("User %d is not authenticated to create record under localtion %d", userId, record.getLocationId()));
+        }
+
+        if (!record.validateRecordNum()) {
+            throw new IllegalArgumentException(String.format("Invalid record number: %s for record type %d", record.getNumber(), record.getTypeId()));
+        }
+
+        if (!record.validateClassifications()) {
+            throw new IllegalArgumentException(String.format("Invalid classifications: %s", record.getClassifications()));
+        }
+
+        if (!record.validateRetentionSchedule()) {
+            throw new IllegalArgumentException(String.format("Invalid retention schedule: %s for record type %d", record.getScheduleId(), record.getTypeId()));
+        }
+
+        LOGGER.info("Passed all validation checks. Creating record {}", record);
+
+        record.setStateId(RecordState.ACTIVE.getId());
+
+        int newRecordId = saveRecordToDb(record);
+        if (newRecordId < 0) {
+            return null;
+        }
+        LOGGER.info("Created record. Record Id {}", newRecordId);
+        // TODO save notes
+        // TODO audit log : Need to determine the schema
+        return getRecordById(newRecordId);
+    }
+
+
+    private static final String CREATE_RECORD_SQL =
+            "INSERT INTO records (Number, Title, ScheduleId, TypeId, ConsignmentCode, StateId, ContainerId, LocationId, CreatedAt, UpdatedAt) " +
+            "VALUES(?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())";
+    private static int saveRecordToDb(Record record) throws SQLException {
+        try(Connection conn = DbConnect.getConnection();
+            PreparedStatement ps = conn.prepareStatement(CREATE_RECORD_SQL, Statement.RETURN_GENERATED_KEYS)) {
+            ps.setString(1, record.getNumber());
+            ps.setString(2, record.getTitle());
+            ps.setInt(3, record.getScheduleId());
+            ps.setInt(4, record.getTypeId());
+            ps.setString(5, record.getConsignmentCode() == null? "" : record.getConsignmentCode());
+            ps.setInt(6, record.getStateId());
+            if (record.getContainerId() <= 0){
+                ps.setNull(7, java.sql.Types.INTEGER);
+            }else {
+                ps.setInt(7, record.getContainerId());
+            }
+            ps.setInt(8,record.getLocationId());
+            ps.executeUpdate();
+
+            int newRecordId = -1;
+            try (ResultSet rs = ps.getGeneratedKeys()) {
+                if (rs.next()) {
+                    newRecordId =  rs.getInt(1);
+                }
+            }
+
+            if (newRecordId < 0) {
+                LOGGER.error("Failed to save new record to DB. Returning -1");
+                return -1;
+            }
+            // TODO notes
+            saveClassificationForRecord(newRecordId, record.getClassifications());
+            return newRecordId;
+        }
+    }
+
+    private static final String INSERT_RECORD_CLASSIFICATION =
+            "INSERT INTO recordclassifications (RecordId, ClassId, Ordinal) " +
+            "VALUES (?, ?, ?)";
+    private static void saveClassificationForRecord(int recordId, String classificationStr) throws SQLException {
+        List<Integer> classificationIds = Classification.parseClassificationStrToIds(classificationStr);
+        try (Connection conn = DbConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(INSERT_RECORD_CLASSIFICATION)){
+            for (int i = 0; i < classificationIds.size(); i++) {
+                ps.setInt(1, recordId);
+                ps.setInt(2, classificationIds.get(i));
+                ps.setInt(3, i);
+                ps.addBatch();
+            }
+            ps.executeBatch();
+        }
+    }
+
+    /**
+     * Delete a record by Id
+     *
+     * @param id
+     * @param userId
+     * @return
+     */
+    private static final String DELETE_RECORD_BY_ID = "DELETE FROM records " +
+            "where Id=?";
+    public static boolean deleteRecord(Integer id, int userId) throws SQLException {
+        // TODO : delete note
+        // TODO : audit log
+        if (!Authenticator.authenticate(userId, Role.RMC)) {
+            throw new AuthenticationException(String.format("User %d is not authenticated to delete record", userId));
+        }
+
+        Record record = getRecordById(id);
+
+        if (record == null) {
+            throw new NoResultsFoundException(String.format("Record %d does not exist", id));
+        }
+
+        if (!Authenticator.isUserAuthenticatedForLocation(userId, record.getLocationId())) {
+            throw new AuthenticationException(String.format("User %d is not authenticated to delete record under localtion %d", userId, record.getLocationId()));
+        }
+
+        LOGGER.info("About to delete record {}", id);
+
+        try (Connection conn = DbConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(DELETE_RECORD_BY_ID)){
+            ps.setInt(1, id);
+            int rowsModified = ps.executeUpdate();
+            return rowsModified == 1;
+        }
+    }
+
+    private static final String UPDATE_RECORD = "UPDATE records " +
+            "SET Title=?, ScheduleId=?, StateId=?, ConsignmentCode=?,ContainerId=?, UpdatedAt=NOW() " +
+            "WHERE Id= ?";
+    public static void updateRecord(Integer id, int userId, UpdateRecordForm updateForm) throws SQLException {
+        if (!Authenticator.authenticate(userId, Role.RMC)) {
+            throw new AuthenticationException(String.format("User %d is not authenticated to update record", userId));
+        }
+
+        Record record = getRecordById(id);
+        if (record == null) {
+            throw new NoResultsFoundException(String.format("Record %d does not exist", id));
+        }
+
+        if (!Authenticator.isUserAuthenticatedForLocation(userId, record.getLocationId())) {
+            throw new AuthenticationException(String.format("User %d is not authenticated to update record under localtion %d", userId, record.getLocationId()));
+        }
+
+        String newTitle = StringUtils.isEmpty(updateForm.getTitle()) ? record.getTitle() : updateForm.getTitle();
+        int newRetentionScheduleId = updateForm.getScheduleId() <=0? record.getScheduleId() : updateForm.getScheduleId();
+        //TODO save notes
+        String newClassifications = StringUtils.isEmpty(updateForm.getClassifications())? record.getClassifications() : updateForm.getClassifications();
+        int newStateId = updateForm.getStateId() <= 0? record.getStateId() : updateForm.getStateId();
+        String newConsignmentCode = StringUtils.isEmpty(updateForm.getConsignmentCode()) ? record.getConsignmentCode() : updateForm.getConsignmentCode();
+        int newContainerId = updateForm.getContainerId() <= 0? record.getContainerId() : updateForm.getContainerId();
+
+        // RMC can't move a record to a location tht they're not a part of
+        if (!Authenticator.isUserAuthenticatedForLocation(userId, record.getLocationId())) {
+            throw new AuthenticationException(String.format("User %d is not authenticated to update record under localtion %d", userId, record.getLocationId()));
+        }
+
+        // Only certain types of states are valid for certain retention schedules
+        if (!RecordState.fromId(newStateId).isValidforRetentionSchedule(newRetentionScheduleId > 0)) {
+            throw new IllegalArgumentException(String.format("State %d is not valid for retention schedule %d", newStateId, newRetentionScheduleId));
+        }
+
+        // Validate classifications
+        if (!Classification.validateClassification(newClassifications)) {
+            throw new IllegalArgumentException(String.format("Classification %s is not valid", newClassifications));
+        }
+
+        LOGGER.info("About to update record {}", id);
+
+        try (Connection conn = DbConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(UPDATE_RECORD)) {
+            ps.setString(1, newTitle);
+            ps.setInt(2, newRetentionScheduleId);
+            ps.setInt(3, newStateId);
+            ps.setString(4, newConsignmentCode);
+            ps.setInt(5, newContainerId);
+            ps.setInt(6, id);
+
+            ps.executeUpdate();
+        }
+
+        // Update classifications if need to
+        if (!newClassifications.equals(record.getClassifications())) {
+            updateRecordClassifications(id, newClassifications);
+        }
+
+        //TODO audit logs
+    }
+
+    /**
+     * Delete old classifications and insert new ones
+     * Assuming classification string is valid
+     *
+     * @param recordId
+     * @param newClassifications
+     */
+    private static void updateRecordClassifications(int recordId, String newClassifications) throws SQLException {
+        deleteRecordClassfications(recordId);
+        saveClassificationForRecord(recordId, newClassifications);
+    }
+
+
+    /**
+     * Delete all classifications for a record
+     *
+     * @param recordId
+     * @throws SQLException
+     */
+    private static final String DELETE_RECORD_CLASSIFICATIONS = "DELETE " +
+            "FROM recordclassifications " +
+            "WHERE RecordId=?";
+    private static void deleteRecordClassfications(int recordId) throws SQLException {
+        try (Connection conn = DbConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(DELETE_RECORD_CLASSIFICATIONS)){
+            ps.setInt(1, recordId);
+            ps.executeUpdate();
+        }
+    }
+
 }
