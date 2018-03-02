@@ -9,7 +9,6 @@ import org.slf4j.LoggerFactory;
 import java.sql.Connection;
 import java.sql.SQLException;
 
-
 public class DbConnect {
     private static final Logger LOGGER = LoggerFactory.getLogger(DbConnect.class);
     private static DefaultProperties PROPERTIES = DefaultProperties.getInstance();
@@ -17,6 +16,7 @@ public class DbConnect {
     private static String HOSTNAME = PROPERTIES.getProperty("DATABASE.HOST");
     public static int PORT = PROPERTIES.getIntProperty("DATABASE.PORT");
     public static final String DRIVER = PROPERTIES.getProperty("DATABASE.DRIVER");
+    public static final String DRIVER_NAME = PROPERTIES.getProperty("DATABASE.DRIVER_NAME");
     public static final String USERNAME = PROPERTIES.getProperty("DATABASE.USERNAME");
     public static final String PASSWORD = PROPERTIES.getProperty("DATABASE.PASSWORD");
     public static final String DEFAULT_DATABASE = PROPERTIES.getProperty("DATABASE");
@@ -27,13 +27,13 @@ public class DbConnect {
 
     static {
         HikariConfig config = new HikariConfig();
+        config.setDriverClassName(DRIVER_NAME);
         config.setJdbcUrl(getJdbcUrl());
         config.setUsername(USERNAME);
         config.setPassword(PASSWORD);
         config.addDataSourceProperty("cachePrepStmts", "true");
         config.addDataSourceProperty("prepStmtCacheSize", "250");
         config.addDataSourceProperty("prepStmtCacheSqlLimit", "2048");
-
 
         dataSource = new HikariDataSource(config);
     }

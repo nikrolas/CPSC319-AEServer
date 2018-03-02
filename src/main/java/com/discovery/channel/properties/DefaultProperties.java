@@ -2,7 +2,10 @@ package com.discovery.channel.properties;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.Resource;
 
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -12,21 +15,24 @@ import java.util.Properties;
  * Created by Qiushan on 2018/1/26.
  */
 public class DefaultProperties extends Properties{
+
     private static Logger logger = LoggerFactory.getLogger(DefaultProperties.class);
 
     private static DefaultProperties INSTANCE;
 
-    private static String PROPERTIES_PATH = System.getProperty("propertiesPath", "./config/defaults.properties");
+    private static Resource PROPERTIES_RESOURCE = new ClassPathResource("defaults.properties");
 
     // Hide constructor
     private DefaultProperties() {}
 
     private static void init(){
-        logger.info("Initialising system properties from path {}", PROPERTIES_PATH);
         INSTANCE = new DefaultProperties();
         try {
-            InputStream inputStream = new FileInputStream(PROPERTIES_PATH);
-            INSTANCE.load(inputStream);
+            logger.info("Initialising system properties from path {}", PROPERTIES_RESOURCE.getURL());
+
+            File PROPERTIES_FILE = PROPERTIES_RESOURCE.getFile();
+            InputStream properties = new FileInputStream(PROPERTIES_FILE);
+            INSTANCE.load(properties);
         } catch (IOException e) {
             logger.error("Failed to load system properties", e.getMessage());
         }

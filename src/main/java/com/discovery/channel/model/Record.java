@@ -1,4 +1,5 @@
 package com.discovery.channel.model;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
@@ -7,7 +8,6 @@ import lombok.Setter;
 
 import java.sql.Date;
 import java.sql.SQLException;
-import java.util.List;
 
 /**
  * Created by Qiushan on 2018/1/20.
@@ -30,7 +30,7 @@ public class Record {
     private Date updatedAt;
     private Date closedAt;
 
-    // verbose
+    // Verbose
     private String location;
     private String schedule;
     private String type;
@@ -88,75 +88,6 @@ public class Record {
         this.classifications = classifications;
         this.notes = notes;
     }
-
-    public int getId() {return id;}
-
-    public int getScheduleId() {
-        return scheduleId;
-    }
-
-    public int getTypeId() {
-        return typeId;
-    }
-
-    public int getStateId() {
-        return stateId;
-    }
-
-    public int getContainerId() {
-        return containerId;
-    }
-
-    public int getLocationId() {
-        return locationId;
-    }
-
-    public String getClassifications() {return classifications;}
-
-    public String getNumber() {
-        return number;
-    }
-
-    public String getTitle() {
-        return title;
-    }
-
-    public String getConsignmentCode() {
-        return consignmentCode;
-    }
-
-    public void setLocation(String location) {
-        this.location = location;
-    }
-
-    public void setSchedule(String schedule) {
-        this.schedule = schedule;
-    }
-
-    public void setType(String type) {
-        this.type = type;
-    }
-
-    public void setStateId(int state) {
-        this.stateId = state;
-    }
-
-    public void setState(String state) {
-        this.state = state;
-    }
-
-    public void setContainer(String container) {
-        this.container = container;
-    }
-
-    public void setScheduleYear(int scheduleYear) {
-        this.scheduleYear = scheduleYear;
-    }
-
-    public void setClassifications(String classifications) {
-        this.classifications = classifications;
-    }
-
 
     /**
      * Validate record number format based on record type

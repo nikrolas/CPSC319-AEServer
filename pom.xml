@@ -11,12 +11,12 @@
         <tomcat.version>7.0.84</tomcat.version>
 
         <!--For WAR deployment-->
-        <!--<start-class>com.discovery.channel.Application</start-class>-->
+        <start-class>com.discovery.channel.Application</start-class>
 
     </properties>
 
     <!--For WAR deployment-->
-    <!--<packaging>war</packaging>-->
+    <packaging>war</packaging>
 
     <groupId>com.discovery.channel</groupId>
     <artifactId>DiscoveryChannel</artifactId>
@@ -30,11 +30,11 @@
 
     <dependencies>
         <!--For WAR deployment-->
-        <!--<dependency>-->
-            <!--<groupId>org.springframework.boot</groupId>-->
-            <!--<artifactId>spring-boot-starter-tomcat</artifactId>-->
-            <!--<scope>provided</scope>-->
-        <!--</dependency>-->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-tomcat</artifactId>
+            <scope>provided</scope>
+        </dependency>
 
         <dependency>
             <groupId>org.springframework.boot</groupId>
