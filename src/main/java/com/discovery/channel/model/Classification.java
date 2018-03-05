@@ -1,6 +1,9 @@
 package com.discovery.channel.model;
 
 import com.discovery.channel.database.ClassificationController;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.Setter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -10,6 +13,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@Getter
+@AllArgsConstructor
 public class Classification {
     private static final Logger LOGGER = LoggerFactory.getLogger(Classification.class);
 
@@ -18,24 +23,6 @@ public class Classification {
     private int id;
     private String name;
     private CLASSIFICATION_TYPE keyword;
-
-    public int getId() {
-        return id;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public CLASSIFICATION_TYPE getKeyword() {
-        return keyword;
-    }
-
-    public Classification(int id, String name, CLASSIFICATION_TYPE keyWord) {
-        this.id = id;
-        this.name = name;
-        this.keyword = keyWord;
-    }
 
     public enum CLASSIFICATION_TYPE {
         // T means valid for root type

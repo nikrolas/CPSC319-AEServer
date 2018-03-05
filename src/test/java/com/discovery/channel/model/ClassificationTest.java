@@ -1,14 +1,13 @@
-package model;
+package com.discovery.channel.model;
 
-import com.discovery.channel.model.Classification;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class ClassificationTest {
     private static final String INVALID_CLASS_HIERARCHY = "PROJECT MANAGEMENT/Budgets and Schedules";

@@ -2,20 +2,20 @@ package com.discovery.channel.model;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
-import lombok.Setter;
 
 import java.sql.Date;
 import java.util.List;
 
+@Getter
 @AllArgsConstructor
 public class Container {
 
-    @Getter private int id;
-    @Getter private String number;
-    @Getter private String title;
-    @Getter private Date createdAt;
-    @Getter private Date updatedAt;
-    @Getter private List<Integer> childRecordIds;
+    private int id;
+    private String number;
+    private String title;
+    private Date createdAt;
+    private Date updatedAt;
+    private List<Integer> childRecordIds;
 
     private String consignmentCode;
     private int stateId;

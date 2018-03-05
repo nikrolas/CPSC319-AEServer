@@ -3,7 +3,7 @@ package model;
 import com.discovery.channel.model.RecordNumber;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class TestRecordNumber {
     // type id 70

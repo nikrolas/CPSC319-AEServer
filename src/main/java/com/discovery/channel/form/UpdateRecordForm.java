@@ -2,7 +2,9 @@ package com.discovery.channel.form;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.Getter;
 
+@Getter
 public class UpdateRecordForm {
     private String title;
     private int scheduleId;
@@ -27,33 +29,5 @@ public class UpdateRecordForm {
         this.notes = notes;
         this.stateId = stateId;
         this.containerId = containerId;
-    }
-
-    public String getTitle() {
-        return title;
-    }
-
-    public int getScheduleId() {
-        return scheduleId;
-    }
-
-    public String getClassifications() {
-        return classifications;
-    }
-
-    public String getConsignmentCode() {
-        return consignmentCode;
-    }
-
-    public String getNotes() {
-        return notes;
-    }
-
-    public int getStateId() {
-        return stateId;
-    }
-
-    public int getContainerId() {
-        return containerId;
     }
 }
