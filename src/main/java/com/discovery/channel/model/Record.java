@@ -1,4 +1,5 @@
 package com.discovery.channel.model;
+import com.discovery.channel.database.RecordTypeController;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
@@ -162,9 +163,8 @@ public class Record {
      * Validate record number format based on record type
      * @return
      */
-    public boolean validateRecordNum() {
-        // TODO
-        return true;
+    public boolean validateRecordNum(RecordNumber.NUMBER_PATTERN pattern) {
+        return pattern.match(number);
     }
 
     /**
@@ -174,11 +174,6 @@ public class Record {
      */
     public boolean validateClassifications() throws SQLException {
         return Classification.validateClassification(classifications);
-    }
-
-    public boolean validateRetentionSchedule() {
-        // TODO
-        return true;
     }
 }
 
