@@ -3,7 +3,6 @@ package com.discovery.channel.model;
 import com.discovery.channel.database.ClassificationController;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
-import lombok.Setter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -89,7 +88,7 @@ public class Classification {
 
         for (int i = 0; i < classifications.size() - 1; i ++) {
             Classification classification = classifications.get(i);
-            List<Integer> validChildren = ClassificationController.findChildrenClassifications(classification.id);
+            List<Integer> validChildren = ClassificationController.findChildrenClassificationIds(classification.id);
             if (!validChildren.contains(classifications.get(i + 1).id)) {
                 LOGGER.info("Classification {} is not a valid child classification for {}", classifications.get(i + 1).id, classification.id);
                 return false;
