@@ -3,10 +3,10 @@
 <Configuration status="info">
     <Appenders>
         <Console name="Console" target="SYSTEM_OUT">
-            <PatternLayout pattern="%d [%-6p] %c{3} - %m%n"/>
+            <PatternLayout pattern="%d [%-6p] %c{3} - %m - requestId=%X{Request.id} %n"/>
         </Console>
         <RollingFile name="RollingFile" fileName="/tmp/log/cs319.log" filePattern="/tmp/log/cs319-%d{yyyy-MM-dd}-%i.log.gz">
-            <PatternLayout pattern="%d [%-6p] %c{3} - %m%n"/>
+            <PatternLayout pattern="%d [%-6p] %c{3} - %m - requestId=%X{Request.id} %n"/>
             <Policies>
                 <TimeBasedTriggeringPolicy interval="24" modulate="true"/>
             </Policies>
