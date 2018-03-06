@@ -77,10 +77,23 @@ public class Classification {
             classifications.add(classification);
         }
 
+        return validateClassHierarchy(classifications);
+    }
+
+    private static boolean validateClassHierarchy(List<Classification> classifications) throws SQLException {
         // Root classification must be of type 'T'
         if (classifications.get(0).getKeyword() != CLASSIFICATION_TYPE.T) {
-            LOGGER.info("Classification String {} invalid. Root must be of type 'T'", classificationStr);
+            LOGGER.info("Classification invalid. Root must be of type 'T'", classifications.get(0).name);
             return false;
+        }
+
+        for (int i = 0; i < classifications.size() - 1; i ++) {
+            Classification classification = classifications.get(i);
+            List<Integer> validChildren = ClassificationController.findChildrenClassifications(classification.id);
+            if (!validChildren.contains(classifications.get(i + 1).id)) {
+                LOGGER.info("Classification {} is not a valid child classification for {}", classifications.get(i + 1).id, classification.id);
+                return false;
+            }
         }
 
         return true;

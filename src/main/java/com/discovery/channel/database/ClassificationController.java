@@ -6,6 +6,8 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
 
 public class ClassificationController {
 
@@ -61,4 +63,27 @@ public class ClassificationController {
         }
         return null;
     }
+
+    /**
+     * Find valid children classification Ids
+     * @param clasId
+     * @return
+     */
+    private static final String FIND_CHILDREN_CLASS = "SELECT ChildId " +
+            "FROM classhierarchy " +
+            "WHERE ParentId = ?";
+    public static List<Integer> findChildrenClassifications(int classId) throws SQLException {
+        List<Integer> childIds = new ArrayList<>();
+        try(Connection conn = DbConnect.getConnection();
+            PreparedStatement ps = conn.prepareStatement(FIND_CHILDREN_CLASS)) {
+            ps.setInt(1, classId);
+            try(ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    childIds.add(rs.getInt("ChildId"));
+                }
+            }
+        }
+        return childIds;
+    }
+
 }

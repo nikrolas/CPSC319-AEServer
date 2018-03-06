@@ -27,4 +27,22 @@ public class RecordTypeController {
         }
         return null;
     }
+
+
+    private static final String GET_NUMBER_PATTERN_BY_ID =
+            "SELECT NumberPattern " +
+                    "FROM recordtypes " +
+                    "WHERE Id = ?";
+    public static String getNumberPattern(int typeId) throws SQLException {
+        try (Connection con = DbConnect.getConnection();
+             PreparedStatement ps = con.prepareStatement(GET_NUMBER_PATTERN_BY_ID)) {
+            ps.setInt(1, typeId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getString("NumberPattern");
+                }
+            }
+        }
+        return null;
+    }
 }
