@@ -1,4 +1,4 @@
-package model;
+package com.discovery.channel.model;
 
 import com.discovery.channel.model.RecordNumber;
 import org.junit.jupiter.api.Test;

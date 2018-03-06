@@ -1,4 +1,4 @@
-package model;
+package com.discovery.channel.database;
 
 import com.discovery.channel.database.RecordController;
 import com.discovery.channel.model.Record;

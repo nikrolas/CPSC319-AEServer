@@ -1,8 +1,10 @@
 package com.discovery.channel.rest;
 
+import com.discovery.channel.database.ClassificationController;
 import com.discovery.channel.database.ContainerController;
 import com.discovery.channel.database.RecordController;
 import com.discovery.channel.form.UpdateRecordForm;
+import com.discovery.channel.model.Classification;
 import com.discovery.channel.model.Container;
 import com.discovery.channel.model.Record;
 
@@ -95,6 +97,36 @@ public class RouteHandler {
         return new ResponseEntity(RecordController.createRecord(record, userId), HttpStatus.CREATED);
     }
 
+    //START OF Facilitating endpoints for creating records
+
+    /**
+     * Get all root classifications
+     * @return
+     * @throws SQLException
+     */
+    @RequestMapping(
+            value = "classifications",
+            method = RequestMethod.GET)
+    @ResponseBody
+    public List<Classification> getRootClassifications() throws SQLException{
+        return ClassificationController.getRootClassifications();
+
+    }
+
+    /**
+     * Get all valid child classifications of the specified parent id
+     */
+    @RequestMapping(
+            value = "classifications",
+            params = {"parentId"},
+            method = RequestMethod.GET)
+    public List<Classification> getChildClassifications(@RequestParam("parentId") int parentId) throws SQLException {
+        return ClassificationController.findChildrenClassifications(parentId);
+    }
+
+
+    // END OF Facilitating endpoints for creating records
+
     /**
      * Delete a record
      *
@@ -124,6 +156,7 @@ public class RouteHandler {
         RecordController.updateRecord(id, userId, updateForm);
         return RecordController.getRecordById(id);
     }
+
 
     /**
      * Get a container by id

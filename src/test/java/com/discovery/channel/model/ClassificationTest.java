@@ -1,5 +1,7 @@
 package com.discovery.channel.model;
 
+import com.discovery.channel.model.Classification;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.sql.SQLException;
@@ -21,7 +23,7 @@ public class ClassificationTest {
     public void testValidateClassifications() throws SQLException {
         List<String> invalidStrings = Arrays.asList(INVALID_CLASSIFICATION_NOT_EXIST, INVALID_CLASSIFICATION_SHORT, INVALID_CLASS_HIERARCHY, INVALID_CLASSIFICATION_WRONG_ROOT);
         for (String invalidClass : invalidStrings) {
-            assertFalse(Classification.validateClassification(invalidClass));
+            Assertions.assertFalse(Classification.validateClassification(invalidClass));
         }
         assertTrue(Classification.validateClassification(VALID_CLASSIFICATION));
     }
