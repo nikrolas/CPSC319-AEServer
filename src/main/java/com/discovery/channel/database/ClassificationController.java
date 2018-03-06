@@ -11,7 +11,9 @@ import java.util.List;
 
 public class ClassificationController {
 
-    private static final String FIND_ROOT_CLASSIFICATIONS = "SELECT * FROM classifications WHERE KeyWord = ?";
+    private static final String FIND_ROOT_CLASSIFICATIONS = "SELECT Id, Name, Keyword " +
+            "FROM classifications " +
+            "WHERE KeyWord = ?";
     public static List<Classification> getRootClassifications() throws SQLException {
         List<Classification> classifications = new ArrayList<>();
         try(Connection conn = DbConnect.getConnection();
@@ -36,7 +38,7 @@ public class ClassificationController {
      * @throws SQLException
      */
     private static final String FIND_CLASSIFICATION_BY_NAME =
-            "SELECT * " +
+            "SELECT Id, Name, KeyWord " +
                     "FROM classifications " +
                     "WHERE Name = ?";
     public static Classification findClassificationByName(String name) throws SQLException {
@@ -62,7 +64,7 @@ public class ClassificationController {
      * @throws SQLException
      */
     private static final String FIND_CLASSIFICATION_BY_ID=
-            "SELECT * " +
+            "SELECT Id, Name, KeyWord " +
                     "FROM classifications " +
                     "WHERE Id = ?";
     public static Classification findClassificationById(int id) throws SQLException {
@@ -109,7 +111,7 @@ public class ClassificationController {
      */
     private static final String FIND_CHILDREN_CLASS = "SELECT c.Id AS Id, Name, KeyWord " +
             "FROM classhierarchy ch " +
-            "LEFT JOIN  classifications c " +
+            "INNER JOIN  classifications c " +
             "ON ch.childId = c.Id " +
             "WHERE ch.ParentId = ?";
     public static List<Classification> findChildrenClassifications(int parentId) throws SQLException {
