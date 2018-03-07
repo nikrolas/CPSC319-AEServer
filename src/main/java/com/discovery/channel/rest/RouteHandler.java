@@ -196,4 +196,19 @@ public class RouteHandler {
         LOGGER.info("Searching for container with id {}", id);
         return ContainerController.getContainerById(id);
     }
+
+
+    /**
+     * Get a user by id
+     *
+     * @param  id
+     * @return the user with the given user id
+     */
+    @RequestMapping(
+            value = "users/{id}",
+            method = RequestMethod.GET)
+    public User getUserById(@PathVariable("id") Integer id) throws SQLException{
+        LOGGER.info("Searching for user with id {}", id);
+        return UserController.getUserById(id);
+    }
 }
