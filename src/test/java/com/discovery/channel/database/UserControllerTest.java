@@ -17,8 +17,12 @@ public class UserControllerTest {
         assertEquals("reichertb", user.getUserId());
         assertEquals("Blaise", user.getFirstName());
         assertEquals("Reichert", user.getLastName());
+
         assertEquals(1, user.getRoleId());
         assertEquals("Administrator", user.getRole());
+
+        assertEquals(51, user.getLocationId());
+        assertEquals("Toronto", user.getLocation());
 
     }
 

@@ -36,7 +36,8 @@ public class UserController {
     }
 
     /**
-     * Get user by given id
+     * Get user by given user id
+     * @param Id
      * @return user
      * @throws SQLException
      */
@@ -74,22 +75,25 @@ public class UserController {
 
         user.setRoleId(getRoleIdById(user.getId()));
         user.setRole(Role.fromRoleId(user.getRoleId()).getRoleName());
+        user.setLocationId(getLocationIdById(user.getId()));
+        user.setLocation(LocationController.getLocationNameById(user.getLocationId()));
 
     }
 
 
     /**
-     * Load user RoleId given UserId
+     * Load user RoleId given User Id
      *
-     * @param userId
+     * @param id
+     * @return RoleId
      * @throws SQLException
      */
-    public static final String GET_ROLEID_BY_ID =
+    public static final String GET_ROLE_ID_BY_ID =
             "SELECT RoleId " + "FROM userroles WHERE UserId = ?";
     private static int getRoleIdById(Integer id) throws SQLException{
 
         try (Connection con = DbConnect.getConnection();
-             PreparedStatement ps = con.prepareStatement(GET_ROLEID_BY_ID)) {
+             PreparedStatement ps = con.prepareStatement(GET_ROLE_ID_BY_ID)) {
             ps.setInt(1, id);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
@@ -98,7 +102,34 @@ public class UserController {
             }
         }
 
-        LOGGER.info("RoleId {} does not exist", id);
+        LOGGER.info("User {} does not exist", id);
+        return 0;
+
+    }
+
+
+    /**
+     * Load user LocationId given User Id
+     *
+     * @param id
+     * @return LocationId
+     * @throws SQLException
+     */
+    public static final String GET_LOCATION_ID_BY_ID =
+            "SELECT LocationId " + "FROM userlocations WHERE UserId = ?";
+    private static int getLocationIdById(Integer id) throws SQLException{
+
+        try (Connection con = DbConnect.getConnection();
+             PreparedStatement ps = con.prepareStatement(GET_LOCATION_ID_BY_ID)) {
+            ps.setInt(1, id);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt("LocationId");
+                }
+            }
+        }
+
+        LOGGER.info("User {} does not exist", id);
         return 0;
 
     }

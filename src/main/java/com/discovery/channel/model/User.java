@@ -10,6 +10,9 @@ public class User {
     private int roleId;
     private String role;
 
+    private int locationId;
+    private String location;
+
     public User(Integer id, String userId, String firstName, String lastName) {
         this.id = id;
         this.userId = userId;
@@ -64,5 +67,21 @@ public class User {
 
     public void setRole(String role) {
         this.role = role;
+    }
+
+    public int getLocationId() {
+        return locationId;
+    }
+
+    public void setLocationId(int locationId) {
+        this.locationId = locationId;
+    }
+
+    public String getLocation() {
+        return location;
+    }
+
+    public void setLocation(String location) {
+        this.location = location;
     }
 }
