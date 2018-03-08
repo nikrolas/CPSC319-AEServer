@@ -196,4 +196,19 @@ public class RouteHandler {
         LOGGER.info("Searching for container with id {}", id);
         return ContainerController.getContainerById(id);
     }
+
+    /**
+     * Create a container
+     *
+     * @return the newly created container
+     */
+    @RequestMapping(
+            value = "container",
+            params = {"userId"},
+            method = RequestMethod.POST)
+    public ResponseEntity<Container> createContainer(@RequestParam("userId") int userId,
+                                                     @RequestBody Container container)  throws SQLException{
+        return new ResponseEntity<>(ContainerController.createContainer(container, userId), HttpStatus.CREATED);
+    }
+
 }
