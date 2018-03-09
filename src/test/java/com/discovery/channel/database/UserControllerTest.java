@@ -12,7 +12,7 @@ public class UserControllerTest {
     @Test
     void getUserById() throws SQLException{
 
-        User user = UserController.getUserById(1);
+        User user = UserController.getUserByUserTableId(1);
         assertEquals(1, user.getId());
         assertEquals("reichertb", user.getUserId());
         assertEquals("Blaise", user.getFirstName());
