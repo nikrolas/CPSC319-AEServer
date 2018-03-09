@@ -10,13 +10,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseBody;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.sql.SQLException;
 import java.util.List;
@@ -210,4 +204,20 @@ public class RouteHandler {
         LOGGER.info("Searching for container with id {}", id);
         return ContainerController.getContainerById(id);
     }
+
+
+    /**
+     * Get a user by id in user table
+     *
+     * @param  id
+     * @return the user with the given user id
+     */
+    @RequestMapping(
+            value = "users/{id}",
+            method = RequestMethod.GET)
+    public User getUserByUserTableId(@PathVariable("id") Integer id) throws SQLException{
+        LOGGER.info("Searching for user with id {}", id);
+        return UserController.getUserByUserTableId(id);
+    }
+
 }
