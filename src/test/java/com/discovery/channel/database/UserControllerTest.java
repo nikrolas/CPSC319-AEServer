@@ -6,6 +6,8 @@ import org.junit.jupiter.api.Test;
 import java.sql.SQLException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 public class UserControllerTest {
 
@@ -21,8 +23,9 @@ public class UserControllerTest {
         assertEquals(1, user.getRoleId());
         assertEquals("Administrator", user.getRole());
 
-        assertEquals(51, user.getLocationId());
-        assertEquals("Toronto", user.getLocation());
+        assertFalse(user.getLocations().isEmpty());
+        assertEquals(51, user.getLocations().get(0).getLocationId());
+        assertEquals("Toronto", user.getLocations().get(0).getLocationName());
 
     }
 
