@@ -6,7 +6,10 @@ import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
 
 public class AuditLogger {
     private static final Logger LOGGER = LoggerFactory.getLogger(AuditLogger.class);
@@ -40,16 +43,36 @@ public class AuditLogger {
             "INSERT INTO auditlogs (UserId, Action, Target, TargetId) " +
             "VALUES (?,?,?,?)";
     public static void log(int userId, Target target, int targetId, ACTION action){
-        LOGGER.info("Auditting action user Id {} target {} targetId {} action {}", userId, target.getName(), targetId, action.getName());
+        LOGGER.info("Auditing action user Id {} target {} targetId {} action {}", userId, target.getName(), targetId, action.getName());
         try (Connection conn = DbConnect.getConnection();
              PreparedStatement ps = conn.prepareStatement(INSERT_TO_AUDIT_LOG)){
             ps.setInt(1, userId);
-            ps.setString(2, target.getName());
-            ps.setInt(3, targetId);
-            ps.setString(4, action.getName());
+            ps.setString(2, action.getName());
+            ps.setString(3, target.getName());
+            ps.setInt(4, targetId);
             ps.executeUpdate();
         } catch (SQLException e) {
             LOGGER.error("Failed to audit action", e);
         }
+    }
+
+    private static final String GET_AUDIT_LOGS = "SELECT * " +
+            "FROM auditlogs " +
+            "ORDER BY CreatedAt ASC";
+    public static List<AuditLogEntry> getLogs() throws SQLException {
+        List<AuditLogEntry> logs = new ArrayList<>();
+        try (Connection conn = DbConnect.getConnection();
+        PreparedStatement ps = conn.prepareStatement(GET_AUDIT_LOGS);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                logs.add(new AuditLogEntry(rs.getInt("Id"),
+                        rs.getInt("UserId"),
+                        rs.getString("Action"),
+                        rs.getString("Target"),
+                        rs.getInt("TargetId"),
+                        rs.getTimestamp("CreatedAt")));
+            }
+        }
+        return logs;
     }
 }

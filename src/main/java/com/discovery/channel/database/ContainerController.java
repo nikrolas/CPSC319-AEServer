@@ -1,5 +1,6 @@
 package com.discovery.channel.database;
 
+import com.discovery.channel.audit.AuditLogger;
 import com.discovery.channel.authenticator.Authenticator;
 import com.discovery.channel.authenticator.Role;
 import com.discovery.channel.exception.AuthenticationException;
@@ -95,7 +96,8 @@ public class ContainerController {
         container.setUpdatedAt(createdAt);
         int newContainerId = saveContainerToDb(container);
 
-        LOGGER.info("Created record. Record Id {}", newContainerId);
+        LOGGER.info("Created container. Container Id {}", newContainerId);
+        AuditLogger.log(userId, AuditLogger.Target.CONTAINER, newContainerId, AuditLogger.ACTION.UPDATE);
 
         return getContainerById(newContainerId);
     }

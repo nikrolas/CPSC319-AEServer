@@ -1,5 +1,7 @@
 package com.discovery.channel.rest;
 
+import com.discovery.channel.audit.AuditLogEntry;
+import com.discovery.channel.audit.AuditLogger;
 import com.discovery.channel.database.*;
 import com.discovery.channel.form.UpdateRecordForm;
 import com.discovery.channel.model.*;
@@ -229,9 +231,18 @@ public class RouteHandler {
             value = "users/{id}",
             method = RequestMethod.GET)
     public User getUserByUserTableId(@PathVariable("id") Integer id) throws SQLException{
-        LOGGER.info("Searching for user with id {}", id);
         return UserController.getUserByUserTableId(id);
 
     }
 
+    /**
+     * Get audit logs
+     */
+    @RequestMapping(
+            value = "auditlogs",
+            method = RequestMethod.GET)
+    public List<AuditLogEntry> getUserByUserTableId() throws SQLException{
+        return AuditLogger.getLogs();
+
+    }
 }

@@ -1,5 +1,6 @@
 package com.discovery.channel.database;
 
+import com.discovery.channel.audit.AuditLogger;
 import com.discovery.channel.authenticator.Authenticator;
 import com.discovery.channel.authenticator.Role;
 import com.discovery.channel.exception.AuthenticationException;
@@ -319,8 +320,7 @@ public class RecordController {
             return null;
         }
         LOGGER.info("Created record. Record Id {}", newRecordId);
-        // TODO save notes
-        // TODO audit log : Need to determine the schema
+        AuditLogger.log(userId, AuditLogger.Target.RECORD, newRecordId, AuditLogger.ACTION.CREATE);
         return getRecordById(newRecordId);
     }
 
@@ -506,10 +506,15 @@ public class RecordController {
             rowsModified = ps.executeUpdate();
         }
 
-        // 3. Delete notes
-        deleteNotesForRecord(id);
+        AuditLogger.log(userId, AuditLogger.Target.RECORD, id, AuditLogger.ACTION.UPDATE);
 
-        return rowsModified == 1;
+        // 3. Delete notes
+        boolean success = rowsModified == 1;
+        if (success) {
+            deleteNotesForRecord(id);
+        }
+
+        return success;
     }
 
     /**
@@ -586,7 +591,7 @@ public class RecordController {
             updateRecordNotes(id, updateForm.getNotes());
         }
 
-        //TODO audit logs
+        AuditLogger.log(userId, AuditLogger.Target.RECORD, id, AuditLogger.ACTION.DELETE);
     }
 
     /**

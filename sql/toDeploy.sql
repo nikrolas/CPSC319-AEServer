@@ -24,3 +24,14 @@ UPDATE recordtypes SET NumberPattern='KKK_P_yyyy.ggg' WHERE Id = 32;
 UPDATE recordtypes SET NumberPattern='KKK-TASK-XXXX' WHERE Id = 73;
 UPDATE recordtypes SET NumberPattern='nnnnzzzz.nn.a.nn.nn[:nn]' WHERE Id = 83;
 UPDATE recordtypes SET NumberPattern='KKK-CLIENT.gggg' WHERE Id=70;
+
+# Create auditlogs table
+CREATE TABLE IF NOT EXISTS `auditlogs` (
+  `Id` int(11) NOT NULL AUTO_INCREMENT,
+  `UserId` int(11) NOT NULL,
+  `Action` ENUM('CREATE', 'UPDATE', 'DELETE') CHARACTER SET utf8mb4 NOT NULL,
+  `Target` ENUM('RECORD', 'CONTAINER', 'VOLUME') CHARACTER SET utf8mb4 NOT NULL,
+  `TargetId` INT(11) NOT NULL,
+  `CreatedAt` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+   PRIMARY KEY (`Id`)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8
