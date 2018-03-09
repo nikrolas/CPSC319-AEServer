@@ -205,6 +205,18 @@ public class RouteHandler {
         return ContainerController.getContainerById(id);
     }
 
+    /**
+     * Create a container
+     *
+     * @return the newly created container
+     */
+    @RequestMapping(
+            value = "container",
+            params = {"userId"},
+            method = RequestMethod.POST)
+    public ResponseEntity<Container> createContainer(@RequestParam("userId") int userId,
+                                                     @RequestBody Container container)  throws SQLException{
+        return new ResponseEntity<>(ContainerController.createContainer(container, userId), HttpStatus.CREATED);
 
     /**
      * Get a user by id in user table
@@ -218,6 +230,7 @@ public class RouteHandler {
     public User getUserByUserTableId(@PathVariable("id") Integer id) throws SQLException{
         LOGGER.info("Searching for user with id {}", id);
         return UserController.getUserByUserTableId(id);
+
     }
 
 }
