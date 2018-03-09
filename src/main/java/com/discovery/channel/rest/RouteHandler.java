@@ -148,6 +148,20 @@ public class RouteHandler {
 
     }
 
+    /**
+     * Get all record states
+     * @return
+     * @throws SQLException
+     */
+    @RequestMapping(
+            value = "recordstates",
+            method = RequestMethod.GET)
+    @ResponseBody
+    public List<State> getAllRecordStates() throws SQLException{
+        return StateController.getAllStates();
+
+    }
+
 
     // END OF Facilitating endpoints for creating records
 
