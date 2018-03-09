@@ -217,6 +217,7 @@ public class RouteHandler {
     public ResponseEntity<Container> createContainer(@RequestParam("userId") int userId,
                                                      @RequestBody Container container)  throws SQLException{
         return new ResponseEntity<>(ContainerController.createContainer(container, userId), HttpStatus.CREATED);
+    }
 
     /**
      * Get a user by id in user table
