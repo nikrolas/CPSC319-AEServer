@@ -303,7 +303,7 @@ public class RecordController {
         RecordNumber.NUMBER_PATTERN numberPattern = RecordNumber.NUMBER_PATTERN.fromString(pattern);
         if (!numberPattern.match(record.getNumber()) ||
                 numberPattern.matchLocation(
-                        LocationController.getGetLocationCodeById(record.getId()),
+                        LocationController.getLocationCodeById(record.getId()),
                         record.getNumber())) {
             throw new IllegalArgumentException(String.format("Invalid record number: %s for record type %d", record.getNumber(), record.getTypeId()));
         }
