@@ -47,7 +47,7 @@ public class UserController {
             "SELECT * " +
             "FROM users WHERE Id = ?";
 
-    public static User getUserById(Integer id) throws SQLException{
+    public static User getUserByUserTableId(Integer id) throws SQLException{
 
         try (Connection connection = DbConnect.getConnection();
              PreparedStatement ps = connection.prepareStatement(GET_USER_BY_USER_TABLE_ID)) {
