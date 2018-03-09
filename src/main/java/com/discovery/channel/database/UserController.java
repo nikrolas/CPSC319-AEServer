@@ -35,22 +35,23 @@ public class UserController {
                 lastName);
     }
 
+
     /**
-     * Get user by given user id
-     * @param Id
+     * Get user by given id in user table
+     * @param id
      * @return user
      * @throws SQLException
      */
 
-    public static final String GET_USER_BY_ID =
+    public static final String GET_USER_BY_USER_TABLE_ID =
             "SELECT * " +
             "FROM users WHERE Id = ?";
 
-    public static User getUserById(Integer Id) throws SQLException{
+    public static User getUserById(Integer id) throws SQLException{
 
         try (Connection connection = DbConnect.getConnection();
-             PreparedStatement ps = connection.prepareStatement(GET_USER_BY_ID)) {
-            ps.setInt(1, Id);
+             PreparedStatement ps = connection.prepareStatement(GET_USER_BY_USER_TABLE_ID)) {
+            ps.setInt(1, id);
 
             try (ResultSet resultSet = ps.executeQuery()) {
                 if (resultSet.next()) {
@@ -61,39 +62,39 @@ public class UserController {
             }
         }
 
-        LOGGER.info("User {} does not exist", Id);
+        LOGGER.info("User {} does not exist", id);
         return null;
     }
 
     /**
-     * Load user RoleId and Role
+     * Load user roleId, role, locationId, location
      *
      * @param user
      * @throws SQLException
      */
     private static void loadUserDetails(User user) throws SQLException{
 
-        user.setRoleId(getRoleIdById(user.getId()));
+        user.setRoleId(getRoleIdByUserTableId(user.getId()));
         user.setRole(Role.fromRoleId(user.getRoleId()).getRoleName());
-        user.setLocationId(getLocationIdById(user.getId()));
-        user.setLocation(LocationController.getLocationNameById(user.getLocationId()));
+        user.setLocationId(getLocationIdByUserTableId(user.getId()));
+        user.setLocation(LocationController.getLocationNameByLocationId(user.getLocationId()));
 
     }
 
 
     /**
-     * Load user RoleId given User Id
+     * Load user roleId given id in user table
      *
      * @param id
      * @return RoleId
      * @throws SQLException
      */
-    public static final String GET_ROLE_ID_BY_ID =
-            "SELECT RoleId " + "FROM userroles WHERE UserId = ?";
-    private static int getRoleIdById(Integer id) throws SQLException{
+    public static final String GET_ROLE_ID_BY_USER_TABLE_ID =
+            "SELECT RoleId" + " FROM userroles WHERE UserId = ?";
+    private static int getRoleIdByUserTableId(Integer id) throws SQLException{
 
         try (Connection con = DbConnect.getConnection();
-             PreparedStatement ps = con.prepareStatement(GET_ROLE_ID_BY_ID)) {
+             PreparedStatement ps = con.prepareStatement(GET_ROLE_ID_BY_USER_TABLE_ID)) {
             ps.setInt(1, id);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
@@ -109,18 +110,18 @@ public class UserController {
 
 
     /**
-     * Load user LocationId given User Id
+     * Load user locationId given id in user table
      *
      * @param id
      * @return LocationId
      * @throws SQLException
      */
-    public static final String GET_LOCATION_ID_BY_ID =
+    public static final String GET_LOCATION_ID_BY_USER_TABLE_ID =
             "SELECT LocationId " + "FROM userlocations WHERE UserId = ?";
-    private static int getLocationIdById(Integer id) throws SQLException{
+    private static int getLocationIdByUserTableId(Integer id) throws SQLException{
 
         try (Connection con = DbConnect.getConnection();
-             PreparedStatement ps = con.prepareStatement(GET_LOCATION_ID_BY_ID)) {
+             PreparedStatement ps = con.prepareStatement(GET_LOCATION_ID_BY_USER_TABLE_ID)) {
             ps.setInt(1, id);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {

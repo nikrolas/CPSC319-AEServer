@@ -39,13 +39,13 @@ public class LocationController {
      * @return Location Name
      * @throws SQLException
      */
-    private static final String GET_LOCATION_NAME_BY_ID = "SELECT Name " +
+    private static final String GET_LOCATION_NAME_BY_LOCATION_ID = "SELECT Name " +
             "FROM locations " +
             "WHERE Id=?";
 
-    public static String getLocationNameById(int id) throws SQLException{
+    public static String getLocationNameByLocationId(int id) throws SQLException{
        try (Connection conn = DbConnect.getConnection();
-            PreparedStatement ps = conn.prepareStatement(GET_LOCATION_NAME_BY_ID)){
+            PreparedStatement ps = conn.prepareStatement(GET_LOCATION_NAME_BY_LOCATION_ID)){
            ps.setInt(1, id);
            try (ResultSet rs = ps.executeQuery()) {
                if (rs.next()) {
