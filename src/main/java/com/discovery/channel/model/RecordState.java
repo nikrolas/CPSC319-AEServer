@@ -1,5 +1,7 @@
 package com.discovery.channel.model;
 
+import com.discovery.channel.exception.IllegalArgumentException;
+
 import java.util.Arrays;
 import java.util.List;
 
