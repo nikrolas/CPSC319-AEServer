@@ -10,12 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.StringUtils;
 
-import java.sql.Connection;
-import java.sql.Date;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
+import java.sql.*;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -542,52 +537,53 @@ public class RecordController {
             throw new AuthenticationException(String.format("User %d is not authenticated to update record under localtion %d", userId, record.getLocationId()));
         }
 
-        String newTitle = StringUtils.isEmpty(updateForm.getTitle()) ? record.getTitle() : updateForm.getTitle();
-        int newRetentionScheduleId = updateForm.getScheduleId() <=0? record.getScheduleId() : updateForm.getScheduleId();
-        //TODO save notes
-        String newClassifications = StringUtils.isEmpty(updateForm.getClassifications())? record.getClassifications() : updateForm.getClassifications();
-        int newStateId = updateForm.getStateId() <= 0? record.getStateId() : updateForm.getStateId();
-        String newConsignmentCode = StringUtils.isEmpty(updateForm.getConsignmentCode()) ? record.getConsignmentCode() : updateForm.getConsignmentCode();
-        int newContainerId = updateForm.getContainerId() <= 0? record.getContainerId() : updateForm.getContainerId();
-        String newNotes = StringUtils.isEmpty(updateForm.getNotes())? record.getNotes() : updateForm.getNotes();
-
         // RMC can't move a record to a location tht they're not a part of
         if (!Authenticator.isUserAuthenticatedForLocation(userId, record.getLocationId())) {
             throw new AuthenticationException(String.format("User %d is not authenticated to update record under localtion %d", userId, record.getLocationId()));
         }
 
         // Only certain types of states are valid for certain retention schedules
-        if (!RecordState.fromId(newStateId).isValidforRetentionSchedule(newRetentionScheduleId > 0)) {
-            throw new IllegalArgumentException(String.format("State %d is not valid for retention schedule %d", newStateId, newRetentionScheduleId));
+        if (!RecordState.fromId(updateForm.getStateId()).isValidforRetentionSchedule(updateForm.getScheduleId() > 0)) {
+            throw new IllegalArgumentException(String.format("State %d is not valid for retention schedule %d", updateForm.getStateId(), updateForm.getScheduleId()));
         }
 
         // Validate classifications
-        if (!Classification.validateClassification(newClassifications)) {
-            throw new IllegalArgumentException(String.format("Classification %s is not valid", newClassifications));
+        if (!Classification.validateClassification(updateForm.getClassifications())) {
+            throw new IllegalArgumentException(String.format("Classification %s is not valid", updateForm.getClassifications()));
         }
 
         LOGGER.info("About to update record {}", id);
 
         try (Connection conn = DbConnect.getConnection();
              PreparedStatement ps = conn.prepareStatement(UPDATE_RECORD)) {
-            ps.setString(1, newTitle);
-            ps.setInt(2, newRetentionScheduleId);
-            ps.setInt(3, newStateId);
-            ps.setString(4, newConsignmentCode);
-            ps.setInt(5, newContainerId);
+            ps.setString(1, updateForm.getTitle());
+            if (updateForm.getScheduleId() <= 0) {
+                ps.setNull(2, Types.INTEGER);
+            } else {
+                ps.setInt(2, updateForm.getScheduleId());
+            }
+            ps.setInt(3, updateForm.getStateId());
+            ps.setString(4, updateForm.getConsignmentCode() == null? "" : updateForm.getConsignmentCode());
+            if (updateForm.getContainerId() <= 0) {
+                ps.setNull(5, Types.INTEGER);
+            } else {
+                ps.setInt(5, updateForm.getContainerId());
+            }
             ps.setInt(6, id);
 
             ps.executeUpdate();
         }
 
         // Update classifications if need to
-        if (!newClassifications.equals(record.getClassifications())) {
-            updateRecordClassifications(id, newClassifications);
+        if (!updateForm.getClassifications().equals(record.getClassifications())) {
+            updateRecordClassifications(id, updateForm.getClassifications());
         }
 
         // Update notes if need to
-        if (!newNotes.equals(record.getNotes())) {
-            updateRecordNotes(id, newNotes);
+        if (StringUtils.isEmpty(updateForm.getNotes())) {
+            deleteNotesForRecord(id);
+        }else if(!updateForm.getNotes().equals(record.getNotes())) {
+            updateRecordNotes(id, updateForm.getNotes());
         }
 
         //TODO audit logs

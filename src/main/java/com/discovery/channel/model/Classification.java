@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.util.StringUtils;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -58,6 +59,9 @@ public class Classification {
      * @throws SQLException
      */
     public static boolean validateClassification(String classificationStr) throws SQLException {
+        if (StringUtils.isEmpty(classificationStr)) {
+            return false;
+        }
         // At least two classifications
         String[] classificationNames = classificationStr.split(CLASSIFICATION_SEPARATOR);
         if (classificationNames.length < 2) {
