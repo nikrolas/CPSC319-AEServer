@@ -22,13 +22,8 @@ public class Container {
     private List<Integer> childRecordIds;
 
     private String consignmentCode;
-    private int stateId;
-    private String stateName;
     private int locationId;
     private String locationName;
-    private int scheduleId;
-    private String scheduleName;
-    private int type;
     private Date destructionDate;
     private String notes;
 
