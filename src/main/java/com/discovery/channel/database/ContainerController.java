@@ -1,5 +1,8 @@
 package com.discovery.channel.database;
 
+import com.discovery.channel.authenticator.Authenticator;
+import com.discovery.channel.authenticator.Role;
+import com.discovery.channel.exception.AuthenticationException;
 import com.discovery.channel.exception.NoResultsFoundException;
 import com.discovery.channel.model.Container;
 import org.slf4j.Logger;
@@ -10,6 +13,7 @@ import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Calendar;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -77,4 +81,62 @@ public class ContainerController {
             throw new NoResultsFoundException("The query returned no results");
         }
     }
+
+    /**
+     * Create a new container
+     *
+     * @param container the request body translated to a container object
+     * @param userId the id of the user submitting the request
+     * @throws SQLException rethrows any SQLException
+     * @throws AuthenticationException AuthenticationException thrown if the user does not have RMC rights
+     */
+    public static final Container createContainer(Container container, int userId) throws SQLException, AuthenticationException{
+        if (!Authenticator.authenticate(userId, Role.RMC)) {
+            throw new AuthenticationException(String.format("User %d is not authenticated to create record", userId));
+        }
+        LOGGER.info("Passed all validation checks. Creating container {}", container);
+
+        Date createdAt = new Date(Calendar.getInstance().getTimeInMillis());
+        container.setCreatedAt(createdAt);
+        container.setUpdatedAt(createdAt);
+        int newContainerId = saveContainerToDb(container);
+
+        LOGGER.info("Created record. Record Id {}", newContainerId);
+
+        return getContainerById(newContainerId);
+    }
+
+    private static final String GET_MAX_CONTAINER_ID =
+            "SELECT MAX(Id) FROM containers";
+    private static int getNewContainerId() throws SQLException {
+        try (Connection connection = DbConnect.getConnection();
+             PreparedStatement ps = connection.prepareStatement(GET_MAX_CONTAINER_ID)) {
+            try (ResultSet rs = ps.executeQuery()){
+                rs.next();
+                return rs.getInt("MAX(Id)") + 1;
+            }
+        }
+    }
+
+    private static final String CREATE_CONTAINER =
+            "INSERT INTO containers(Id, Number, Title, ConsignmentCode, CreatedAt, UpdatedAt)" +
+                    "VALUES(?, ?, ?, ?, ?, ?)";
+    private static int saveContainerToDb(Container c) throws SQLException {
+        try (Connection connection = DbConnect.getConnection();
+             PreparedStatement ps = connection.prepareStatement(CREATE_CONTAINER)) {
+
+            int id = getNewContainerId() + 1;
+
+            ps.setInt(1, id);
+            ps.setString(2, c.getContainerNumber());
+            ps.setString(3, c.getTitle());
+            ps.setString(4, "temporaryCode"); //todo: I think it would make more sense to have this be nullable
+            ps.setDate(5, c.getCreatedAt());
+            ps.setDate(6, c.getUpdatedAt());
+            ps.executeUpdate();
+            //todo save notes to db
+            return id;
+        }
+    }
+
 }

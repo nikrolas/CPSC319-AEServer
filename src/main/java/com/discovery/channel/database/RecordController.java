@@ -5,20 +5,12 @@ import com.discovery.channel.authenticator.Role;
 import com.discovery.channel.exception.AuthenticationException;
 import com.discovery.channel.exception.NoResultsFoundException;
 import com.discovery.channel.form.UpdateRecordForm;
-import com.discovery.channel.model.Classification;
-import com.discovery.channel.model.Record;
-import com.discovery.channel.model.RecordState;
-
+import com.discovery.channel.model.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.StringUtils;
 
-import java.sql.Connection;
-import java.sql.Date;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
+import java.sql.*;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -113,15 +105,21 @@ public class RecordController {
         record.setType(RecordTypeController.getTypeName(record.getTypeId()));
         record.setState(getStateName(record.getStateId()));
         record.setContainer(getContainerNumber(record.getContainerId()));
+
         Map<String, String> schedule = getRetentionSchedule(record.getScheduleId());
         record.setSchedule(schedule.get("Name"));
         record.setScheduleYear(Integer.valueOf(schedule.get("Years")));
+
+        // Load classifications
         List<Integer> classIds = getRecordClassifications(record.getId());
         List<Classification> classifications = new ArrayList<>();
         for (int classId : classIds) {
             classifications.add(ClassificationController.findClassificationById(classId));
         }
         record.setClassifications(Classification.buildClassificationString(classifications));
+
+        // Load notes
+        record.setNotes(getRecordNotes(record.getId()));
     }
 
     /**
@@ -295,16 +293,21 @@ public class RecordController {
             throw new AuthenticationException(String.format("User %d is not authenticated to create record under localtion %d", userId, record.getLocationId()));
         }
 
-        if (!record.validateRecordNum()) {
+
+        String pattern = RecordTypeController.getNumberPattern(record.getTypeId());
+        RecordNumber.NUMBER_PATTERN numberPattern = RecordNumber.NUMBER_PATTERN.fromString(pattern);
+        if (!numberPattern.match(record.getNumber()) ||
+                numberPattern.matchLocation(
+                        LocationController.getLocationCodeById(record.getId()),
+                        record.getNumber())) {
             throw new IllegalArgumentException(String.format("Invalid record number: %s for record type %d", record.getNumber(), record.getTypeId()));
         }
 
+        record.setNumber(numberPattern.fillAutoGenField(record.getNumber()));
+        LOGGER.debug("Set recordNumber {}", record.getNumber());
+
         if (!record.validateClassifications()) {
             throw new IllegalArgumentException(String.format("Invalid classifications: %s", record.getClassifications()));
-        }
-
-        if (!record.validateRetentionSchedule()) {
-            throw new IllegalArgumentException(String.format("Invalid retention schedule: %s for record type %d", record.getScheduleId(), record.getTypeId()));
         }
 
         LOGGER.info("Passed all validation checks. Creating record {}", record);
@@ -353,8 +356,10 @@ public class RecordController {
                 LOGGER.error("Failed to save new record to DB. Returning -1");
                 return -1;
             }
-            // TODO notes
             saveClassificationForRecord(newRecordId, record.getClassifications());
+            if (!StringUtils.isEmpty(record.getNotes()) ) {
+                saveNotesForRecord(newRecordId, record.getNotes());
+            }
             return newRecordId;
         }
     }
@@ -362,6 +367,13 @@ public class RecordController {
     private static final String INSERT_RECORD_CLASSIFICATION =
             "INSERT INTO recordclassifications (RecordId, ClassId, Ordinal) " +
             "VALUES (?, ?, ?)";
+
+    /**
+     *
+     * @param recordId
+     * @param classificationStr
+     * @throws SQLException
+     */
     private static void saveClassificationForRecord(int recordId, String classificationStr) throws SQLException {
         List<Integer> classificationIds = Classification.parseClassificationStrToIds(classificationStr);
         try (Connection conn = DbConnect.getConnection();
@@ -374,6 +386,88 @@ public class RecordController {
             }
             ps.executeBatch();
         }
+        LOGGER.info("Saved classifications {} for record {}", classificationStr, recordId);
+    }
+
+    /**
+     * Get ordered list of classifications Ids for a record
+     *
+     * @param recordId
+     * @return
+     * @throws SQLException
+     */
+    private static final String GET_RECORD_NOTES = "SELECT Text " +
+            "FROM notes " +
+            "WHERE TableId=? AND RowId=? " +
+            "ORDER BY Chunk ASC";
+    private static String getRecordNotes(int recordId) throws SQLException {
+        String notes = "";
+        try (Connection conn = DbConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(GET_RECORD_NOTES)) {
+            ps.setInt(1, NoteTable.RECORDS.id);
+            ps.setInt(2, recordId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    notes = notes + rs.getString("Text");
+                }
+            }
+        }
+        return notes;
+    }
+
+    /**
+     * Save notes to db
+     *
+     * @param recordId
+     * @param notes
+     * @throws SQLException
+     */
+    private static final int MAX_NOTE_LEN = Integer.MAX_VALUE;
+    private static final String INSERT_RECORD_NOTE = "INSERT INTO notes (TableId, RowId, Chunk, Text) " +
+            "VALUES(?, ? , ? , ?)";
+    private static void saveNotesForRecord(int recordId, String notes) throws SQLException {
+        try (Connection conn = DbConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(INSERT_RECORD_NOTE)){
+            int chunkNum = 0;
+            int startIndex = 0;
+            while (startIndex < notes.length()) {
+                ps.setInt(1, NoteTable.RECORDS.id);
+                ps.setInt(2, recordId);
+                ps.setInt(3, chunkNum);
+                ps.setString(4, notes.substring(startIndex,
+                        startIndex + MAX_NOTE_LEN >= notes.length()? notes.length() : startIndex + MAX_NOTE_LEN));
+                ps.addBatch();
+                startIndex = startIndex + MAX_NOTE_LEN;
+                chunkNum = chunkNum + 1;
+            }
+            ps.executeBatch();
+        }
+        LOGGER.info("Saved notes {} for record {}", notes, recordId);
+    }
+
+    /**
+     * Delete all chunks of notes for a record
+     * @param recordId
+     * @return
+     * @throws SQLException
+     */
+    private static final String DELETE_NOTE_FOR_RECORD = "DELETE FROM notes " +
+            "WHERE TableId=? AND RowId = ?";
+    private static int deleteNotesForRecord(int recordId) throws SQLException {
+        int rowsUpdated = 0;
+        try(Connection connection = DbConnect.getConnection();
+            PreparedStatement ps = connection.prepareStatement(DELETE_NOTE_FOR_RECORD)) {
+            ps.setInt(1, NoteTable.RECORDS.id);
+            ps.setInt(2, recordId);
+            rowsUpdated = ps.executeUpdate();
+        }
+        LOGGER.info("Deleted {} note entries for record {}", rowsUpdated, recordId);
+        return rowsUpdated;
+    }
+
+    private static void updateRecordNotes(int recordId, String newNotes) throws SQLException {
+        deleteNotesForRecord(recordId);
+        saveNotesForRecord(recordId, newNotes);
     }
 
     /**
@@ -386,7 +480,6 @@ public class RecordController {
     private static final String DELETE_RECORD_BY_ID = "DELETE FROM records " +
             "where Id=?";
     public static boolean deleteRecord(Integer id, int userId) throws SQLException {
-        // TODO : delete note
         // TODO : audit log
         if (!Authenticator.authenticate(userId, Role.RMC)) {
             throw new AuthenticationException(String.format("User %d is not authenticated to delete record", userId));
@@ -404,14 +497,29 @@ public class RecordController {
 
         LOGGER.info("About to delete record {}", id);
 
+        // 1. Delete from records
+        // 2. Classifications are deleted because of database constraint
+        int rowsModified = 0;
         try (Connection conn = DbConnect.getConnection();
              PreparedStatement ps = conn.prepareStatement(DELETE_RECORD_BY_ID)){
             ps.setInt(1, id);
-            int rowsModified = ps.executeUpdate();
-            return rowsModified == 1;
+            rowsModified = ps.executeUpdate();
         }
+
+        // 3. Delete notes
+        deleteNotesForRecord(id);
+
+        return rowsModified == 1;
     }
 
+    /**
+     * Update a record
+     *
+     * @param id
+     * @param userId
+     * @param updateForm
+     * @throws SQLException
+     */
     private static final String UPDATE_RECORD = "UPDATE records " +
             "SET Title=?, ScheduleId=?, StateId=?, ConsignmentCode=?,ContainerId=?, UpdatedAt=NOW() " +
             "WHERE Id= ?";
@@ -429,46 +537,53 @@ public class RecordController {
             throw new AuthenticationException(String.format("User %d is not authenticated to update record under localtion %d", userId, record.getLocationId()));
         }
 
-        String newTitle = StringUtils.isEmpty(updateForm.getTitle()) ? record.getTitle() : updateForm.getTitle();
-        int newRetentionScheduleId = updateForm.getScheduleId() <=0? record.getScheduleId() : updateForm.getScheduleId();
-        //TODO save notes
-        String newClassifications = StringUtils.isEmpty(updateForm.getClassifications())? record.getClassifications() : updateForm.getClassifications();
-        int newStateId = updateForm.getStateId() <= 0? record.getStateId() : updateForm.getStateId();
-        String newConsignmentCode = StringUtils.isEmpty(updateForm.getConsignmentCode()) ? record.getConsignmentCode() : updateForm.getConsignmentCode();
-        int newContainerId = updateForm.getContainerId() <= 0? record.getContainerId() : updateForm.getContainerId();
-
         // RMC can't move a record to a location tht they're not a part of
         if (!Authenticator.isUserAuthenticatedForLocation(userId, record.getLocationId())) {
             throw new AuthenticationException(String.format("User %d is not authenticated to update record under localtion %d", userId, record.getLocationId()));
         }
 
         // Only certain types of states are valid for certain retention schedules
-        if (!RecordState.fromId(newStateId).isValidforRetentionSchedule(newRetentionScheduleId > 0)) {
-            throw new IllegalArgumentException(String.format("State %d is not valid for retention schedule %d", newStateId, newRetentionScheduleId));
+        if (!RecordState.fromId(updateForm.getStateId()).isValidforRetentionSchedule(updateForm.getScheduleId() > 0)) {
+            throw new IllegalArgumentException(String.format("State %d is not valid for retention schedule %d", updateForm.getStateId(), updateForm.getScheduleId()));
         }
 
         // Validate classifications
-        if (!Classification.validateClassification(newClassifications)) {
-            throw new IllegalArgumentException(String.format("Classification %s is not valid", newClassifications));
+        if (!Classification.validateClassification(updateForm.getClassifications())) {
+            throw new IllegalArgumentException(String.format("Classification %s is not valid", updateForm.getClassifications()));
         }
 
         LOGGER.info("About to update record {}", id);
 
         try (Connection conn = DbConnect.getConnection();
              PreparedStatement ps = conn.prepareStatement(UPDATE_RECORD)) {
-            ps.setString(1, newTitle);
-            ps.setInt(2, newRetentionScheduleId);
-            ps.setInt(3, newStateId);
-            ps.setString(4, newConsignmentCode);
-            ps.setInt(5, newContainerId);
+            ps.setString(1, updateForm.getTitle());
+            if (updateForm.getScheduleId() <= 0) {
+                ps.setNull(2, Types.INTEGER);
+            } else {
+                ps.setInt(2, updateForm.getScheduleId());
+            }
+            ps.setInt(3, updateForm.getStateId());
+            ps.setString(4, updateForm.getConsignmentCode() == null? "" : updateForm.getConsignmentCode());
+            if (updateForm.getContainerId() <= 0) {
+                ps.setNull(5, Types.INTEGER);
+            } else {
+                ps.setInt(5, updateForm.getContainerId());
+            }
             ps.setInt(6, id);
 
             ps.executeUpdate();
         }
 
         // Update classifications if need to
-        if (!newClassifications.equals(record.getClassifications())) {
-            updateRecordClassifications(id, newClassifications);
+        if (!updateForm.getClassifications().equals(record.getClassifications())) {
+            updateRecordClassifications(id, updateForm.getClassifications());
+        }
+
+        // Update notes if need to
+        if (StringUtils.isEmpty(updateForm.getNotes())) {
+            deleteNotesForRecord(id);
+        }else if(!updateForm.getNotes().equals(record.getNotes())) {
+            updateRecordNotes(id, updateForm.getNotes());
         }
 
         //TODO audit logs

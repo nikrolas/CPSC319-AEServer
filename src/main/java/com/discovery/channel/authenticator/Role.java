@@ -20,4 +20,12 @@ public enum Role {
                 return null;
         }
     }
+
+    public String getRoleName() {
+        return roleName;
+    }
+
+    public void setRoleName(String roleName) {
+        this.roleName = roleName;
+    }
 }
