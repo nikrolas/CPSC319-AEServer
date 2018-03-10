@@ -22,28 +22,29 @@ public class Container {
     private List<Integer> childRecordIds;
 
     private String consignmentCode;
-    private int stateId;
-    private String stateName;
     private int locationId;
     private String locationName;
-    private int scheduleId;
-    private String scheduleName;
-    private int type;
     private Date destructionDate;
     private String notes;
 
     public Container(int containerId,
                      String containerNumber,
                      String title,
+                     String consignmentCode,
                      Date createdAt,
                      Date updatedAt,
-                     List<Integer> childRecordIds){
+                     Date destructionDate,
+                     List<Integer> childRecordIds,
+                     String notes) {
         this.containerId = containerId;
         this.containerNumber = containerNumber;
         this.title = title;
+        this.consignmentCode = consignmentCode;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
+        this.destructionDate = destructionDate;
         this.childRecordIds = childRecordIds;
+        this.notes = notes;
     }
 
     @JsonCreator

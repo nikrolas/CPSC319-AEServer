@@ -25,15 +25,21 @@ public class ContainerController {
         int id = resultSet.getInt("Id");
         String number = resultSet.getString("Number");
         String title = resultSet.getString("Title");
+        String consignmentCode = resultSet.getString("ConsignmentCode");
         Date createdAt = resultSet.getDate("CreatedAt");
         Date updatedAt = resultSet.getDate("UpdatedAt");
+        Date destructionDate = resultSet.getDate("UpdatedAt"); //TODO: calculate from containing records
         List<Integer> childRecordIds = getRecordIdsInContainer(id);
+        String notes = "Container notes"; //TODO: get container notes
         return new Container(id,
                 number,
                 title,
+                consignmentCode,
                 createdAt,
                 updatedAt,
-                childRecordIds);
+                destructionDate,
+                childRecordIds,
+                notes);
     }
 
     private static final String GET_RECORD_IDS_IN_CONTAINER =
