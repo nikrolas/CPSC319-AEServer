@@ -13,31 +13,10 @@ public class Container {
     private int containerId;
     private String containerNumber;
     private String title;
+    private String consignmentCode;
     private Date createdAt;
     private Date updatedAt;
+    private Date destructionDate;
     private List<Integer> childRecordIds;
-
-    private String consignmentCode;
-    private int stateId;
-    private String stateName;
-    private int locationId;
-    private String locationName;
-    private int scheduleId;
-    private String scheduleName;
-    private int type;
-
-    public Container(int id,
-                     String number,
-                     String title,
-                     Date createdAt,
-                     Date updatedAt,
-                     List<Integer> childRecordIds){
-        this.containerId = id;
-        this.containerNumber = number;
-        this.title = title;
-        this.createdAt = createdAt;
-        this.updatedAt = updatedAt;
-        this.childRecordIds = childRecordIds;
-    }
-
+    private String notes;
 }
