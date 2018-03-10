@@ -101,7 +101,7 @@ class ContainerControllerTest {
     }
 
     private Container createValidNewContainerRequest(String title, String number) throws JSONException{
-        Container c = new Container(0, number, title, null, null, null, null, null);
+        Container c = new Container(0, number, title, null, null, null, null, null, null);
         return c;
     }
 }

@@ -34,7 +34,8 @@ public class Container {
                      Date createdAt,
                      Date updatedAt,
                      Date destructionDate,
-                     List<Integer> childRecordIds){
+                     List<Integer> childRecordIds,
+                     String notes) {
         this.containerId = containerId;
         this.containerNumber = containerNumber;
         this.title = title;
@@ -43,6 +44,7 @@ public class Container {
         this.updatedAt = updatedAt;
         this.destructionDate = destructionDate;
         this.childRecordIds = childRecordIds;
+        this.notes = notes;
     }
 
     @JsonCreator

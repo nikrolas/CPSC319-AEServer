@@ -30,6 +30,7 @@ public class ContainerController {
         Date updatedAt = resultSet.getDate("UpdatedAt");
         Date destructionDate = resultSet.getDate("UpdatedAt"); //TODO: calculate from containing records
         List<Integer> childRecordIds = getRecordIdsInContainer(id);
+        String notes = "Container notes"; //TODO: get container notes
         return new Container(id,
                 number,
                 title,
@@ -37,7 +38,8 @@ public class ContainerController {
                 createdAt,
                 updatedAt,
                 destructionDate,
-                childRecordIds);
+                childRecordIds,
+                notes);
     }
 
     private static final String GET_RECORD_IDS_IN_CONTAINER =
