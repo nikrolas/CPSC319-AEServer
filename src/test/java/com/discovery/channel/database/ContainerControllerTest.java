@@ -36,12 +36,13 @@ class ContainerControllerTest {
     void getContainerHappyPath() throws SQLException {
         Container c = ContainerController.getContainerById(11125);
         assertEquals(c.getContainerId(), 11125);
-        assertTrue(c.getContainerNumber().equals("2006/002-EDM"));
-        assertTrue(c.getTitle().equals("Vel itaque vitae repellendus architecto"));
+        assertEquals(c.getContainerNumber(),"2006/002-EDM");
+        assertEquals(c.getTitle(), "Vel itaque vitae repellendus architecto");
 
         assertEquals(c.getConsignmentCode(), "362817351");
         assertEquals(c.getCreatedAt(), new Date(1142841600000L));
         assertEquals(c.getUpdatedAt(), new Date(1453881600000L));
+
         List<Integer> expected = Arrays.asList(274,275,276,313,314,315,316,317,318,319,320,321,3211);
         assertTrue(expected.containsAll(c.getChildRecordIds()) && c.getChildRecordIds().containsAll(expected));
     }
