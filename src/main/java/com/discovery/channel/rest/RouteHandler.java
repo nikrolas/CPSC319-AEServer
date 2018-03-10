@@ -234,4 +234,35 @@ public class RouteHandler {
 
     }
 
+    /**
+     * Delete container(s)
+     *
+     * @return  a list of container(s) that can't be deleted
+     */
+    @RequestMapping(
+            value = "containers",
+            params = {"ids", "userId"},
+            method = RequestMethod.DELETE)
+
+    public ResponseEntity<?> deleteContainer(@RequestParam("ids") String ids, @RequestParam("userId") int userId) throws SQLException{
+        LOGGER.info("Deleting a container {}", ids);
+        return ContainerController.deleteContainers(ids, userId);
+    }
+
+    /**
+     * Search container(s) by number
+     *
+     * @return  a list of container(s) matches the given number
+     */
+    @RequestMapping(
+            value = "containers",
+            params = {"num", "userId"},
+            method = RequestMethod.GET)
+
+    public List<Container> getContainerByNumber(@RequestParam("num") String num, @RequestParam("userId") int userId) throws SQLException{
+        LOGGER.info("Deleting a container {}", num);
+        return ContainerController.getContainerByNumber(num);
+    }
+
+
 }

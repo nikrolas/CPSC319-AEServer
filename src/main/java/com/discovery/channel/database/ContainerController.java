@@ -7,12 +7,15 @@ import com.discovery.channel.exception.NoResultsFoundException;
 import com.discovery.channel.model.Container;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 
 import java.sql.Connection;
 import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.LinkedList;
 import java.util.List;
@@ -45,7 +48,7 @@ public class ContainerController {
     private static final String GET_RECORD_IDS_IN_CONTAINER =
             "SELECT Id FROM records " +
             "WHERE ContainerId = ?";
-    static final List<Integer> getRecordIdsInContainer(int containerId) throws SQLException{
+    static final List<Integer> getRecordIdsInContainer(Integer containerId) throws SQLException{
         List<Integer> recordIds = new LinkedList<>();
         try (Connection connection = DbConnect.getConnection();
              PreparedStatement ps = connection.prepareStatement(GET_RECORD_IDS_IN_CONTAINER)) {
@@ -136,6 +139,95 @@ public class ContainerController {
             ps.executeUpdate();
             //todo save notes to db
             return id;
+        }
+    }
+
+
+    /**
+     * Retrieve containers filtered by container number
+     *
+     * @param containerNumber
+     * @return a list of containers
+     */
+    private static final String GET_CONTAINER_BY_NUMBER = "SELECT * FROM containers " +
+            "WHERE Number LIKE ? " +
+            "ORDER BY UpdatedAt LIMIT 20";
+    public static List<Container> getContainerByNumber(String containerNumber) throws SQLException {
+        List<Container> containers = new ArrayList<>();
+        try (Connection connection = DbConnect.getConnection();
+             PreparedStatement ps = connection.prepareStatement(GET_CONTAINER_BY_NUMBER)) {
+            ps.setString(1, "%" + containerNumber + "%");
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Container container = parseResultSet(rs);
+                    containers.add(container);
+                }
+            }
+        }
+        return containers;
+    }
+
+
+    /**
+     * Delete one container by id
+     *
+     * @param id
+     *
+     */
+    private static final String DELETE_CONTAINERS＿BY_IDS =
+            "DELETE FROM containers" + " WHERE Id = ?";
+
+    public static final void deleteOneContainer(String id) throws SQLException {
+
+        try (Connection connection = DbConnect.getConnection();
+             PreparedStatement ps = connection.prepareStatement(DELETE_CONTAINERS＿BY_IDS)) {
+            LOGGER.info("Deleting container {}", id);
+            ps.setInt(1, Integer.valueOf(id));
+            ps.executeUpdate();
+        }
+    }
+
+
+    /**
+     * Delete containers by ids
+     *
+     * @param ids
+     * @return Http Status Code
+     */
+    public static final ResponseEntity<?> deleteContainers(String ids, Integer userId) throws SQLException{
+
+        if (!Authenticator.authenticate(userId, Role.RMC)) {
+            throw new AuthenticationException(String.format("User %d is not authenticated to create record", userId));
+        }
+
+        List<String> failed = new ArrayList<>();
+
+        if (ids.contains(",")) {
+            String[] listOfIds = ids.split(",");
+            for (String id : listOfIds) {
+                if (!getRecordIdsInContainer(Integer.valueOf(id)).isEmpty()) {
+                    failed.add(id);
+                }
+            }
+            if(failed.isEmpty()) {
+                LOGGER.info("Passed all validation checks. Deleting container {}", ids);
+                for (String id : listOfIds) {
+                    deleteOneContainer(id);
+                }
+                return ResponseEntity.status(HttpStatus.OK).build();
+            }else{
+                return new ResponseEntity(failed, HttpStatus.PRECONDITION_FAILED);
+            }
+
+        }else{
+
+            if (!getRecordIdsInContainer(Integer.valueOf(ids)).isEmpty()) {
+                return new ResponseEntity(ids, HttpStatus.PRECONDITION_FAILED);
+            }else{
+                LOGGER.info("Passed all validation checks. Deleting container {}", ids);
+                deleteOneContainer(ids);
+                return ResponseEntity.status(HttpStatus.OK).build();
+            }
         }
     }
 
