@@ -10,8 +10,8 @@ import java.util.List;
 @AllArgsConstructor
 public class Container {
 
-    private int id;
-    private String number;
+    private int containerId;
+    private String containerNumber;
     private String title;
     private Date createdAt;
     private Date updatedAt;
@@ -32,8 +32,8 @@ public class Container {
                      Date createdAt,
                      Date updatedAt,
                      List<Integer> childRecordIds){
-        this.id = id;
-        this.number = number;
+        this.containerId = id;
+        this.containerNumber = number;
         this.title = title;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
