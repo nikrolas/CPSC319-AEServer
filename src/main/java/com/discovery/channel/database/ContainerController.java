@@ -48,7 +48,7 @@ public class ContainerController {
     private static final String GET_RECORD_IDS_IN_CONTAINER =
             "SELECT Id FROM records " +
             "WHERE ContainerId = ?";
-    static final List<Integer> getRecordIdsInContainer(Integer containerId) throws SQLException{
+    static final List<Integer> getRecordIdsInContainer(int containerId) throws SQLException{
         List<Integer> recordIds = new LinkedList<>();
         try (Connection connection = DbConnect.getConnection();
              PreparedStatement ps = connection.prepareStatement(GET_RECORD_IDS_IN_CONTAINER)) {
