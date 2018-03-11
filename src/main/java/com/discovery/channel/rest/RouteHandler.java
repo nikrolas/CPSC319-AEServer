@@ -244,7 +244,7 @@ public class RouteHandler {
             params = {"ids", "userId"},
             method = RequestMethod.DELETE)
 
-    public ResponseEntity<?> deleteContainer(@RequestParam("ids") String ids, @RequestParam("userId") int userId) throws SQLException{
+    public ResponseEntity<?> deleteContainers(@RequestParam("ids") String ids, @RequestParam("userId") int userId) throws SQLException{
         LOGGER.info("Deleting container(s) {}", ids);
         return ContainerController.deleteContainers(ids, userId);
     }
