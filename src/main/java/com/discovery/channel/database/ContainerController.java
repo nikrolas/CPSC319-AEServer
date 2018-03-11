@@ -174,13 +174,13 @@ public class ContainerController {
      * @param id
      *
      */
-    private static final String DELETE_CONTAINERS＿BY_IDS =
+    private static final String DELETE_CONTAINERS＿BY_ID =
             "DELETE FROM containers" + " WHERE Id = ?";
 
     public static final void deleteOneContainer(String id) throws SQLException {
 
         try (Connection connection = DbConnect.getConnection();
-             PreparedStatement ps = connection.prepareStatement(DELETE_CONTAINERS＿BY_IDS)) {
+             PreparedStatement ps = connection.prepareStatement(DELETE_CONTAINERS＿BY_ID)) {
             LOGGER.info("Deleting container {}", id);
             ps.setInt(1, Integer.valueOf(id));
             ps.executeUpdate();
