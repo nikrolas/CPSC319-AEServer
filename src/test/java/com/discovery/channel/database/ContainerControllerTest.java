@@ -115,7 +115,7 @@ class ContainerControllerTest {
     }
 
     @Test
-    void deleteMultipulContainers() throws SQLException, JSONException{
+    void deleteMultipuleContainers() throws SQLException, JSONException{
         Container sampleContainer = createValidNewContainerRequest("TESTING_FOR_DELETE", "2018");
         Container c = ContainerController.createContainer(sampleContainer, RMC_USER_ID);
 
@@ -128,14 +128,14 @@ class ContainerControllerTest {
     }
 
     @Test
-    void deleteOneContainingRecordsContainer() throws SQLException{
+    void  deleteOneContainerWithRecords() throws SQLException{
         Container c = ContainerController.getContainerById(16348);
         ResponseEntity responseStatus = ContainerController.deleteContainers(String.valueOf(c.getContainerId()), RMC_USER_ID);
         assertEquals(responseStatus.getStatusCode(), HttpStatus.PRECONDITION_FAILED);
     }
 
     @Test
-    void deleteContainingRecordsContainers() throws SQLException{
+    void deleteContainersWithRecords() throws SQLException{
         Container c1 = ContainerController.getContainerById(16348);
         Container c2 = ContainerController.getContainerById(16349);
         String ids = String.valueOf(c1.getContainerId()) + "," + String.valueOf(c2.getContainerId());
