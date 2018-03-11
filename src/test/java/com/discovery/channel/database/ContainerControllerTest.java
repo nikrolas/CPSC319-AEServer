@@ -3,14 +3,19 @@ package com.discovery.channel.database;
 import com.discovery.channel.exception.AuthenticationException;
 import com.discovery.channel.exception.NoResultsFoundException;
 import com.discovery.channel.model.Container;
+import com.discovery.channel.model.Record;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.ResponseStatus;
 
 import java.sql.Date;
 import java.sql.SQLException;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -100,8 +105,49 @@ class ContainerControllerTest {
         assertTrue(e.getMessage().contains("Column 'Number' cannot be null"));
     }
 
+    @Test
+    void deleteOneContainer() throws SQLException, JSONException{
+        Container sampleContainer = createValidNewContainerRequest("TESTING_FOR_DELETE", "2018");
+        Container c = ContainerController.createContainer(sampleContainer, RMC_USER_ID);
+
+        ResponseEntity responseStatus = ContainerController.deleteContainers(String.valueOf(c.getContainerId()), RMC_USER_ID);
+        assertEquals(responseStatus.getStatusCode(), HttpStatus.OK);
+    }
+
+    @Test
+    void deleteMultipuleContainers() throws SQLException, JSONException{
+        Container sampleContainer = createValidNewContainerRequest("TESTING_FOR_DELETE", "2018");
+        Container c = ContainerController.createContainer(sampleContainer, RMC_USER_ID);
+
+        Container sampleContainer2 = createValidNewContainerRequest("TESTING_FOR_DELETE_2", "2018-2");
+        Container c2 = ContainerController.createContainer(sampleContainer2, RMC_USER_ID);
+
+        String ids = String.valueOf(c.getContainerId()) + "," + String.valueOf(c2.getContainerId());
+        ResponseEntity responseStatus = ContainerController.deleteContainers(ids, RMC_USER_ID);
+        assertEquals(responseStatus.getStatusCode(), HttpStatus.OK);
+    }
+
+    @Test
+    void  deleteOneContainerWithRecords() throws SQLException{
+        Container c = ContainerController.getContainerById(16348);
+        ResponseEntity responseStatus = ContainerController.deleteContainers(String.valueOf(c.getContainerId()), RMC_USER_ID);
+        assertEquals(responseStatus.getStatusCode(), HttpStatus.PRECONDITION_FAILED);
+    }
+
+    @Test
+    void deleteContainersWithRecords() throws SQLException{
+        Container c1 = ContainerController.getContainerById(16348);
+        Container c2 = ContainerController.getContainerById(16349);
+        String ids = String.valueOf(c1.getContainerId()) + "," + String.valueOf(c2.getContainerId());
+        ResponseEntity responseStatus = ContainerController.deleteContainers(ids, RMC_USER_ID);
+        assertEquals(responseStatus.getStatusCode(), HttpStatus.PRECONDITION_FAILED);
+    }
+
+
     private Container createValidNewContainerRequest(String title, String number) throws JSONException{
         Container c = new Container(0, number, title, null, null, null, null, null, null);
         return c;
     }
+
+
 }
