@@ -202,33 +202,23 @@ public class ContainerController {
 
         List<String> failed = new ArrayList<>();
 
-        if (ids.contains(",")) {
-            String[] listOfIds = ids.split(",");
-            for (String id : listOfIds) {
-                if (!getRecordIdsInContainer(Integer.valueOf(id)).isEmpty()) {
-                    failed.add(id);
-                }
-            }
-            if(failed.isEmpty()) {
-                LOGGER.info("Passed all validation checks. Deleting container {}", ids);
-                for (String id : listOfIds) {
-                    deleteOneContainer(id);
-                }
-                return ResponseEntity.status(HttpStatus.OK).build();
-            }else{
-                return new ResponseEntity(failed, HttpStatus.PRECONDITION_FAILED);
-            }
-
-        }else{
-
-            if (!getRecordIdsInContainer(Integer.valueOf(ids)).isEmpty()) {
-                return new ResponseEntity(ids, HttpStatus.PRECONDITION_FAILED);
-            }else{
-                LOGGER.info("Passed all validation checks. Deleting container {}", ids);
-                deleteOneContainer(ids);
-                return ResponseEntity.status(HttpStatus.OK).build();
+        String[] listOfIds = ids.split(",");
+        for (String id : listOfIds) {
+            if (!getRecordIdsInContainer(Integer.valueOf(id)).isEmpty()) {
+                failed.add(id);
             }
         }
+        if(failed.isEmpty()) {
+            LOGGER.info("Passed all validation checks. Deleting container {}", ids);
+            for (String id : listOfIds) {
+                deleteOneContainer(id);
+            }
+            return ResponseEntity.status(HttpStatus.OK).build();
+        }else{
+            return new ResponseEntity(failed, HttpStatus.PRECONDITION_FAILED);
+        }
+
+
     }
 
 }
