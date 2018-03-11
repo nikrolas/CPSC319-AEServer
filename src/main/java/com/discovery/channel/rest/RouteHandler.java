@@ -260,7 +260,7 @@ public class RouteHandler {
             method = RequestMethod.GET)
 
     public List<Container> getContainerByNumber(@RequestParam("num") String num, @RequestParam("userId") int userId) throws SQLException{
-        LOGGER.info("Deleting a container {}", num);
+        LOGGER.info("Searching containers filtered by {}", num);
         return ContainerController.getContainerByNumber(num);
     }
 
