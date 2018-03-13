@@ -227,7 +227,7 @@ public class RouteHandler {
     public ResponseEntity<Container> updateContainer(@PathVariable("id") Integer id,
                                                      @RequestParam("userId") int userId,
                                                      @RequestBody Container updatedFields)  throws SQLException{
-        return new ResponseEntity<>(ContainerController.updateContainer(id, updatedFields, userId), HttpStatus.ACCEPTED);
+        return new ResponseEntity<>(ContainerController.updateContainer(id, updatedFields, userId), HttpStatus.OK);
     }
 
     /**
