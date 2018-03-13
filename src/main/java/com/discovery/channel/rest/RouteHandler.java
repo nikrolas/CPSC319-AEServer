@@ -1,9 +1,11 @@
 package com.discovery.channel.rest;
 
 import com.discovery.channel.database.*;
+import com.discovery.channel.form.DeleteRecordsForm;
 import com.discovery.channel.form.UpdateRecordForm;
 import com.discovery.channel.model.*;
 
+import com.discovery.channel.response.BatchResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -159,18 +161,12 @@ public class RouteHandler {
 
     // END OF Facilitating endpoints for creating records
 
-    /**
-     * Delete a record
-     *
-     * @param  id
-     * @return a list of records filtered by search content
-     */
     @RequestMapping(
-            value = "record/{id}",
+            value = "records",
             params = {"userId"},
             method = RequestMethod.DELETE)
-    public boolean deleteRecord (@PathVariable("id") Integer id, @RequestParam("userId") int userId) throws SQLException {
-        return RecordController.deleteRecord(id, userId);
+    public BatchResponse deleteRecords(@RequestParam("userId") int userId, @RequestBody DeleteRecordsForm form) throws SQLException {
+        return RecordController.deleteRecords(userId, form);
     }
 
     /**
