@@ -104,6 +104,8 @@ public class ContainerController {
         container.setUpdatedAt(createdAt);
         int newContainerId = saveContainerToDb(container);
 
+        NoteTableController.saveNotesForContainer(newContainerId, container.getNotes());
+
         LOGGER.info("Created record. Record Id {}", newContainerId);
 
         return getContainerById(newContainerId);
@@ -137,7 +139,6 @@ public class ContainerController {
             ps.setDate(5, c.getCreatedAt());
             ps.setDate(6, c.getUpdatedAt());
             ps.executeUpdate();
-            //todo save notes to db
             return id;
         }
     }
@@ -166,9 +167,10 @@ public class ContainerController {
             ps.setString(1, container.getContainerNumber());
             ps.setString(2, container.getTitle());
             ps.setInt(3, containerId);
-
             ps.executeUpdate();
-            //todo save notes to db
+
+            NoteTableController.updateContainerNotes(containerId, container.getNotes());
+
             return getContainerById(containerId);
         }
     }
