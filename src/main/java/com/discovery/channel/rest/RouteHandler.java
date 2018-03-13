@@ -230,7 +230,9 @@ public class RouteHandler {
         return new ResponseEntity<>(ContainerController.updateContainer(id, updatedFields, userId), HttpStatus.ACCEPTED);
     }
 
-    /** Get a user by id in user table
+    /**
+     * Get a user by id in user table
+     *
      *
      * @param  id
      * @return the user with the given user id
@@ -241,7 +243,6 @@ public class RouteHandler {
     public User getUserByUserTableId(@PathVariable("id") Integer id) throws SQLException{
         LOGGER.info("Searching for user with id {}", id);
         return UserController.getUserByUserTableId(id);
-
     }
 
     /**

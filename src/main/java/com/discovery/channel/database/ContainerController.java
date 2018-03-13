@@ -142,7 +142,6 @@ public class ContainerController {
         }
     }
 
-
     private static final String UPDATE_CONTAINER =
             "UPDATE containers " +
                     "SET Number = ?, Title = ?, UpdatedAt = NOW() " +
