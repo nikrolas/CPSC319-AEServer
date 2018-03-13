@@ -31,7 +31,7 @@ public class ContainerController {
         String consignmentCode = resultSet.getString("ConsignmentCode");
         Date createdAt = resultSet.getDate("CreatedAt");
         Date updatedAt = resultSet.getDate("UpdatedAt");
-        Date destructionDate = resultSet.getDate("UpdatedAt"); //TODO: calculate from containing records
+        Date destructionDate = resultSet.getDate("DestructionDate");
         List<Integer> childRecordIds = getRecordIdsInContainer(id);
         String notes = "Container notes"; //TODO: get container notes
         return new Container(id,
@@ -150,23 +150,22 @@ public class ContainerController {
     /**
      * Update a container
      *
-     * @param updatedFields the request body translated to a container object, containing only fields that should be
-     *                      updated
+     * @param container the request body translated to a container object, containing the updated container information
      * @param userId the id of the user submitting the request
      * @throws SQLException rethrows any SQLException
      * @throws AuthenticationException AuthenticationException thrown if the user does not have RMC rights
      */
-    public static Container updateContainer(int containerId, Container updatedFields, int userId) throws SQLException{
+    public static Container updateContainer(int containerId, Container container, int userId) throws SQLException{
         if (!Authenticator.authenticate(userId, Role.RMC)) {
             throw new AuthenticationException(String.format("User %d is not authenticated to create record", userId));
         }
-        LOGGER.info("Passed all validation checks. Updating Container {}", updatedFields); //todo this message could be better
+        LOGGER.info("Passed all validation checks. Updating Container {}", container); //todo this message could be better
 
         try (Connection connection = DbConnect.getConnection();
              PreparedStatement ps = connection.prepareStatement(UPDATE_CONTAINER)) {
 
-            ps.setString(1, updatedFields.getContainerNumber());
-            ps.setString(2, updatedFields.getTitle());
+            ps.setString(1, container.getContainerNumber());
+            ps.setString(2, container.getTitle());
             ps.setInt(3, containerId);
 
             ps.executeUpdate();
