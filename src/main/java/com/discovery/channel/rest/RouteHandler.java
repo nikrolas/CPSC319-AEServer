@@ -12,7 +12,9 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import javax.ws.rs.PathParam;
 import java.sql.SQLException;
+import java.util.Date;
 import java.util.List;
 
 @RestController
@@ -232,6 +234,22 @@ public class RouteHandler {
         LOGGER.info("Searching for user with id {}", id);
         return UserController.getUserByUserTableId(id);
 
+    }
+
+
+    /**
+     * Get a destruction date given record ids
+     *
+     * @param  ids
+     * @return Destruction date in millisecond if success, error message otherwise
+     */
+    @RequestMapping(
+            value = "destructiondate",
+            params = {"ids", "userId"},
+            method = RequestMethod.GET)
+    public ResponseEntity<?> getDestructionDate(@RequestParam("ids") String ids, @RequestParam("userId") int userId) throws SQLException{
+        LOGGER.info("Calculating destruction date given ids {}", ids);
+        return DestructionDateController.getDestructionDate(ids);
     }
 
 }
