@@ -216,7 +216,21 @@ public class RouteHandler {
     }
 
     /**
-     * Get a user by id in user table
+     * Update a container
+     *
+     * @return the newly updated container
+     */
+    @RequestMapping(
+            value = "container/{id}",
+            params = {"userId"},
+            method = RequestMethod.PUT)
+    public ResponseEntity<Container> updateContainer(@PathVariable("id") Integer id,
+                                                     @RequestParam("userId") int userId,
+                                                     @RequestBody Container updatedFields)  throws SQLException{
+        return new ResponseEntity<>(ContainerController.updateContainer(id, updatedFields, userId), HttpStatus.ACCEPTED);
+    }
+
+    /** Get a user by id in user table
      *
      * @param  id
      * @return the user with the given user id
@@ -259,6 +273,4 @@ public class RouteHandler {
         LOGGER.info("Searching containers filtered by {}", num);
         return ContainerController.getContainerByNumber(num);
     }
-
-
 }

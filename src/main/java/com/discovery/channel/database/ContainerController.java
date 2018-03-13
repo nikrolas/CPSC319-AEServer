@@ -143,6 +143,38 @@ public class ContainerController {
     }
 
 
+    private static final String UPDATE_CONTAINER =
+            "UPDATE containers " +
+                    "SET Number = ?, Title = ?, UpdatedAt = NOW() " +
+                    "WHERE Id = ?";
+    /**
+     * Update a container
+     *
+     * @param updatedFields the request body translated to a container object, containing only fields that should be
+     *                      updated
+     * @param userId the id of the user submitting the request
+     * @throws SQLException rethrows any SQLException
+     * @throws AuthenticationException AuthenticationException thrown if the user does not have RMC rights
+     */
+    public static Container updateContainer(int containerId, Container updatedFields, int userId) throws SQLException{
+        if (!Authenticator.authenticate(userId, Role.RMC)) {
+            throw new AuthenticationException(String.format("User %d is not authenticated to create record", userId));
+        }
+        LOGGER.info("Passed all validation checks. Updating Container {}", updatedFields); //todo this message could be better
+
+        try (Connection connection = DbConnect.getConnection();
+             PreparedStatement ps = connection.prepareStatement(UPDATE_CONTAINER)) {
+
+            ps.setString(1, updatedFields.getContainerNumber());
+            ps.setString(2, updatedFields.getTitle());
+            ps.setInt(3, containerId);
+
+            ps.executeUpdate();
+            //todo save notes to db
+            return getContainerById(containerId);
+        }
+    }
+
     /**
      * Retrieve containers filtered by container number
      *
@@ -220,5 +252,4 @@ public class ContainerController {
 
 
     }
-
 }
