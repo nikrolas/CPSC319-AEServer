@@ -22,14 +22,14 @@ public class NoteTableController {
     private static final int MAX_NOTE_LEN = Integer.MAX_VALUE;
     private static final String INSERT_RECORD_NOTE = "INSERT INTO notes (TableId, RowId, Chunk, Text) " +
             "VALUES(?, ? , ? , ?)";
-    private static void saveNotes(NoteTable noteTable, int recordId, String notes) throws SQLException {
+    private static void saveNotes(NoteTable noteTable, int id, String notes) throws SQLException {
         try (Connection conn = DbConnect.getConnection();
              PreparedStatement ps = conn.prepareStatement(INSERT_RECORD_NOTE)){
             int chunkNum = 0;
             int startIndex = 0;
             while (startIndex < notes.length()) {
                 ps.setInt(1, noteTable.id);
-                ps.setInt(2, recordId);
+                ps.setInt(2, id);
                 ps.setInt(3, chunkNum);
                 ps.setString(4, notes.substring(startIndex,
                         startIndex + MAX_NOTE_LEN >= notes.length()? notes.length() : startIndex + MAX_NOTE_LEN));
@@ -39,7 +39,7 @@ public class NoteTableController {
             }
             ps.executeBatch();
         }
-        LOGGER.info("Saved notes {} for record {}", notes, recordId);
+        LOGGER.info("Saved notes {} for record {}", notes, id);
     }
 
     public static void saveNotesForRecord(int recordId, String notes) throws SQLException {
@@ -58,15 +58,15 @@ public class NoteTableController {
      */
     private static final String DELETE_NOTE_FOR_RECORD = "DELETE FROM notes " +
             "WHERE TableId=? AND RowId = ?";
-    private static int deleteNotes(NoteTable noteTable, int recordId) throws SQLException {
+    private static int deleteNotes(NoteTable noteTable, int id) throws SQLException {
         int rowsUpdated = 0;
         try(Connection connection = DbConnect.getConnection();
             PreparedStatement ps = connection.prepareStatement(DELETE_NOTE_FOR_RECORD)) {
             ps.setInt(1, noteTable.id);
-            ps.setInt(2, recordId);
+            ps.setInt(2, id);
             rowsUpdated = ps.executeUpdate();
         }
-        LOGGER.info("Deleted {} note entries for record {}", rowsUpdated, recordId);
+        LOGGER.info("Deleted {} note entries for record {}", rowsUpdated, id);
         return rowsUpdated;
     }
 
