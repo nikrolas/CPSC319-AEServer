@@ -48,7 +48,7 @@ public class DestructionDateController {
         Date theLatestClosedAt = null;
         int scheduleYear = 0;
 
-        if(checkRecordsFields(listOfRecordIds).isEmpty()){
+        if(checkRecordsClosedAt(listOfRecordIds).isEmpty()){
 
             LOGGER.info("Passing all the validation");
             LOGGER.info("Getting the latest closure date given ids {}", listOfRecordIds);
@@ -56,38 +56,31 @@ public class DestructionDateController {
             for (String id : listOfRecordIds){
                 LOGGER.info("Getting a record by id {}", id);
 
-                try{
-                    Record record = RecordController.getRecordById(Integer.valueOf(id));
-                    currentClosedAt = record.getClosedAt();
+                Record record = RecordController.getRecordById(Integer.valueOf(id));
+                currentClosedAt = record.getClosedAt();
 
-                    if (theLatestClosedAt == null) {
+                if (theLatestClosedAt == null) {
+                    theLatestClosedAt = currentClosedAt;
+                    scheduleYear = record.getScheduleYear();
+                } else {
+                    if (currentClosedAt.compareTo(theLatestClosedAt) == 1) {
                         theLatestClosedAt = currentClosedAt;
-                        scheduleYear = record.getScheduleYear();
-                    } else {
-                        if (currentClosedAt.compareTo(theLatestClosedAt) == 1) {
-                            theLatestClosedAt = currentClosedAt;
-                        }
                     }
+                }
 
-                    if(scheduleYear != record.getScheduleYear()){
-                        LOGGER.info("ScheduleId for record id {} is different", id);
-                        String output = String.format("ScheduleId for record id %s is different", id);
-                        return new ResponseEntity<>(output, HttpStatus.BAD_REQUEST);
-                    }
-
-                }catch (NullPointerException e){
-                    LOGGER.info("Record id {} does not exist", id);
-                    String output = String.format("Record id %s does not exist", id);
+                if(scheduleYear != record.getScheduleYear()){
+                    LOGGER.info("ScheduleId for record id {} is different", id);
+                    String output = String.format("ScheduleId for record id %s is different", id);
                     return new ResponseEntity<>(output, HttpStatus.BAD_REQUEST);
                 }
             }
 
-            return calculateDestructionDate(scheduleYear, theLatestClosedAt);
+            return new ResponseEntity<>(calculateDestructionDate(scheduleYear, theLatestClosedAt), HttpStatus.OK);
 
         }else{
 
             LOGGER.info("Records id {} do not have ClosedAt");
-            return new ResponseEntity<>(checkRecordsFields(listOfRecordIds), HttpStatus.BAD_REQUEST);
+            return new ResponseEntity<>(checkRecordsClosedAt(listOfRecordIds), HttpStatus.BAD_REQUEST);
         }
 
     }
@@ -100,7 +93,7 @@ public class DestructionDateController {
      * @return Destruction date in millisecond if success, error message otherwise
      * @throws SQLException
      */
-    private static ResponseEntity<?> calculateDestructionDate(int year, Date theLatestClosureDate){
+    public static long calculateDestructionDate(int year, Date theLatestClosureDate){
 
         LOGGER.info("Calculating a destruction date");
 
@@ -110,7 +103,7 @@ public class DestructionDateController {
 
         java.util.Date date = calendar.getTime();
 
-        return new ResponseEntity<>(date.getTime(), HttpStatus.OK);
+        return date.getTime();
 
     }
 
@@ -122,7 +115,7 @@ public class DestructionDateController {
      * @return Record ids that do not meet requirements
      * @throws SQLException
      */
-    private static ArrayList<String> checkRecordsFields(String[] listOfRecordIds) throws SQLException {
+    public static ArrayList<String> checkRecordsClosedAt(String[] listOfRecordIds) throws SQLException {
 
         ArrayList<String> noClosureDate = new ArrayList<>();
 
