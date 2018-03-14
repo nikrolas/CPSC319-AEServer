@@ -19,12 +19,15 @@ public class Container {
     private String title;
     private Date createdAt;
     private Date updatedAt;
+    private Date destructionDate;
     private List<Integer> childRecordIds;
 
     private String consignmentCode;
     private int locationId;
     private String locationName;
-    private Date destructionDate;
+    private int scheduleId;
+    private String scheduleName;
+    private int type;
     private String notes;
 
     public Container(int containerId,

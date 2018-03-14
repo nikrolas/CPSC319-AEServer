@@ -398,7 +398,7 @@ public class RecordController {
             }
             saveClassificationForRecord(newRecordId, record.getClassifications());
             if (!StringUtils.isEmpty(record.getNotes()) ) {
-                saveNotesForRecord(newRecordId, record.getNotes());
+                NoteTableController.saveNotesForRecord(newRecordId, record.getNotes());
             }
             return newRecordId;
         }
@@ -456,61 +456,6 @@ public class RecordController {
     }
 
     /**
-     * Save notes to db
-     *
-     * @param recordId
-     * @param notes
-     * @throws SQLException
-     */
-    private static final int MAX_NOTE_LEN = Integer.MAX_VALUE;
-    private static final String INSERT_RECORD_NOTE = "INSERT INTO notes (TableId, RowId, Chunk, Text) " +
-            "VALUES(?, ? , ? , ?)";
-    private static void saveNotesForRecord(int recordId, String notes) throws SQLException {
-        try (Connection conn = DbConnect.getConnection();
-             PreparedStatement ps = conn.prepareStatement(INSERT_RECORD_NOTE)){
-            int chunkNum = 0;
-            int startIndex = 0;
-            while (startIndex < notes.length()) {
-                ps.setInt(1, NoteTable.RECORDS.id);
-                ps.setInt(2, recordId);
-                ps.setInt(3, chunkNum);
-                ps.setString(4, notes.substring(startIndex,
-                        startIndex + MAX_NOTE_LEN >= notes.length()? notes.length() : startIndex + MAX_NOTE_LEN));
-                ps.addBatch();
-                startIndex = startIndex + MAX_NOTE_LEN;
-                chunkNum = chunkNum + 1;
-            }
-            ps.executeBatch();
-        }
-        LOGGER.info("Saved notes {} for record {}", notes, recordId);
-    }
-
-    /**
-     * Delete all chunks of notes for a record
-     * @param recordId
-     * @return
-     * @throws SQLException
-     */
-    private static final String DELETE_NOTE_FOR_RECORD = "DELETE FROM notes " +
-            "WHERE TableId=? AND RowId = ?";
-    private static int deleteNotesForRecord(int recordId) throws SQLException {
-        int rowsUpdated = 0;
-        try(Connection connection = DbConnect.getConnection();
-            PreparedStatement ps = connection.prepareStatement(DELETE_NOTE_FOR_RECORD)) {
-            ps.setInt(1, NoteTable.RECORDS.id);
-            ps.setInt(2, recordId);
-            rowsUpdated = ps.executeUpdate();
-        }
-        LOGGER.info("Deleted {} note entries for record {}", rowsUpdated, recordId);
-        return rowsUpdated;
-    }
-
-    private static void updateRecordNotes(int recordId, String newNotes) throws SQLException {
-        deleteNotesForRecord(recordId);
-        saveNotesForRecord(recordId, newNotes);
-    }
-
-    /**
      * Delete a record by Id
      *
      * @param id
@@ -544,7 +489,7 @@ public class RecordController {
         }
 
         // 3. Delete notes
-        deleteNotesForRecord(id);
+        NoteTableController.deleteNotesForRecord(id);
 
         return rowsModified == 1;
     }
@@ -645,9 +590,9 @@ public class RecordController {
 
         // Update notes if need to
         if (StringUtils.isEmpty(updateForm.getNotes())) {
-            deleteNotesForRecord(id);
+            NoteTableController.deleteNotesForRecord(id);
         }else if(!updateForm.getNotes().equals(record.getNotes())) {
-            updateRecordNotes(id, updateForm.getNotes());
+            NoteTableController.updateRecordNotes(id, updateForm.getNotes());
         }
 
         //TODO audit logs
