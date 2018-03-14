@@ -252,4 +252,20 @@ public class RouteHandler {
         return DestructionDateController.getDestructionDate(ids);
     }
 
+
+    /**
+     * Destroy records given record ids
+     *
+     * @param  ids
+     * @return httpstatus 200 if success, error message with record id(s) that can be destroyed otherwise
+     */
+    @RequestMapping(
+            value = "destroyrecords",
+            params = {"ids", "userId"},
+            method = RequestMethod.PUT)
+    public ResponseEntity<?> destroyRecords(@RequestParam("ids") String ids, @RequestParam("userId") int userId) throws SQLException {
+        LOGGER.info("Destorying records given ids {}", ids);
+        return RecordController.destroyRecords(ids);
+    }
+
 }

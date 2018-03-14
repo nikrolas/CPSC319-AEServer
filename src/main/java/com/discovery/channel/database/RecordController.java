@@ -8,13 +8,14 @@ import com.discovery.channel.form.UpdateRecordForm;
 import com.discovery.channel.model.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
+import sun.security.krb5.internal.crypto.Des;
 
 import java.sql.*;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.sql.Date;
+import java.util.*;
 
 
 public class RecordController {
@@ -615,6 +616,76 @@ public class RecordController {
         try (Connection conn = DbConnect.getConnection();
              PreparedStatement ps = conn.prepareStatement(DELETE_RECORD_CLASSIFICATIONS)){
             ps.setInt(1, recordId);
+            ps.executeUpdate();
+        }
+    }
+
+
+    private static final String RECORD_IS_NOT_CLOSED = "The record is not closed.";
+    private static final String RETENTION_NOT_END = "The record's retention period has not ended yet.";
+    /**
+     * Destroy records given ids
+     *
+     * @param ids
+     * @throws SQLException
+     */
+    public static ResponseEntity<?> destroyRecords(String ids) throws SQLException {
+
+        ArrayList<String> failed = new ArrayList<>();
+        Date currentDate = new Date(Calendar.getInstance().getTimeInMillis());
+        String[] listOfRecords = ids.split(",");
+        HashMap<String, Object> errorResponse = new HashMap<>();
+        ArrayList<String> noClosureDateList = DestructionDateController.checkRecordsClosedAt(listOfRecords);
+
+        if(!noClosureDateList.isEmpty()){
+            LOGGER.info("Record id(s) do not have ClosedAt");
+            errorResponse.put("id", noClosureDateList);
+            errorResponse.put("error", RECORD_IS_NOT_CLOSED);
+
+        }else{
+
+            for (String id : listOfRecords) {
+                Record record = getRecordById(Integer.valueOf(id));
+                if(record.getStateId() != 6) {
+                    Date destructionDate = new Date(DestructionDateController.calculateDestructionDate(record.getScheduleYear(), record.getClosedAt()));
+                    if (destructionDate.compareTo(currentDate) > 0) failed.add(id);
+                }
+            }
+
+            if(failed.isEmpty()){
+                LOGGER.info("Records passed all the checking");
+                for(String id : listOfRecords){
+                    destroyRecord(Integer.valueOf(id));
+                }
+                return new ResponseEntity<>(HttpStatus.OK);
+
+            }else{
+                LOGGER.info("Records destruction date(s) not passed yet");
+                errorResponse.put("id", failed);
+                errorResponse.put("error", RETENTION_NOT_END);
+            }
+        }
+
+        return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
+
+    }
+
+
+    /**
+     * Destroy a record given its id
+     *
+     * @param ids
+     * @throws SQLException
+     */
+    public static final String DESTROY_RECORD =
+            "UPDATE records" + " SET StateId = ? " + "WHERE Id = ?";
+
+    public static void destroyRecord(int id) throws SQLException {
+
+        try (Connection conn = DbConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(DESTROY_RECORD)){
+            ps.setInt(1, 6);
+            ps.setInt(2, id);
             ps.executeUpdate();
         }
     }
