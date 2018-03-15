@@ -9,6 +9,7 @@ import lombok.Setter;
 
 import java.sql.Date;
 import java.sql.SQLException;
+import java.util.List;
 
 /**
  * Created by Qiushan on 2018/1/20.
@@ -39,6 +40,7 @@ public class Record {
     private String container;
     private int scheduleYear;
     private String classifications;
+    private List<Integer> classificationIds;
     private String notes;
 
 

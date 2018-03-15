@@ -157,6 +157,7 @@ public class RecordController {
             classifications.add(ClassificationController.findClassificationById(classId));
         }
         record.setClassifications(Classification.buildClassificationString(classifications));
+        record.setClassificationIds(classIds);
 
         // Load notes
         record.setNotes(getRecordNotes(record.getId()));
