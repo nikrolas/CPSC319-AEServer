@@ -5,6 +5,7 @@ import com.discovery.channel.authenticator.Role;
 import com.discovery.channel.exception.AuthenticationException;
 import com.discovery.channel.exception.NoResultsFoundException;
 import com.discovery.channel.model.Container;
+import com.discovery.channel.model.NoteTable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -33,7 +34,7 @@ public class ContainerController {
         Date updatedAt = resultSet.getDate("UpdatedAt");
         Date destructionDate = resultSet.getDate("DestructionDate");
         List<Integer> childRecordIds = getRecordIdsInContainer(id);
-        String notes = "Container notes"; //TODO: get container notes
+        String notes = getContainerNotes(id); //TODO: get container notes
         return new Container(id,
                 number,
                 title,
@@ -251,5 +252,31 @@ public class ContainerController {
         }
 
 
+    }
+
+    /**
+     * Get container notes
+     *
+     * @param recordId
+     * @return
+     * @throws SQLException
+     */
+    private static final String GET_CONTAINER_NOTES = "SELECT Text " +
+            "FROM notes " +
+            "WHERE TableId=? AND RowId=? " +
+            "ORDER BY Chunk ASC";
+    private static String getContainerNotes(int containerId) throws SQLException {
+        String notes = "";
+        try (Connection conn = DbConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(GET_CONTAINER_NOTES)) {
+            ps.setInt(1, NoteTable.CONTAINERS.id);
+            ps.setInt(2, containerId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    notes = notes + rs.getString("Text");
+                }
+            }
+        }
+        return notes;
     }
 }

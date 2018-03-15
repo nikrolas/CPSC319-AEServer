@@ -430,7 +430,7 @@ public class RecordController {
     }
 
     /**
-     * Get ordered list of classifications Ids for a record
+     * Get record notes
      *
      * @param recordId
      * @return
