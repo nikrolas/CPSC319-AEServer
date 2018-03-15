@@ -2,6 +2,7 @@ package com.discovery.channel.model;
 import com.discovery.channel.database.RecordTypeController;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -9,6 +10,7 @@ import lombok.Setter;
 
 import java.sql.Date;
 import java.sql.SQLException;
+import java.util.List;
 
 /**
  * Created by Qiushan on 2018/1/20.
@@ -39,6 +41,8 @@ public class Record {
     private String container;
     private int scheduleYear;
     private String classifications;
+    @JsonFormat(with = JsonFormat.Feature.ACCEPT_SINGLE_VALUE_AS_ARRAY)
+    private List<Integer> classIds;
     private String notes;
 
 

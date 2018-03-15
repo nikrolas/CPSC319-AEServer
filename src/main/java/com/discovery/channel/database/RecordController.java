@@ -152,6 +152,7 @@ public class RecordController {
 
         // Load classifications
         List<Integer> classIds = getRecordClassifications(record.getId());
+        record.setClassIds(classIds);
         List<Classification> classifications = new ArrayList<>();
         for (int classId : classIds) {
             classifications.add(ClassificationController.findClassificationById(classId));
