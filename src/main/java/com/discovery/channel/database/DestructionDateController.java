@@ -17,29 +17,15 @@ public class DestructionDateController {
 
 
     /**
-     * Get destruction date
-     *
-     * @param ids
-     * @return Destruction date in millisecond if success, error message otherwise
-     * @throws SQLException
-     */
-    public static final ResponseEntity<?> getDestructionDate(String ids) throws SQLException {
-
-        String[] listOfRecordIds = ids.split(",");
-        LOGGER.info("Calculating a destruction date");
-        return calculateDestructionDate(listOfRecordIds);
-
-    }
-
-
-    /**
      * Calculate a destruction date based on the latest ClosedAt given a list of record ids plus the retention schedule
      *
      * @param listOfRecordIds
      * @return Destruction date in millisecond if success, error message otherwise
      * @throws SQLException
      */
-    private static ResponseEntity<?> calculateDestructionDate(String[] listOfRecordIds) throws SQLException {
+    public static ResponseEntity<?> calculateDestructionDate(ArrayList<Integer> listOfRecordIds) throws SQLException {
+
+        LOGGER.info("Calculating a destruction date");
 
         Date currentClosedAt;
         Date theLatestClosedAt = null;
@@ -50,10 +36,10 @@ public class DestructionDateController {
 
             LOGGER.info("Getting the latest closure date given ids {}", listOfRecordIds);
 
-            for (String id : listOfRecordIds){
+            for (Integer id : listOfRecordIds){
                 LOGGER.info("Getting a record by id {}", id);
 
-                Record record = RecordController.getRecordById(Integer.valueOf(id));
+                Record record = RecordController.getRecordById(id);
                 if (record != null){
                     currentClosedAt = record.getClosedAt();
 
@@ -83,7 +69,7 @@ public class DestructionDateController {
 
         }else{
 
-            LOGGER.info("Records id {} do not have ClosedAt");
+            LOGGER.info("Records id {} do not have ClosedAt", checkRecordsClosedAt(listOfRecordIds));
             return new ResponseEntity<>(checkRecordsClosedAt(listOfRecordIds), HttpStatus.BAD_REQUEST);
         }
 
@@ -119,12 +105,12 @@ public class DestructionDateController {
      * @return Record ids that do not meet requirements
      * @throws SQLException
      */
-    public static ArrayList<String> checkRecordsClosedAt(String[] listOfRecordIds) throws SQLException {
+    public static ArrayList<Integer> checkRecordsClosedAt(ArrayList<Integer> listOfRecordIds) throws SQLException {
 
-        ArrayList<String> noClosureDate = new ArrayList<>();
+        ArrayList<Integer> noClosureDate = new ArrayList<>();
 
-        for (String id : listOfRecordIds){
-            Record record = RecordController.getRecordById(Integer.valueOf(id));
+        for (Integer id : listOfRecordIds){
+            Record record = RecordController.getRecordById(id);
             if(record.getClosedAt() == null) noClosureDate.add(id);
         }
 

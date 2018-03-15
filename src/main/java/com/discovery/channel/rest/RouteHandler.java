@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.ws.rs.PathParam;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
@@ -247,9 +248,9 @@ public class RouteHandler {
             value = "destructiondate",
             params = {"ids", "userId"},
             method = RequestMethod.GET)
-    public ResponseEntity<?> getDestructionDate(@RequestParam("ids") String ids, @RequestParam("userId") int userId) throws SQLException{
+    public ResponseEntity<?> getDestructionDate(@RequestParam("ids") ArrayList<Integer> ids, @RequestParam("userId") int userId) throws SQLException{
         LOGGER.info("Calculating destruction date given ids {}", ids);
-        return DestructionDateController.getDestructionDate(ids);
+        return DestructionDateController.calculateDestructionDate(ids);
     }
 
 }
