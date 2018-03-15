@@ -476,7 +476,7 @@ public class RecordController {
         }
 
         if (!Authenticator.isUserAuthenticatedForLocation(userId, record.getLocationId())) {
-            throw new AuthenticationException(String.format("User %d is not authenticated to delete record under localtion %d", userId, record.getLocationId()));
+            throw new AuthenticationException(String.format("User %d is not authenticated to delete record under location %d", userId, record.getLocationId()));
         }
 
         LOGGER.info("About to delete record {}", id);
@@ -545,12 +545,12 @@ public class RecordController {
         }
 
         if (!Authenticator.isUserAuthenticatedForLocation(userId, record.getLocationId())) {
-            throw new AuthenticationException(String.format("User %d is not authenticated to update record under localtion %d", userId, record.getLocationId()));
+            throw new AuthenticationException(String.format("User %d is not authenticated to update record under location %d", userId, record.getLocationId()));
         }
 
         // RMC can't move a record to a location tht they're not a part of
         if (!Authenticator.isUserAuthenticatedForLocation(userId, record.getLocationId())) {
-            throw new AuthenticationException(String.format("User %d is not authenticated to update record under localtion %d", userId, record.getLocationId()));
+            throw new AuthenticationException(String.format("User %d is not authenticated to update record under location %d", userId, record.getLocationId()));
         }
 
         // Only certain types of states are valid for certain retention schedules

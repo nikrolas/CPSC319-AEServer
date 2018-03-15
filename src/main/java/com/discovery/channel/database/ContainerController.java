@@ -157,7 +157,7 @@ public class ContainerController {
      */
     public static Container updateContainer(int containerId, Container container, int userId) throws SQLException{
         if (!Authenticator.authenticate(userId, Role.RMC)) {
-            throw new AuthenticationException(String.format("User %d is not authenticated to create record", userId));
+            throw new AuthenticationException(String.format("User %d is not authenticated to update record", userId));
         }
         LOGGER.info("Passed all validation checks. Updating Container {}", container); //todo this message could be better
 
@@ -229,7 +229,7 @@ public class ContainerController {
     public static final ResponseEntity<?> deleteContainers(String ids, Integer userId) throws SQLException{
 
         if (!Authenticator.authenticate(userId, Role.RMC)) {
-            throw new AuthenticationException(String.format("User %d is not authenticated to create record", userId));
+            throw new AuthenticationException(String.format("User %d is not authenticated to delete record", userId));
         }
 
         List<String> failed = new ArrayList<>();
