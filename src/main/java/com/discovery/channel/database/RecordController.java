@@ -145,7 +145,7 @@ public class RecordController {
         record.setLocation(getLocationName(record.getLocationId()));
         record.setType(RecordTypeController.getTypeName(record.getTypeId()));
         record.setState(getStateName(record.getStateId()));
-        record.setContainer(getContainerNumber(record.getContainerId()));
+        record.setContainerNumber(getContainerNumber(record.getContainerId()));
 
         Map<String, String> schedule = getRetentionSchedule(record.getScheduleId());
         record.setSchedule(schedule.get("Name"));

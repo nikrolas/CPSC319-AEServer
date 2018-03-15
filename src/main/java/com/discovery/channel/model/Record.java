@@ -38,7 +38,7 @@ public class Record {
     private String schedule;
     private String type;
     private String state;
-    private String container;
+    private String containerNumber;
     private int scheduleYear;
     private String classifications;
     @JsonFormat(with = JsonFormat.Feature.ACCEPT_SINGLE_VALUE_AS_ARRAY)
