@@ -73,7 +73,8 @@ public class DestructionDateController {
                     }
                 }else{
                     LOGGER.info("Records id {} does not exist", id);
-                    return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+                    String output = String.format("Records id %s does not exist", id);
+                    return new ResponseEntity<>(output, HttpStatus.BAD_REQUEST);
                 }
             }
 
