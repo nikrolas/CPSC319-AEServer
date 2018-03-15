@@ -8,11 +8,8 @@ import org.springframework.http.ResponseEntity;
 
 import java.sql.Date;
 import java.sql.SQLException;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Calendar;
-import java.util.HashMap;
 
 public class DestructionDateController {
 
@@ -29,20 +26,20 @@ public class DestructionDateController {
     public static final ResponseEntity<?> getDestructionDate(String ids) throws SQLException {
 
         String[] listOfRecordIds = ids.split(",");
-        LOGGER.info("Getting a destruction date");
-        return getTheLatestClosetAt(listOfRecordIds);
+        LOGGER.info("Calculating a destruction date");
+        return calculateDestructionDate(listOfRecordIds);
 
     }
 
 
     /**
-     * Get the latest ClosedAt given a list of record ids
+     * Calculate a destruction date based on the latest ClosedAt given a list of record ids plus the retention schedule
      *
      * @param listOfRecordIds
      * @return Destruction date in millisecond if success, error message otherwise
      * @throws SQLException
      */
-    private static ResponseEntity<?> getTheLatestClosetAt(String[] listOfRecordIds) throws SQLException {
+    private static ResponseEntity<?> calculateDestructionDate(String[] listOfRecordIds) throws SQLException {
 
         Date currentClosedAt;
         Date theLatestClosedAt = null;
@@ -50,7 +47,7 @@ public class DestructionDateController {
 
         if(checkRecordsClosedAt(listOfRecordIds).isEmpty()){
 
-            LOGGER.info("Passing all the validation");
+
             LOGGER.info("Getting the latest closure date given ids {}", listOfRecordIds);
 
             for (String id : listOfRecordIds){
@@ -75,7 +72,8 @@ public class DestructionDateController {
                 }
             }
 
-            return new ResponseEntity<>(calculateDestructionDate(scheduleYear, theLatestClosedAt), HttpStatus.OK);
+            LOGGER.info("Passing all the validation");
+            return new ResponseEntity<>(addYearToTheLatestClosureDate(scheduleYear, theLatestClosedAt), HttpStatus.OK);
 
         }else{
 
@@ -87,13 +85,13 @@ public class DestructionDateController {
 
 
     /**
-     * Calculate destruction date given schedule year and the latest ClosedAt
+     * Calculate the destruction date given schedule year and the latest ClosedAt
      *
      * @param theLatestClosureDate
      * @return Destruction date in millisecond if success, error message otherwise
      * @throws SQLException
      */
-    public static long calculateDestructionDate(int year, Date theLatestClosureDate){
+    public static long addYearToTheLatestClosureDate(int year, Date theLatestClosureDate){
 
         LOGGER.info("Calculating a destruction date");
 
