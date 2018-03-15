@@ -4,8 +4,10 @@ import com.discovery.channel.authenticator.Authenticator;
 import com.discovery.channel.authenticator.Role;
 import com.discovery.channel.exception.AuthenticationException;
 import com.discovery.channel.exception.NoResultsFoundException;
+import com.discovery.channel.form.DeleteRecordsForm;
 import com.discovery.channel.form.UpdateRecordForm;
 import com.discovery.channel.model.*;
+import com.discovery.channel.response.BatchResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.StringUtils;
@@ -15,6 +17,12 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.sql.Connection;
+import java.sql.Date;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 
 
 public class RecordController {
@@ -92,6 +100,38 @@ public class RecordController {
         }
         LOGGER.info("Record {} does not exist");
         return null;
+    }
+
+    /**
+     * Retrieve multiple records
+     *
+     * @param id
+     * @return List of records
+     */
+    private static final String GET_RECORDS_BY_IDS =
+            "SELECT * " +
+                    "FROM records WHERE Id IN (?)";
+    public static List<Record> getRecordsByIds(List<Integer> ids, boolean verbose) throws SQLException {
+        List<Record> records = new ArrayList<>();
+
+        if (ids == null || ids.isEmpty()) {
+            return records;
+        }
+
+        try (Connection connection = DbConnect.getConnection();
+             PreparedStatement ps = connection.prepareStatement(GET_RECORD_BY_ID)) {
+            ps.setArray(1, connection.createArrayOf("int",ids.toArray()));
+            try (ResultSet resultSet = ps.executeQuery()) {
+                while (resultSet.next()) {
+                    Record record = parseResultSet(resultSet);
+                    if (verbose) {
+                        loadRecordDetail(record);
+                    }
+                    records.add(record);
+                }
+            }
+        }
+        return records;
     }
 
     /**
@@ -479,11 +519,8 @@ public class RecordController {
      */
     private static final String DELETE_RECORD_BY_ID = "DELETE FROM records " +
             "where Id=?";
-    public static boolean deleteRecord(Integer id, int userId) throws SQLException {
+    private static boolean deleteRecord(Integer id, int userId) throws SQLException {
         // TODO : audit log
-        if (!Authenticator.authenticate(userId, Role.RMC)) {
-            throw new AuthenticationException(String.format("User %d is not authenticated to delete record", userId));
-        }
 
         Record record = getRecordById(id);
 
@@ -510,6 +547,33 @@ public class RecordController {
         deleteNotesForRecord(id);
 
         return rowsModified == 1;
+    }
+
+    public static BatchResponse deleteRecords(int userId, DeleteRecordsForm form) throws SQLException {
+        BatchResponse response = new BatchResponse();
+
+        if (form.getRecordIds().isEmpty()) {
+            LOGGER.info("No record ids found in delete records form. Returning true");
+            return response;
+        }
+
+        if (!Authenticator.authenticate(userId, Role.RMC)) {
+            throw new AuthenticationException(String.format("User %d is not authenticated to delete record", userId));
+        }
+
+        for (int recordId : form.getRecordIds()) {
+            try {
+                if (deleteRecord(recordId, userId)) {
+                    response.addResponse(recordId, "", true);
+                } else {
+                    response.addResponse(recordId, "", false);
+                }
+            } catch (Exception e) {
+                LOGGER.error(e.getMessage());
+                response.addResponse(recordId, e.getMessage(), false);
+            }
+        }
+        return response;
     }
 
     /**

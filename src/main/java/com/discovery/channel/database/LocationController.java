@@ -1,9 +1,13 @@
 package com.discovery.channel.database;
 
+import com.discovery.channel.model.Location;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
 
 public class LocationController {
 
@@ -55,4 +59,22 @@ public class LocationController {
        }
        return "";
    }
+
+   private static final String GET_USER_LOCATIONS = "SELECT * " +
+           "FROM locations " +
+           "WHERE Id IN " +
+           "(SELECT LocationId FROM userlocations WHERE UserId = ?)";
+    public static List<Location> getUserLocations(int userId) throws SQLException {
+        List<Location> locations = new ArrayList<>();
+        try (Connection conn = DbConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(GET_USER_LOCATIONS)){
+            ps.setInt(1, userId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    locations.add(new Location(rs.getInt("Id"), rs.getString("Name"), rs.getString("Code")));
+                }
+            }
+        }
+        return locations;
+    }
 }
