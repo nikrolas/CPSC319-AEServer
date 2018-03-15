@@ -3,6 +3,7 @@ package com.discovery.channel.database;
 import com.discovery.channel.authenticator.Authenticator;
 import com.discovery.channel.authenticator.Role;
 import com.discovery.channel.exception.AuthenticationException;
+import com.discovery.channel.exception.IllegalArgumentException;
 import com.discovery.channel.exception.NoResultsFoundException;
 import com.discovery.channel.form.DeleteRecordsForm;
 import com.discovery.channel.form.UpdateRecordForm;
