@@ -651,10 +651,17 @@ public class RecordController {
 
             for (String id : listOfRecords) {
                 Record record = getRecordById(Integer.valueOf(id));
-                if(record.getStateId() != 6) {
-                    Date destructionDate = new Date(DestructionDateController.calculateDestructionDate(record.getScheduleYear(), record.getClosedAt()));
-                    if (destructionDate.compareTo(currentDate) > 0) failed.add(id);
+                if(record != null){
+                    if(record.getStateId() != 6) {
+                        Date destructionDate = new Date(DestructionDateController.calculateDestructionDate(record.getScheduleYear(), record.getClosedAt()));
+                        if (destructionDate.compareTo(currentDate) > 0) failed.add(id);
+                    }
+                }else{
+                    LOGGER.info("Record id {} does not exist", id);
+                    String output = String.format("Record id %s does not exist", id);
+                    new ResponseEntity<>(output, HttpStatus.BAD_REQUEST);
                 }
+
             }
 
             if(failed.isEmpty()){
