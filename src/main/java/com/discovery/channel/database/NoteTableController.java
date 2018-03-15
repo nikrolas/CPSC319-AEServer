@@ -6,11 +6,46 @@ import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 
 public class NoteTableController {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(NoteTableController.class);
+
+    /**
+     * Get notes
+     *
+     * @param recordId
+     * @return
+     * @throws SQLException
+     */
+    private static final String GET_RECORD_NOTES = "SELECT Text " +
+            "FROM notes " +
+            "WHERE TableId=? AND RowId=? " +
+            "ORDER BY Chunk ASC";
+    private static String getNotes(NoteTable noteTable, int id) throws SQLException {
+        String notes = "";
+        try (Connection conn = DbConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(GET_RECORD_NOTES)) {
+            ps.setInt(1, noteTable.id);
+            ps.setInt(2, id);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    notes = notes + rs.getString("Text");
+                }
+            }
+        }
+        return notes;
+    }
+
+    public static String getRecordNotes(int recordId) throws SQLException {
+        return getNotes(NoteTable.RECORDS, recordId);
+    }
+
+    public static String getContainerNotes(int containerId) throws SQLException {
+        return getNotes(NoteTable.CONTAINERS, containerId);
+    }
 
     /**
      * Save notes to db

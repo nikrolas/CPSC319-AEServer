@@ -31,15 +31,26 @@ public class ContainerController {
         String consignmentCode = resultSet.getString("ConsignmentCode");
         Date createdAt = resultSet.getDate("CreatedAt");
         Date updatedAt = resultSet.getDate("UpdatedAt");
+        int stateId = resultSet.getInt("stateId");
+        int locationId = resultSet.getInt("locationId");
+        int scheduleId = resultSet.getInt("scheduleId");
+        int typeId = resultSet.getInt("typeId");
         Date destructionDate = resultSet.getDate("DestructionDate");
+
         List<Integer> childRecordIds = getRecordIdsInContainer(id);
-        String notes = "Container notes"; //TODO: get container notes
+        String notes = NoteTableController.getContainerNotes(id);
+
+        //todo: rollup locationId, scheduleId, typeId, stateId
         return new Container(id,
                 number,
                 title,
                 consignmentCode,
                 createdAt,
                 updatedAt,
+                stateId,
+                locationId,
+                scheduleId,
+                typeId,
                 destructionDate,
                 childRecordIds,
                 notes);

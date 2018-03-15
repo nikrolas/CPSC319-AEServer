@@ -161,7 +161,7 @@ public class RecordController {
         record.setClassifications(Classification.buildClassificationString(classifications));
 
         // Load notes
-        record.setNotes(getRecordNotes(record.getId()));
+        record.setNotes(NoteTableController.getRecordNotes(record.getId()));
     }
 
     /**
@@ -429,32 +429,6 @@ public class RecordController {
             ps.executeBatch();
         }
         LOGGER.info("Saved classifications {} for record {}", classificationStr, recordId);
-    }
-
-    /**
-     * Get ordered list of classifications Ids for a record
-     *
-     * @param recordId
-     * @return
-     * @throws SQLException
-     */
-    private static final String GET_RECORD_NOTES = "SELECT Text " +
-            "FROM notes " +
-            "WHERE TableId=? AND RowId=? " +
-            "ORDER BY Chunk ASC";
-    private static String getRecordNotes(int recordId) throws SQLException {
-        String notes = "";
-        try (Connection conn = DbConnect.getConnection();
-             PreparedStatement ps = conn.prepareStatement(GET_RECORD_NOTES)) {
-            ps.setInt(1, NoteTable.RECORDS.id);
-            ps.setInt(2, recordId);
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    notes = notes + rs.getString("Text");
-                }
-            }
-        }
-        return notes;
     }
 
     /**
