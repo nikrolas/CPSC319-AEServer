@@ -31,7 +31,7 @@ public class ContainerController {
         String consignmentCode = resultSet.getString("ConsignmentCode");
         Date createdAt = resultSet.getDate("CreatedAt");
         Date updatedAt = resultSet.getDate("UpdatedAt");
-        Date destructionDate = resultSet.getDate("UpdatedAt"); //TODO: calculate from containing records
+        Date destructionDate = resultSet.getDate("DestructionDate");
         List<Integer> childRecordIds = getRecordIdsInContainer(id);
         String notes = "Container notes"; //TODO: get container notes
         return new Container(id,
@@ -104,6 +104,8 @@ public class ContainerController {
         container.setUpdatedAt(createdAt);
         int newContainerId = saveContainerToDb(container);
 
+        NoteTableController.saveNotesForContainer(newContainerId, container.getNotes());
+
         LOGGER.info("Created record. Record Id {}", newContainerId);
 
         return getContainerById(newContainerId);
@@ -137,11 +139,41 @@ public class ContainerController {
             ps.setDate(5, c.getCreatedAt());
             ps.setDate(6, c.getUpdatedAt());
             ps.executeUpdate();
-            //todo save notes to db
             return id;
         }
     }
 
+    private static final String UPDATE_CONTAINER =
+            "UPDATE containers " +
+                    "SET Number = ?, Title = ?, UpdatedAt = NOW() " +
+                    "WHERE Id = ?";
+    /**
+     * Update a container
+     *
+     * @param container the request body translated to a container object, containing the updated container information
+     * @param userId the id of the user submitting the request
+     * @throws SQLException rethrows any SQLException
+     * @throws AuthenticationException AuthenticationException thrown if the user does not have RMC rights
+     */
+    public static Container updateContainer(int containerId, Container container, int userId) throws SQLException{
+        if (!Authenticator.authenticate(userId, Role.RMC)) {
+            throw new AuthenticationException(String.format("User %d is not authenticated to create record", userId));
+        }
+        LOGGER.info("Passed all validation checks. Updating Container {}", container); //todo this message could be better
+
+        try (Connection connection = DbConnect.getConnection();
+             PreparedStatement ps = connection.prepareStatement(UPDATE_CONTAINER)) {
+
+            ps.setString(1, container.getContainerNumber());
+            ps.setString(2, container.getTitle());
+            ps.setInt(3, containerId);
+            ps.executeUpdate();
+
+            NoteTableController.updateContainerNotes(containerId, container.getNotes());
+
+            return getContainerById(containerId);
+        }
+    }
 
     /**
      * Retrieve containers filtered by container number
@@ -220,5 +252,4 @@ public class ContainerController {
 
 
     }
-
 }
