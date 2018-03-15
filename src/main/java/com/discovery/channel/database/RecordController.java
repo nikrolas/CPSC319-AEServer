@@ -629,7 +629,12 @@ public class RecordController {
      * @param ids
      * @throws SQLException
      */
-    public static ResponseEntity<?> destroyRecords(String ids) throws SQLException {
+    public static ResponseEntity<?> destroyRecords(String ids, int userId) throws SQLException {
+
+        if (!Authenticator.authenticate(userId, Role.RMC)) {
+            throw new AuthenticationException(String.format("User %d is not authenticated to destroy record(s)", userId));
+        }
+
 
         ArrayList<String> failed = new ArrayList<>();
         Date currentDate = new Date(Calendar.getInstance().getTimeInMillis());

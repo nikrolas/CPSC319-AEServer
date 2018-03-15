@@ -265,7 +265,7 @@ public class RouteHandler {
             method = RequestMethod.PUT)
     public ResponseEntity<?> destroyRecords(@RequestParam("ids") String ids, @RequestParam("userId") int userId) throws SQLException {
         LOGGER.info("Destorying records given ids {}", ids);
-        return RecordController.destroyRecords(ids);
+        return RecordController.destroyRecords(ids, userId);
     }
 
 }
