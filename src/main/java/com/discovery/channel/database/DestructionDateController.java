@@ -54,21 +54,26 @@ public class DestructionDateController {
                 LOGGER.info("Getting a record by id {}", id);
 
                 Record record = RecordController.getRecordById(Integer.valueOf(id));
-                currentClosedAt = record.getClosedAt();
+                if (record != null){
+                    currentClosedAt = record.getClosedAt();
 
-                if (theLatestClosedAt == null) {
-                    theLatestClosedAt = currentClosedAt;
-                    scheduleYear = record.getScheduleYear();
-                } else {
-                    if (currentClosedAt.compareTo(theLatestClosedAt) == 1) {
+                    if (theLatestClosedAt == null) {
                         theLatestClosedAt = currentClosedAt;
+                        scheduleYear = record.getScheduleYear();
+                    } else {
+                        if (currentClosedAt.compareTo(theLatestClosedAt) == 1) {
+                            theLatestClosedAt = currentClosedAt;
+                        }
                     }
-                }
 
-                if(scheduleYear != record.getScheduleYear()){
-                    LOGGER.info("ScheduleId for record id {} is different", id);
-                    String output = String.format("ScheduleId for record id %s is different", id);
-                    return new ResponseEntity<>(output, HttpStatus.BAD_REQUEST);
+                    if(scheduleYear != record.getScheduleYear()){
+                        LOGGER.info("ScheduleId for record id {} is different", id);
+                        String output = String.format("ScheduleId for record id %s is different", id);
+                        return new ResponseEntity<>(output, HttpStatus.BAD_REQUEST);
+                    }
+                }else{
+                    LOGGER.info("Records id {} does not exist", id);
+                    return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
                 }
             }
 
