@@ -40,17 +40,17 @@ public class RetentionScheduleController {
     /**
      * retentionschedules table to get schedule name and years by Id
      *
-     * @param retention schedule id
+     * @param scheduleId schedule id
      * @return schedule name and years
      */
-    private static final String GET_RECORD_SCHEDULE = "SELECT * " +
+    private static final String GET_RECORD_SCHEDULE_BY_ID = "SELECT * " +
             "FROM retentionschedules " +
             "WHERE Id=?";
-    public static Map<String, String> getRetentionSchedule(int id) throws SQLException {
+    public static Map<String, String> getRetentionSchedule(int scheduleId) throws SQLException {
         Map<String, String> schedule = new HashMap<String, String>();
         try (Connection con = DbConnect.getConnection();
-             PreparedStatement ps = con.prepareStatement(GET_RECORD_SCHEDULE)) {
-            ps.setInt(1, id);
+             PreparedStatement ps = con.prepareStatement(GET_RECORD_SCHEDULE_BY_ID)) {
+            ps.setInt(1, scheduleId);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     schedule.put("Name", rs.getString("Name"));
