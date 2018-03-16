@@ -24,3 +24,6 @@ UPDATE recordtypes SET NumberPattern='KKK_P_yyyy.ggg' WHERE Id = 32;
 UPDATE recordtypes SET NumberPattern='KKK-TASK-XXXX' WHERE Id = 73;
 UPDATE recordtypes SET NumberPattern='nnnnzzzz.nn.a.nn.nn[:nn]' WHERE Id = 83;
 UPDATE recordtypes SET NumberPattern='KKK-CLIENT.gggg' WHERE Id=70;
+
+# Update location to have restricted flag
+ALTER TABLE locations ADD Restricted BOOLEAN DEFAULT false;
