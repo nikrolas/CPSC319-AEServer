@@ -111,7 +111,9 @@ public class DestructionDateController {
 
         for (Integer id : listOfRecordIds){
             Record record = RecordController.getRecordById(id);
-            if(record.getClosedAt() == null) noClosureDate.add(id);
+            if(record != null){
+                if(record.getClosedAt() == null) noClosureDate.add(id);
+            }
         }
 
         return noClosureDate;
