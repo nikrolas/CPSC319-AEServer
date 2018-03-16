@@ -15,10 +15,7 @@ import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.*;
 
 public class ContainerController {
 
@@ -40,8 +37,7 @@ public class ContainerController {
         List<Integer> childRecordIds = getRecordIdsInContainer(id);
         String notes = NoteTableController.getContainerNotes(id);
 
-        //todo: rollup locationId, scheduleId, typeId, stateId
-        return new Container(id,
+        Container c = new Container(id,
                 number,
                 title,
                 consignmentCode,
@@ -54,7 +50,19 @@ public class ContainerController {
                 destructionDate,
                 childRecordIds,
                 notes);
+        loadContainerDetail(c);
+        return c;
     }
+
+    private static void loadContainerDetail(Container container) throws SQLException {
+        container.setType(RecordTypeController.getTypeName(container.getTypeId()));
+        container.setLocationName(LocationController.getLocationNameByLocationId(container.getLocationId()));
+        Map<String, String> schedule = RetentionScheduleController.getRetentionSchedule(container.getScheduleId());
+        container.setScheduleName(schedule.get("Name"));
+        container.setState(StateController.getStateName(container.getStateId()));
+        container.setNotes(NoteTableController.getContainerNotes(container.getContainerId()));
+    }
+
 
     private static final String GET_RECORD_IDS_IN_CONTAINER =
             "SELECT Id FROM records " +
@@ -70,7 +78,6 @@ public class ContainerController {
                 }
                 return recordIds;
             }
-
         }
     }
 
