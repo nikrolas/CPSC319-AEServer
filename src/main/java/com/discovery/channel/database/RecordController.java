@@ -142,7 +142,7 @@ public class RecordController {
      * @throws SQLException
      */
     private static void loadRecordDetail(Record record) throws SQLException {
-        record.setLocation(LocationController.getLocationCodeById(record.getLocationId()));
+        record.setLocation(LocationController.getLocationNameByLocationId(record.getLocationId()));
         record.setType(RecordTypeController.getTypeName(record.getTypeId()));
         record.setState(StateController.getStateName(record.getStateId()));
         record.setContainerNumber(getContainerNumber(record.getContainerId()));
