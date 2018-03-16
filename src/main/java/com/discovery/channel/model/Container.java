@@ -20,15 +20,19 @@ public class Container {
     private Date createdAt;
     private Date updatedAt;
     private Date destructionDate;
-    private List<Integer> childRecordIds;
 
     private String consignmentCode;
+    private int stateId;
+    private String state;
     private int locationId;
     private String locationName;
     private int scheduleId;
     private String scheduleName;
-    private int type;
+    private int typeId;
+    private String type;
+
     private String notes;
+    private List<Integer> childRecordIds;
 
     public Container(int containerId,
                      String containerNumber,
@@ -36,6 +40,10 @@ public class Container {
                      String consignmentCode,
                      Date createdAt,
                      Date updatedAt,
+                     int stateId,
+                     int locationId,
+                     int scheduleId,
+                     int typeId,
                      Date destructionDate,
                      List<Integer> childRecordIds,
                      String notes) {
@@ -45,6 +53,10 @@ public class Container {
         this.consignmentCode = consignmentCode;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
+        this.stateId = stateId;
+        this.locationId = locationId;
+        this.scheduleId = scheduleId;
+        this.typeId = typeId;
         this.destructionDate = destructionDate;
         this.childRecordIds = childRecordIds;
         this.notes = notes;

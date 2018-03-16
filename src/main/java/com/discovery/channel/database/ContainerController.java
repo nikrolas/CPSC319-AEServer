@@ -15,10 +15,7 @@ import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.*;
 
 public class ContainerController {
 
@@ -31,19 +28,41 @@ public class ContainerController {
         String consignmentCode = resultSet.getString("ConsignmentCode");
         Date createdAt = resultSet.getDate("CreatedAt");
         Date updatedAt = resultSet.getDate("UpdatedAt");
+        int stateId = resultSet.getInt("stateId");
+        int locationId = resultSet.getInt("locationId");
+        int scheduleId = resultSet.getInt("scheduleId");
+        int typeId = resultSet.getInt("typeId");
         Date destructionDate = resultSet.getDate("DestructionDate");
+
         List<Integer> childRecordIds = getRecordIdsInContainer(id);
-        String notes = "Container notes"; //TODO: get container notes
-        return new Container(id,
+        String notes = NoteTableController.getContainerNotes(id);
+
+        Container c = new Container(id,
                 number,
                 title,
                 consignmentCode,
                 createdAt,
                 updatedAt,
+                stateId,
+                locationId,
+                scheduleId,
+                typeId,
                 destructionDate,
                 childRecordIds,
                 notes);
+        loadContainerDetail(c);
+        return c;
     }
+
+    private static void loadContainerDetail(Container container) throws SQLException {
+        container.setType(RecordTypeController.getTypeName(container.getTypeId()));
+        container.setLocationName(LocationController.getLocationNameByLocationId(container.getLocationId()));
+        Map<String, String> schedule = RetentionScheduleController.getRetentionSchedule(container.getScheduleId());
+        container.setScheduleName(schedule.get("Name"));
+        container.setState(StateController.getStateName(container.getStateId()));
+        container.setNotes(NoteTableController.getContainerNotes(container.getContainerId()));
+    }
+
 
     private static final String GET_RECORD_IDS_IN_CONTAINER =
             "SELECT Id FROM records " +
@@ -59,7 +78,6 @@ public class ContainerController {
                 }
                 return recordIds;
             }
-
         }
     }
 
