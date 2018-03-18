@@ -95,7 +95,7 @@ public class RecordController {
     /**
      * Retrieve multiple records
      *
-     * @param id
+     * @param ids
      * @return List of records
      */
     public static List<Record> getRecordsByIds(List<Integer> ids, boolean verbose) throws SQLException {
@@ -650,6 +650,13 @@ public class RecordController {
     }
 
 
+
+    /**
+     * build sql statement for getRecordsByIds
+     *
+     * @param ids
+     * @return sql statement
+     */
     private static String buildString(List<Integer> ids){
 
 
