@@ -1,6 +1,7 @@
 package com.discovery.channel.rest;
 
 import com.discovery.channel.database.*;
+import com.discovery.channel.exception.IllegalArgumentException;
 import com.discovery.channel.form.DeleteRecordsForm;
 import com.discovery.channel.form.UpdateRecordForm;
 import com.discovery.channel.model.*;
@@ -62,14 +63,18 @@ public class RouteHandler {
      * @return a list of records filtered by search content
      */
     @RequestMapping(
-            value = "records",
-            params = { "userId" , "num"},
+            value = "search",
+            params = { "userId" , "num", "record", "container", "page", "perPage"},
             method = RequestMethod.GET)
     @ResponseBody
-    public List<Record> searchRecordsByNumber(@RequestParam("userId") int userId,
-                                      @RequestParam("num") String num) throws SQLException{
-        return RecordController.getRecordByNumber(num);
-
+    public PagedResults<Document> searchByNumber(@RequestParam("userId") int userId,
+                                              @RequestParam("num") String num,
+                                              @RequestParam(value="record", required=false, defaultValue="false") Boolean record,
+                                              @RequestParam(value="container", required=false, defaultValue="false") Boolean container,
+                                              @RequestParam(value="page", required=false, defaultValue="1") int page,
+                                              @RequestParam(value="perPage", required=false, defaultValue="20") int perPage)
+                                              throws SQLException{
+        return RecordController.getByNumber(num, record, container, page, perPage, userId);
     }
 
     /**
@@ -258,20 +263,5 @@ public class RouteHandler {
     public ResponseEntity<?> deleteContainers(@RequestParam("ids") String ids, @RequestParam("userId") int userId) throws SQLException{
         LOGGER.info("Deleting container(s) {}", ids);
         return ContainerController.deleteContainers(ids, userId);
-    }
-
-    /**
-     * Search container(s) by number
-     *
-     * @return  a list of container(s) matches the given number
-     */
-    @RequestMapping(
-            value = "containers",
-            params = {"num", "userId"},
-            method = RequestMethod.GET)
-
-    public List<Container> getContainerByNumber(@RequestParam("num") String num, @RequestParam("userId") int userId) throws SQLException{
-        LOGGER.info("Searching containers filtered by {}", num);
-        return ContainerController.getContainerByNumber(num);
     }
 }
