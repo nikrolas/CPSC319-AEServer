@@ -10,10 +10,12 @@ import java.sql.Date;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.List;
 
 public class DestructionDateController {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(RecordController.class);
+
 
 
     /**
@@ -23,7 +25,7 @@ public class DestructionDateController {
      * @return Destruction date in millisecond if success, error message otherwise
      * @throws SQLException
      */
-    public static ResponseEntity<?> calculateDestructionDate(ArrayList<Integer> listOfRecordIds) throws SQLException {
+    public static ResponseEntity<?> calculateDestructionDate(List<Integer> listOfRecordIds) throws SQLException {
 
         LOGGER.info("Calculating a destruction date");
 
@@ -31,16 +33,18 @@ public class DestructionDateController {
         Date theLatestClosedAt = null;
         int scheduleYear = 0;
 
-        if(checkRecordsClosedAt(listOfRecordIds).isEmpty()){
+        List<Record> listOfRecords = RecordController.getRecordsByIds(listOfRecordIds, true);
+        List<Integer> listOfRecordsWithoutClosureDate = checkRecordsClosedAt(listOfRecords);
+
+        if(listOfRecordsWithoutClosureDate.isEmpty() && !listOfRecords.isEmpty()){
 
 
             LOGGER.info("Getting the latest closure date given ids {}", listOfRecordIds);
 
-            for (Integer id : listOfRecordIds){
-                LOGGER.info("Getting a record by id {}", id);
+            for (Record record : listOfRecords){
+                LOGGER.info("Getting a record by id {}", record.getId());
 
-                Record record = RecordController.getRecordById(id);
-                if (record != null){
+
                     currentClosedAt = record.getClosedAt();
 
                     if (theLatestClosedAt == null) {
@@ -53,15 +57,10 @@ public class DestructionDateController {
                     }
 
                     if(scheduleYear != record.getScheduleYear()){
-                        LOGGER.info("ScheduleId for record id {} is different", id);
-                        String output = String.format("ScheduleId for record id %s is different", id);
+                        LOGGER.info("ScheduleId for record id {} is different", record.getId());
+                        String output = String.format("ScheduleId for record id %s is different", record.getId());
                         return new ResponseEntity<>(output, HttpStatus.BAD_REQUEST);
                     }
-                }else{
-                    LOGGER.info("Records id {} does not exist", id);
-                    String output = String.format("Records id %s does not exist", id);
-                    return new ResponseEntity<>(output, HttpStatus.BAD_REQUEST);
-                }
             }
 
             LOGGER.info("Passing all the validation");
@@ -69,8 +68,8 @@ public class DestructionDateController {
 
         }else{
 
-            LOGGER.info("Records id {} do not have ClosedAt", checkRecordsClosedAt(listOfRecordIds));
-            return new ResponseEntity<>(checkRecordsClosedAt(listOfRecordIds), HttpStatus.BAD_REQUEST);
+            LOGGER.info("Records id {} do not have ClosedAt", listOfRecordsWithoutClosureDate);
+            return new ResponseEntity<>(listOfRecordsWithoutClosureDate, HttpStatus.BAD_REQUEST);
         }
 
     }
@@ -99,20 +98,19 @@ public class DestructionDateController {
 
 
     /**
-     * Check ClosedAt given record ids
+     * Check ClosedAt given records
      *
-     * @param listOfRecordIds
+     * @param listOfRecords
      * @return Record ids that do not meet requirements
      * @throws SQLException
      */
-    public static ArrayList<Integer> checkRecordsClosedAt(ArrayList<Integer> listOfRecordIds) throws SQLException {
+    public static List<Integer> checkRecordsClosedAt(List<Record> listOfRecords) throws SQLException {
 
-        ArrayList<Integer> noClosureDate = new ArrayList<>();
+        List<Integer> noClosureDate = new ArrayList<>();
 
-        for (Integer id : listOfRecordIds){
-            Record record = RecordController.getRecordById(id);
+        for (Record record : listOfRecords){
             if(record != null){
-                if(record.getClosedAt() == null) noClosureDate.add(id);
+                if(record.getClosedAt() == null) noClosureDate.add(record.getId());
             }
         }
 

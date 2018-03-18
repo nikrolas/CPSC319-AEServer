@@ -11,10 +11,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.util.StringUtils;
 
 import java.sql.*;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.sql.Date;
+import java.util.*;
 
 
 public class RecordController {
@@ -93,6 +91,40 @@ public class RecordController {
         LOGGER.info("Record {} does not exist");
         return null;
     }
+
+    /**
+     * Retrieve multiple records
+     *
+     * @param id
+     * @return List of records
+     */
+    private static final String GET_RECORDS_BY_IDS =
+            "SELECT * " +
+                    "FROM records WHERE Id IN (?)";
+    public static List<Record> getRecordsByIds(List<Integer> ids, boolean verbose) throws SQLException {
+        List<Record> records = new ArrayList<>();
+
+        if (ids == null || ids.isEmpty()) {
+            return records;
+        }
+
+        try (Connection connection = DbConnect.getConnection();
+             PreparedStatement ps = connection.prepareStatement(GET_RECORDS_BY_IDS)) {
+            ps.setArray(1, connection.createArrayOf("int",ids.toArray()));
+            try (ResultSet resultSet = ps.executeQuery()) {
+                while (resultSet.next()) {
+                    Record record = parseResultSet(resultSet);
+                    if (verbose) {
+                        loadRecordDetail(record);
+                    }
+                    records.add(record);
+                }
+            }
+        }
+        return records;
+    }
+
+
 
     /**
      * Load record details, including location, type, state, and retention schedule
