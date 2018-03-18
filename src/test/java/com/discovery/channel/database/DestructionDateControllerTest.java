@@ -10,6 +10,7 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -23,7 +24,7 @@ public class DestructionDateControllerTest {
 
         Date date = calculateDate(51);
 
-        ArrayList<Integer> listOfRecordIds = new ArrayList<>();
+        List<Integer> listOfRecordIds = new ArrayList<>();
         listOfRecordIds.add(51);
 
         ResponseEntity<?>  entity = DestructionDateController.calculateDestructionDate(listOfRecordIds);
@@ -45,9 +46,8 @@ public class DestructionDateControllerTest {
 
     @Test
     void getDestructionDateFromMultipleRecordWithDifferentSchedule() throws SQLException {
-
-        Date date = calculateDate(51);
-        ArrayList<Integer> listOfRecordIds = new ArrayList<>();
+        
+        List<Integer> listOfRecordIds = new ArrayList<>();
         listOfRecordIds.add(51);
         listOfRecordIds.add(56);
         listOfRecordIds.add(156);
@@ -58,7 +58,7 @@ public class DestructionDateControllerTest {
     @Test
     void getDestructionDateWithRecordWithoutClosedAt() throws SQLException {
 
-        ArrayList<Integer> listOfRecordIds = new ArrayList<>();
+        List<Integer> listOfRecordIds = new ArrayList<>();
         listOfRecordIds.add(191);
         listOfRecordIds.add(190);
         ResponseEntity<?>  entity = DestructionDateController.calculateDestructionDate(listOfRecordIds);
@@ -68,7 +68,7 @@ public class DestructionDateControllerTest {
     @Test
     void getDestructionDateWithAllRecordWithoutClosedAt() throws SQLException {
 
-        ArrayList<Integer> listOfRecordIds = new ArrayList<>();
+        List<Integer> listOfRecordIds = new ArrayList<>();
         listOfRecordIds.add(357);
         listOfRecordIds.add(358);
         listOfRecordIds.add(359);

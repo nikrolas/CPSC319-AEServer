@@ -98,9 +98,6 @@ public class RecordController {
      * @param id
      * @return List of records
      */
-    private static final String GET_RECORDS_BY_IDS =
-            "SELECT * " +
-                    "FROM records WHERE Id IN (?)";
     public static List<Record> getRecordsByIds(List<Integer> ids, boolean verbose) throws SQLException {
         List<Record> records = new ArrayList<>();
 
@@ -108,9 +105,10 @@ public class RecordController {
             return records;
         }
 
+        String idStr = buildString(ids);
+
         try (Connection connection = DbConnect.getConnection();
-             PreparedStatement ps = connection.prepareStatement(GET_RECORDS_BY_IDS)) {
-            ps.setArray(1, connection.createArrayOf("int",ids.toArray()));
+             PreparedStatement ps = connection.prepareStatement(idStr)) {
             try (ResultSet resultSet = ps.executeQuery()) {
                 while (resultSet.next()) {
                     Record record = parseResultSet(resultSet);
@@ -649,6 +647,25 @@ public class RecordController {
             ps.setInt(1, recordId);
             ps.executeUpdate();
         }
+    }
+
+
+    private static String buildString(List<Integer> ids){
+
+
+        String str = "SELECT * FROM records WHERE Id IN (";
+        Iterator<Integer> idsIterator = ids.iterator();
+        while(idsIterator.hasNext())
+        {
+            str = str + idsIterator.next().toString();
+            if(idsIterator.hasNext()){
+                str = str + ",";
+            }
+        }
+
+        str = str + ")";
+
+        return str;
     }
 
 }

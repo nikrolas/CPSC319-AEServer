@@ -8,9 +8,7 @@ import org.springframework.http.ResponseEntity;
 
 import java.sql.Date;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.List;
+import java.util.*;
 
 public class DestructionDateController {
 
@@ -34,9 +32,10 @@ public class DestructionDateController {
         int scheduleYear = 0;
 
         List<Record> listOfRecords = RecordController.getRecordsByIds(listOfRecordIds, true);
-        List<Integer> listOfRecordsWithoutClosureDate = checkRecordsClosedAt(listOfRecords);
+        Map<String, List<String>> listOfRecordsWithoutClosureDate = checkRecordsClosedAt(listOfRecords);
+        List<String> temp = listOfRecordsWithoutClosureDate.get("id");
 
-        if(listOfRecordsWithoutClosureDate.isEmpty() && !listOfRecords.isEmpty()){
+        if(temp.isEmpty() && !listOfRecords.isEmpty()){
 
 
             LOGGER.info("Getting the latest closure date given ids {}", listOfRecordIds);
@@ -58,8 +57,11 @@ public class DestructionDateController {
 
                     if(scheduleYear != record.getScheduleYear()){
                         LOGGER.info("ScheduleId for record id {} is different", record.getId());
-                        String output = String.format("ScheduleId for record id %s is different", record.getId());
-                        return new ResponseEntity<>(output, HttpStatus.BAD_REQUEST);
+                        Map<String, Object> response = new HashMap<>();
+                        response.put("number", record.getNumber());
+                        response.put("id", record.getId());
+                        response.put("error", "ScheduleId is different");
+                        return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
                     }
             }
 
@@ -68,8 +70,13 @@ public class DestructionDateController {
 
         }else{
 
-            LOGGER.info("Records id {} do not have ClosedAt", listOfRecordsWithoutClosureDate);
-            return new ResponseEntity<>(listOfRecordsWithoutClosureDate, HttpStatus.BAD_REQUEST);
+            Object recordIds = listOfRecordsWithoutClosureDate.get("id");
+            LOGGER.info("Records id {} do not have ClosedAt", recordIds);
+            Map<String, Object> response = new HashMap<>();
+            response.put("number", listOfRecordsWithoutClosureDate.get("number"));
+            response.put("id", recordIds);
+            response.put("error", "Record(s) do not have ClosedAt");
+            return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
         }
 
     }
@@ -104,17 +111,26 @@ public class DestructionDateController {
      * @return Record ids that do not meet requirements
      * @throws SQLException
      */
-    public static List<Integer> checkRecordsClosedAt(List<Record> listOfRecords) throws SQLException {
+    public static Map<String, List<String>> checkRecordsClosedAt(List<Record> listOfRecords) throws SQLException {
 
-        List<Integer> noClosureDate = new ArrayList<>();
+        Map<String, List<String>> response = new HashMap<>();
+
+        List<String> recordNumbers = new ArrayList<>();
+        List<String> recordIds = new ArrayList<>();
 
         for (Record record : listOfRecords){
             if(record != null){
-                if(record.getClosedAt() == null) noClosureDate.add(record.getId());
+                if(record.getClosedAt() == null) {
+                    recordNumbers.add(record.getNumber());
+                    recordIds.add(String.valueOf(record.getId()));
+                }
             }
         }
 
-        return noClosureDate;
+        response.put("number", recordNumbers);
+        response.put("id", recordIds);
+
+        return response;
     }
 
 }
