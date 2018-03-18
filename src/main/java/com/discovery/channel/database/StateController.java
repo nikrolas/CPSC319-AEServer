@@ -26,4 +26,26 @@ public class StateController {
         }
         return states;
     }
+
+    /**
+     * Get state name by id
+     *
+     * @param stateId
+     * @return state name
+     */
+    private static final String GET_STATE_BY_ID = "SELECT Name " +
+            "FROM recordstates " +
+            "WHERE Id = ?";
+    public static String getStateName(int stateId) throws SQLException {
+        try (Connection con = DbConnect.getConnection();
+             PreparedStatement ps = con.prepareStatement(GET_STATE_BY_ID)) {
+            ps.setInt(1, stateId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getString("Name");
+                }
+            }
+        }
+        return null;
+    }
 }

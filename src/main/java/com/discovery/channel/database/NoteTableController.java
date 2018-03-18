@@ -6,11 +6,46 @@ import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 
 public class NoteTableController {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(NoteTableController.class);
+
+    /**
+     * Get notes
+     *
+     * @param recordId
+     * @return
+     * @throws SQLException
+     */
+    private static final String GET_NOTES = "SELECT Text " +
+            "FROM notes " +
+            "WHERE TableId=? AND RowId=? " +
+            "ORDER BY Chunk ASC";
+    private static String getNotes(NoteTable noteTable, int id) throws SQLException {
+        String notes = "";
+        try (Connection conn = DbConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(GET_NOTES)) {
+            ps.setInt(1, noteTable.id);
+            ps.setInt(2, id);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    notes = notes + rs.getString("Text");
+                }
+            }
+        }
+        return notes;
+    }
+
+    public static String getRecordNotes(int recordId) throws SQLException {
+        return getNotes(NoteTable.RECORDS, recordId);
+    }
+
+    public static String getContainerNotes(int containerId) throws SQLException {
+        return getNotes(NoteTable.CONTAINERS, containerId);
+    }
 
     /**
      * Save notes to db
@@ -20,11 +55,11 @@ public class NoteTableController {
      * @throws SQLException
      */
     private static final int MAX_NOTE_LEN = Integer.MAX_VALUE;
-    private static final String INSERT_RECORD_NOTE = "INSERT INTO notes (TableId, RowId, Chunk, Text) " +
+    private static final String INSERT_NOTE = "INSERT INTO notes (TableId, RowId, Chunk, Text) " +
             "VALUES(?, ? , ? , ?)";
     private static void saveNotes(NoteTable noteTable, int id, String notes) throws SQLException {
         try (Connection conn = DbConnect.getConnection();
-             PreparedStatement ps = conn.prepareStatement(INSERT_RECORD_NOTE)){
+             PreparedStatement ps = conn.prepareStatement(INSERT_NOTE)){
             int chunkNum = 0;
             int startIndex = 0;
             while (startIndex < notes.length()) {
@@ -56,12 +91,12 @@ public class NoteTableController {
      * @return
      * @throws SQLException
      */
-    private static final String DELETE_NOTE_FOR_RECORD = "DELETE FROM notes " +
+    private static final String DELETE_NOTE = "DELETE FROM notes " +
             "WHERE TableId=? AND RowId = ?";
     private static int deleteNotes(NoteTable noteTable, int id) throws SQLException {
         int rowsUpdated = 0;
         try(Connection connection = DbConnect.getConnection();
-            PreparedStatement ps = connection.prepareStatement(DELETE_NOTE_FOR_RECORD)) {
+            PreparedStatement ps = connection.prepareStatement(DELETE_NOTE)) {
             ps.setInt(1, noteTable.id);
             ps.setInt(2, id);
             rowsUpdated = ps.executeUpdate();

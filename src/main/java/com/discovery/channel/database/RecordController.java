@@ -219,12 +219,12 @@ public class RecordController {
      * @throws SQLException
      */
     private static void loadRecordDetail(Record record) throws SQLException {
-        record.setLocation(getLocationName(record.getLocationId()));
+        record.setLocation(LocationController.getLocationNameByLocationId(record.getLocationId()));
         record.setType(RecordTypeController.getTypeName(record.getTypeId()));
-        record.setState(getStateName(record.getStateId()));
-        record.setContainer(getContainerNumber(record.getContainerId()));
+        record.setState(StateController.getStateName(record.getStateId()));
+        record.setContainerNumber(getContainerNumber(record.getContainerId()));
 
-        Map<String, String> schedule = getRetentionSchedule(record.getScheduleId());
+        Map<String, String> schedule = RetentionScheduleController.getRetentionSchedule(record.getScheduleId());
         record.setSchedule(schedule.get("Name"));
         record.setScheduleYear(Integer.valueOf(schedule.get("Years")));
 
@@ -238,7 +238,7 @@ public class RecordController {
         record.setClassifications(Classification.buildClassificationString(classifications));
 
         // Load notes
-        record.setNotes(getRecordNotes(record.getId()));
+        record.setNotes(NoteTableController.getRecordNotes(record.getId()));
     }
 
     /**
@@ -274,56 +274,6 @@ public class RecordController {
                     closedAt);
     }
 
-
-    /**
-     * Retrieve name for a location given location id
-     *
-     * @param location id
-     * @return location name
-     */
-    private static final String GET_LOCATION_NAME_BY_ID = "SELECT Name " +
-            "FROM locations " +
-            "WHERE Id=?";
-
-    private static String getLocationName(int locationId) throws SQLException {
-        try (Connection con = DbConnect.getConnection();
-             PreparedStatement ps = con.prepareStatement(GET_LOCATION_NAME_BY_ID)) {
-            ps.setInt(1, locationId);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    return rs.getString("Name");
-                }
-            }
-        }
-        return null;
-    }
-
-
-    /**
-     * retentionschedules table to get schedule name and years by Id
-     *
-     * @param retention schedule id
-     * @return schedule name and years
-     */
-    private static final String GET_RECORD_SCHEDULE = "SELECT * " +
-            "FROM retentionschedules " +
-            "WHERE Id=?";
-    private static Map<String, String> getRetentionSchedule(int id) throws SQLException {
-        Map<String, String> schedule = new HashMap<String, String>();
-        try (Connection con = DbConnect.getConnection();
-             PreparedStatement ps = con.prepareStatement(GET_RECORD_SCHEDULE)) {
-            ps.setInt(1, id);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    schedule.put("Name", rs.getString("Name"));
-                    schedule.put("Years", String.valueOf(rs.getInt("Years")));
-                }
-            }
-        }
-        return schedule;
-    }
-
-
     /**
      * Join records table with containers table to get container name
      *
@@ -341,30 +291,6 @@ public class RecordController {
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     return rs.getString("Number");
-                }
-            }
-        }
-        return null;
-    }
-
-
-    /**
-     * Get state name by id
-     *
-     * @param stateId
-     * @return state name
-     */
-    private static final String GET_STATE_BY_ID = "SELECT Name " +
-            "FROM recordstates " +
-            "WHERE Id = ?";
-
-    private static String getStateName(int stateId) throws SQLException {
-        try (Connection con = DbConnect.getConnection();
-             PreparedStatement ps = con.prepareStatement(GET_STATE_BY_ID)) {
-            ps.setInt(1, stateId);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    return rs.getString("Name");
                 }
             }
         }
@@ -509,32 +435,6 @@ public class RecordController {
     }
 
     /**
-     * Get ordered list of classifications Ids for a record
-     *
-     * @param recordId
-     * @return
-     * @throws SQLException
-     */
-    private static final String GET_RECORD_NOTES = "SELECT Text " +
-            "FROM notes " +
-            "WHERE TableId=? AND RowId=? " +
-            "ORDER BY Chunk ASC";
-    private static String getRecordNotes(int recordId) throws SQLException {
-        String notes = "";
-        try (Connection conn = DbConnect.getConnection();
-             PreparedStatement ps = conn.prepareStatement(GET_RECORD_NOTES)) {
-            ps.setInt(1, NoteTable.RECORDS.id);
-            ps.setInt(2, recordId);
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    notes = notes + rs.getString("Text");
-                }
-            }
-        }
-        return notes;
-    }
-
-    /**
      * Delete a record by Id
      *
      * @param id
@@ -553,7 +453,7 @@ public class RecordController {
         }
 
         if (!Authenticator.isUserAuthenticatedForLocation(userId, record.getLocationId())) {
-            throw new AuthenticationException(String.format("User %d is not authenticated to delete record under localtion %d", userId, record.getLocationId()));
+            throw new AuthenticationException(String.format("User %d is not authenticated to delete record under location %d", userId, record.getLocationId()));
         }
 
         LOGGER.info("About to delete record {}", id);
@@ -622,12 +522,12 @@ public class RecordController {
         }
 
         if (!Authenticator.isUserAuthenticatedForLocation(userId, record.getLocationId())) {
-            throw new AuthenticationException(String.format("User %d is not authenticated to update record under localtion %d", userId, record.getLocationId()));
+            throw new AuthenticationException(String.format("User %d is not authenticated to update record under location %d", userId, record.getLocationId()));
         }
 
         // RMC can't move a record to a location tht they're not a part of
         if (!Authenticator.isUserAuthenticatedForLocation(userId, record.getLocationId())) {
-            throw new AuthenticationException(String.format("User %d is not authenticated to update record under localtion %d", userId, record.getLocationId()));
+            throw new AuthenticationException(String.format("User %d is not authenticated to update record under location %d", userId, record.getLocationId()));
         }
 
         // Only certain types of states are valid for certain retention schedules
