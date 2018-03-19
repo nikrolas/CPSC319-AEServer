@@ -108,7 +108,7 @@ public class Record {
      * @throws SQLException
      */
     public boolean validateClassifications() throws SQLException {
-        return Classification.validateClassification(classifications);
+        return Classification.validateClassification(classIds);
     }
 }
 
