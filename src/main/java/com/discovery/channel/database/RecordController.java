@@ -254,7 +254,7 @@ public class RecordController {
      */
     public static Record createRecord (Record record, int userId) throws SQLException {
         String userName = UserController.getUserByUserTableId(userId).getUserId();
-        if (!Authenticator.authenticate(userId, Role.RMC)) {
+        if (!Authenticator.authenticate(userId, Role.RMC) && !Authenticator.authenticate(userId, Role.ADMINISTRATOR)) {
             throw new AuthenticationException(String.format("User %s is not authenticated to create record", userName));
         }
 
@@ -407,7 +407,7 @@ public class RecordController {
             return response;
         }
 
-        if (!Authenticator.authenticate(userId, Role.RMC)) {
+        if (!Authenticator.authenticate(userId, Role.RMC) && !Authenticator.authenticate(userId, Role.ADMINISTRATOR)) {
             throw new AuthenticationException(String.format("User %s is not authenticated to delete record", userName));
         }
 
@@ -439,7 +439,7 @@ public class RecordController {
             "WHERE Id= ?";
     public static void updateRecord(Integer id, int userId, UpdateRecordForm updateForm) throws SQLException {
         String userName = UserController.getUserByUserTableId(userId).getUserId();
-        if (!Authenticator.authenticate(userId, Role.RMC)) {
+        if (!Authenticator.authenticate(userId, Role.RMC) && !Authenticator.authenticate(userId, Role.ADMINISTRATOR)) {
             throw new AuthenticationException(String.format("User %s is not authenticated to update record", userName));
         }
 

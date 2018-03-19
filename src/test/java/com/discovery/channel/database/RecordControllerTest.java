@@ -34,6 +34,19 @@ public class RecordControllerTest {
         assertNotNull(record.getSchedule());
     }
 
+    @Test
+    public void testGetNonExistentRecord() throws SQLException{
+
+        Record record = RecordController.getRecordById(50);
+        assertNull(record);
+
+    }
+
+    @Test
+    public void testGetRecordByIdWithBadLocation(){
+        // Todo
+    }
+
 
     @Test
     public void testCreateRecord() throws SQLException{
@@ -57,7 +70,7 @@ public class RecordControllerTest {
         RecordController.deleteRecords(500, recordForDeletion);
 
         Record removedRecord = RecordController.getRecordById(id);
-        assertTrue(removedRecord == null);
+        assertNull(removedRecord);
     }
 
     @Test
@@ -104,7 +117,7 @@ public class RecordControllerTest {
         RecordController.deleteRecords(500, recordForDeletion);
 
         Record removedRecord = RecordController.getRecordById(updatedRecord.getId());
-        assertTrue(removedRecord == null);
+        assertNull(removedRecord);
     }
 
 
@@ -131,7 +144,7 @@ public class RecordControllerTest {
         RecordController.deleteRecords(500, recordForDeletion);
 
         Record removedRecord = RecordController.getRecordById(record.getId());
-        assertTrue(removedRecord == null);
+        assertNull(removedRecord);
 
     }
 
@@ -159,7 +172,67 @@ public class RecordControllerTest {
         RecordController.deleteRecords(500, recordForDeletion);
 
         Record removedRecord = RecordController.getRecordById(record.getId());
-        assertTrue(removedRecord == null);
+        assertNull(removedRecord);
+
+    }
+
+
+    @Test
+    public void testDeleteRecordWithBadRole() throws SQLException {
+        Record r = createNewRecordWithoutContainer("TESTING-Deletion-with-bad-role", "EDM-2018", 5, 26, 3);
+        Record record = RecordController.createRecord(r, 500);
+
+        List<Integer> recordIds = new ArrayList<>();
+        recordIds.add(record.getId());
+        DeleteRecordsForm recordForDeletion = new DeleteRecordsForm();
+        recordForDeletion.setRecordIds(recordIds);
+
+        AuthenticationException e = assertThrows(AuthenticationException.class, () -> {
+            RecordController.deleteRecords(2, recordForDeletion);
+        });
+
+        RecordController.deleteRecords(500, recordForDeletion);
+    }
+
+
+    @Test
+    public void testDeleteRecordWithBadLocation()throws SQLException{
+        Record r = createNewRecordWithoutContainer("TESTING-Deletion-with-bad-location", "EDM-2018", 5, 26, 3);
+        Record record = RecordController.createRecord(r, 598);
+
+        List<Integer> recordIds = new ArrayList<>();
+        recordIds.add(record.getId());
+        DeleteRecordsForm recordForDeletion = new DeleteRecordsForm();
+        recordForDeletion.setRecordIds(recordIds);
+
+        AuthenticationException e = assertThrows(AuthenticationException.class, () -> {
+            RecordController.deleteRecords(475, recordForDeletion);
+        });
+
+        RecordController.deleteRecords(598, recordForDeletion);
+
+    }
+
+
+    @Test
+    public void testDeleteMultipleRecords() throws SQLException{
+        Record r = createNewRecordWithoutContainer("TESTING-Deletion-1", "EDM-2018", 51, 10, 3);
+        Record record = RecordController.createRecord(r, 110);
+
+        Record r2 = createNewRecordWithoutContainer("TESTING-Deletion-2", "EDM-2018", 51, 24, 3);
+        Record record2 = RecordController.createRecord(r2, 111);
+
+        Record r3 = createNewRecordWithoutContainer("TESTING-Deletion-3", "EDM-2018", 51, 79, 3);
+        Record record3 = RecordController.createRecord(r3, 112);
+
+        List<Integer> recordIds = new ArrayList<>();
+        recordIds.add(record.getId());
+        recordIds.add(record2.getId());
+        recordIds.add(record3.getId());
+        DeleteRecordsForm recordForDeletion = new DeleteRecordsForm();
+        recordForDeletion.setRecordIds(recordIds);
+
+        RecordController.deleteRecords(135, recordForDeletion);
 
     }
 
