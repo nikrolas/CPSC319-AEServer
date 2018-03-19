@@ -108,6 +108,61 @@ public class RecordControllerTest {
     }
 
 
+    @Test
+    public void testUpdateWithBadRole() throws SQLException{
+        Record r = createNewRecordWithoutContainer("TESTING-BAD-ROLES", "EDM-2018", 5, 26, 3);
+        Record record = RecordController.createRecord(r, 500);
+
+        UpdateRecordForm form = new UpdateRecordForm("TESTING-UPDATE", 10,
+                "ADVISORY SERVICES/ADVICE",
+                "anConsignmentCode",
+                "updating a record",
+                1,
+                24372);
+
+        AuthenticationException e = assertThrows(AuthenticationException.class, () -> {
+            RecordController.updateRecord(record.getId(), 400, form);
+        });
+
+        List<Integer> recordIds = new ArrayList<>();
+        recordIds.add(record.getId());
+        DeleteRecordsForm recordForDeletion = new DeleteRecordsForm();
+        recordForDeletion.setRecordIds(recordIds);
+        RecordController.deleteRecords(500, recordForDeletion);
+
+        Record removedRecord = RecordController.getRecordById(record.getId());
+        assertTrue(removedRecord == null);
+
+    }
+
+
+    @Test
+    public void testUpdateWithBadLocation() throws SQLException{
+        Record r = createNewRecordWithoutContainer("TESTING-BAD-Location", "EDM-2018", 5, 26, 3);
+        Record record = RecordController.createRecord(r, 500);
+
+        UpdateRecordForm form = new UpdateRecordForm("TESTING-UPDATE", 10,
+                "ADVISORY SERVICES/ADVICE",
+                "anConsignmentCode",
+                "updating a record",
+                1,
+                24372);
+
+        AuthenticationException e = assertThrows(AuthenticationException.class, () -> {
+            RecordController.updateRecord(record.getId(), 478, form);
+        });
+
+        List<Integer> recordIds = new ArrayList<>();
+        recordIds.add(record.getId());
+        DeleteRecordsForm recordForDeletion = new DeleteRecordsForm();
+        recordForDeletion.setRecordIds(recordIds);
+        RecordController.deleteRecords(500, recordForDeletion);
+
+        Record removedRecord = RecordController.getRecordById(record.getId());
+        assertTrue(removedRecord == null);
+
+    }
+
 
 
     private Record createNewRecordWithoutContainer(String title, String recordNumber,int locationId, int scheduleId, int typeId) {
