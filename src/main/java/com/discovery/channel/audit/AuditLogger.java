@@ -14,7 +14,7 @@ import java.util.List;
 public class AuditLogger {
     private static final Logger LOGGER = LoggerFactory.getLogger(AuditLogger.class);
     public enum Target {
-        CONTAINER("CONTAINER"), RECORD("RECORD"), VOLUME("VOLUME");
+        CONTAINER("CONTAINER"), RECORD("RECORD");
 
         String name;
         Target(String name) {

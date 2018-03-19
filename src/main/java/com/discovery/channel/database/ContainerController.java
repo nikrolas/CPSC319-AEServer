@@ -190,6 +190,7 @@ public class ContainerController {
             ps.executeUpdate();
 
             NoteTableController.updateContainerNotes(containerId, container.getNotes());
+            AuditLogger.log(userId, AuditLogger.Target.CONTAINER, containerId, AuditLogger.ACTION.UPDATE);
 
             return getContainerById(containerId);
         }
@@ -264,6 +265,7 @@ public class ContainerController {
             LOGGER.info("Passed all validation checks. Deleting container {}", ids);
             for (String id : listOfIds) {
                 deleteOneContainer(id);
+                AuditLogger.log(userId, AuditLogger.Target.CONTAINER, Integer.valueOf(id), AuditLogger.ACTION.DELETE);
             }
             return ResponseEntity.status(HttpStatus.OK).build();
         }else{

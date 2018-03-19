@@ -274,4 +274,15 @@ public class RouteHandler {
         LOGGER.info("Searching containers filtered by {}", num);
         return ContainerController.getContainerByNumber(num);
     }
+
+    /**
+     * Get audit logs
+     */
+    @RequestMapping(
+            value = "auditlogs",
+            method = RequestMethod.GET)
+    public List<AuditLogEntry> getAuditLogs() throws SQLException{
+        return AuditLogger.getLogs();
+    }
+
 }
