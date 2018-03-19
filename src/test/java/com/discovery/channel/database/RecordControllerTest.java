@@ -64,7 +64,7 @@ public class RecordControllerTest {
     public void testCreateRecordWithBadRole(){
         Record r = createNewRecordWithoutContainer("TESTING-2", "EDM-2018", 5, 26, 3);
         AuthenticationException e = assertThrows(AuthenticationException.class, () -> {
-            RecordController.createRecord(r, 400);
+            RecordController.createRecord(r, 10);
         });
     }
 
@@ -121,7 +121,7 @@ public class RecordControllerTest {
                 24372);
 
         AuthenticationException e = assertThrows(AuthenticationException.class, () -> {
-            RecordController.updateRecord(record.getId(), 400, form);
+            RecordController.updateRecord(record.getId(), 43, form);
         });
 
         List<Integer> recordIds = new ArrayList<>();

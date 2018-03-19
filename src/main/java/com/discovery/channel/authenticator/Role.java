@@ -1,7 +1,7 @@
 package com.discovery.channel.authenticator;
 
 public enum Role {
-    ADMINISTRATOR(1, "Administrator"), RMC(2, "RMC");
+    ADMINISTRATOR(1, "Administrator"), RMC(2, "RMC"), General(3, "General");
 
     private int roleId;
     private String roleName;
@@ -16,6 +16,8 @@ public enum Role {
                 return ADMINISTRATOR;
             case 2:
                 return RMC;
+            case 3:
+                return General;
             default:
                 return null;
         }
