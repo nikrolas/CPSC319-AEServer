@@ -66,14 +66,18 @@ public class ContainerController {
     private static final String GET_CONTAINER_BY_ID =
             "SELECT * FROM containers " +
             "WHERE Id = ?";
-    public static final Container getContainerById(int id) throws SQLException{
+    public static final Container getContainerById(int id, int userId) throws SQLException{
         try (Connection connection = DbConnect.getConnection();
              PreparedStatement ps = connection.prepareStatement(GET_CONTAINER_BY_ID)) {
             ps.setInt(1, id);
             try (ResultSet rs = ps.executeQuery()){
                 verifyResultNotEmpty(rs);
                 rs.next();
-                return parseResultSet(rs);
+                Container container =  parseResultSet(rs);
+                if (!Authenticator.canUserViewLocation(userId, container.getLocationId())) {
+                    throw new AuthenticationException("User " + userId + "is not allowed to view this location " + container.getLocationName());
+                }
+                return container;
             }
         }
     }
@@ -108,7 +112,7 @@ public class ContainerController {
 
         LOGGER.info("Created record. Record Id {}", newContainerId);
 
-        return getContainerById(newContainerId);
+        return getContainerById(newContainerId, userId);
     }
 
     private static final String GET_MAX_CONTAINER_ID =
@@ -171,7 +175,7 @@ public class ContainerController {
 
             NoteTableController.updateContainerNotes(containerId, container.getNotes());
 
-            return getContainerById(containerId);
+            return getContainerById(containerId, userId);
         }
     }
 
@@ -182,13 +186,18 @@ public class ContainerController {
      * @return a list of containers
      */
     private static final String GET_CONTAINER_BY_NUMBER = "SELECT * FROM containers " +
+            "WHERE LocationId IN " +
+            "( SELECT LocationId  " +
+            "FROM locations l  LEFT JOIN userlocations ul ON (ul.LocationId = l.Id ) " +
+            "WHERE l.Restricted = false OR ul.UserId = ?) " +
             "WHERE Number LIKE ? " +
             "ORDER BY UpdatedAt LIMIT 20";
-    public static List<Container> getContainerByNumber(String containerNumber) throws SQLException {
+    public static List<Container> getContainerByNumber(String containerNumber, int userId) throws SQLException {
         List<Container> containers = new ArrayList<>();
         try (Connection connection = DbConnect.getConnection();
              PreparedStatement ps = connection.prepareStatement(GET_CONTAINER_BY_NUMBER)) {
-            ps.setString(1, "%" + containerNumber + "%");
+            ps.setInt(1, userId);
+            ps.setString(2, "%" + containerNumber + "%");
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     Container container = parseResultSet(rs);

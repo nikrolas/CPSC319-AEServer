@@ -35,14 +35,20 @@ public class RecordController {
      * @param recordNumber
      * @return a list of records
      */
-    private static final String GET_RECORD_BY_NUMBER = "SELECT * FROM records " +
-            "WHERE Number LIKE ? " +
+    private static final String GET_RECORD_BY_NUMBER = "SELECT * " +
+            "FROM records " +
+            "WHERE LocationId IN " +
+            "( SELECT LocationId  " +
+            "FROM locations l  LEFT JOIN userlocations ul ON (ul.LocationId = l.Id ) " +
+            "WHERE l.Restricted = false OR ul.UserId = ?) " +
+            "AND records.Number LIKE ? " +
             "ORDER BY UpdatedAt LIMIT 20";
-    public static List<Record> getRecordByNumber(String recordNumber) throws SQLException {
+    public static List<Record> getRecordByNumber(String recordNumber, int userId) throws SQLException {
         List<Record> records = new ArrayList<>();
         try (Connection connection = DbConnect.getConnection();
              PreparedStatement ps = connection.prepareStatement(GET_RECORD_BY_NUMBER)) {
-            ps.setString(1, "%" + recordNumber + "%");
+            ps.setInt(1, userId);
+            ps.setString(2, "%" + recordNumber + "%");
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     Record record = parseResultSet(rs);
@@ -60,12 +66,16 @@ public class RecordController {
      * @return a list of records, currently limit 20 order by UpdatedAt
      */
     private static final String GET_ALL_RECORDS = "SELECT * " +
-            "FROM records " +
+            "FROM records  " +
+            "WHERE LocationId IN ( SELECT LocationId  " +
+            "FROM locations l  LEFT JOIN userlocations ul ON (ul.LocationId = l.Id ) " +
+            "WHERE l.Restricted = false OR ul.UserId = ?) " +
             "ORDER BY UpdatedAt LIMIT 20";
-    public static List<Record> getAllRecords() throws SQLException {
+    public static List<Record> getAllRecords(int userId) throws SQLException {
         List<Record> records = new ArrayList<>();
         try (Connection connection = DbConnect.getConnection();
              PreparedStatement ps = connection.prepareStatement(GET_ALL_RECORDS)) {
+            ps.setInt(1, userId);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     Record record = parseResultSet(rs);
@@ -87,7 +97,7 @@ public class RecordController {
     private static final String GET_RECORD_BY_ID =
             "SELECT * " +
                     "FROM records WHERE Id = ?";
-    public static Record getRecordById(Integer id) throws SQLException {
+    public static Record getRecordById(Integer id, int userId) throws SQLException {
         try (Connection connection = DbConnect.getConnection();
              PreparedStatement ps = connection.prepareStatement(GET_RECORD_BY_ID)) {
             ps.setInt(1, id);
@@ -95,6 +105,9 @@ public class RecordController {
                 if (resultSet.next()) {
                     Record record = parseResultSet(resultSet);
                     loadRecordDetail(record);
+                    if (!Authenticator.canUserViewLocation(userId, record.getLocationId())) {
+                        throw new AuthenticationException("User " + userId + "is not allowed to view records on location " + record.getLocation());
+                    }
                     return record;
                 }
             }
@@ -363,7 +376,7 @@ public class RecordController {
         LOGGER.info("Created record. Record Id {}", newRecordId);
         // TODO save notes
         // TODO audit log : Need to determine the schema
-        return getRecordById(newRecordId);
+        return getRecordById(newRecordId, userId);
     }
 
 
@@ -469,7 +482,7 @@ public class RecordController {
     private static boolean deleteRecord(Integer id, int userId) throws SQLException {
         // TODO : audit log
 
-        Record record = getRecordById(id);
+        Record record = getRecordById(id, userId);
 
         if (record == null) {
             throw new NoResultsFoundException(String.format("Record %d does not exist", id));
@@ -539,7 +552,7 @@ public class RecordController {
             throw new AuthenticationException(String.format("User %d is not authenticated to update record", userId));
         }
 
-        Record record = getRecordById(id);
+        Record record = getRecordById(id, userId);
         if (record == null) {
             throw new NoResultsFoundException(String.format("Record %d does not exist", id));
         }

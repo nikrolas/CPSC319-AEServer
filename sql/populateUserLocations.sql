@@ -22,3 +22,9 @@ WHERE users.Id <= 200);
 
 INSERT INTO userlocations(UserId, LocationId)
 VALUES (500, 8)
+
+# Give user 600 full privileges
+DELETE FROM userlocations WHERE UserId=600;
+INSERT INTO userlocations (UserId, LocationId)
+(SELECT 600, locations.Id
+FROM locations);
