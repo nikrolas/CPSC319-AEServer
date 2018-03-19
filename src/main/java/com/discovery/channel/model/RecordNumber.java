@@ -1,5 +1,6 @@
 package com.discovery.channel.model;
 
+import com.discovery.channel.exception.IllegalArgumentException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

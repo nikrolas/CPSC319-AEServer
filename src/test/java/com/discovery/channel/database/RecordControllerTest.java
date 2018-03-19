@@ -19,7 +19,7 @@ public class RecordControllerTest {
         assertTrue(StringUtils.isNotBlank(record.getLocation()));
         assertTrue(StringUtils.isNotBlank(record.getType()));
         assertTrue(StringUtils.isNotBlank(record.getState()));
-        assertTrue(StringUtils.isNotBlank(record.getContainer()));
+        assertTrue(StringUtils.isNotBlank(record.getContainerNumber()));
         assertTrue(StringUtils.isNotBlank(record.getClassifications()));
         assertTrue(StringUtils.isNotBlank(record.getNotes()));
         assertNotNull(record.getSchedule());

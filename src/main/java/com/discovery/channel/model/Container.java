@@ -19,31 +19,47 @@ public class Container {
     private String title;
     private Date createdAt;
     private Date updatedAt;
-    private List<Integer> childRecordIds;
+    private Date destructionDate;
 
     private String consignmentCode;
     private int stateId;
-    private String stateName;
+    private String state;
     private int locationId;
     private String locationName;
     private int scheduleId;
     private String scheduleName;
-    private int type;
-    private Date destructionDate;
+    private int typeId;
+    private String type;
+
     private String notes;
+    private List<Integer> childRecordIds;
 
     public Container(int containerId,
                      String containerNumber,
                      String title,
+                     String consignmentCode,
                      Date createdAt,
                      Date updatedAt,
-                     List<Integer> childRecordIds){
+                     int stateId,
+                     int locationId,
+                     int scheduleId,
+                     int typeId,
+                     Date destructionDate,
+                     List<Integer> childRecordIds,
+                     String notes) {
         this.containerId = containerId;
         this.containerNumber = containerNumber;
         this.title = title;
+        this.consignmentCode = consignmentCode;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
+        this.stateId = stateId;
+        this.locationId = locationId;
+        this.scheduleId = scheduleId;
+        this.typeId = typeId;
+        this.destructionDate = destructionDate;
         this.childRecordIds = childRecordIds;
+        this.notes = notes;
     }
 
     @JsonCreator

@@ -76,8 +76,7 @@ public class UserController {
 
         user.setRoleId(getRoleIdByUserTableId(user.getId()));
         user.setRole(Role.fromRoleId(user.getRoleId()).getRoleName());
-        user.setLocationId(getLocationIdByUserTableId(user.getId()));
-        user.setLocation(LocationController.getLocationNameByLocationId(user.getLocationId()));
+        user.setLocations(LocationController.getUserLocations(user.getId()));
 
     }
 
@@ -116,6 +115,7 @@ public class UserController {
      * @return LocationId
      * @throws SQLException
      */
+    // TODO user could have multiple locations
     public static final String GET_LOCATION_ID_BY_USER_TABLE_ID =
             "SELECT LocationId " + "FROM userlocations WHERE UserId = ?";
     private static int getLocationIdByUserTableId(Integer id) throws SQLException{

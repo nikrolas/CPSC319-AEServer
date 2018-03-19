@@ -4,9 +4,12 @@ import com.discovery.channel.audit.AuditLogger;
 import com.discovery.channel.authenticator.Authenticator;
 import com.discovery.channel.authenticator.Role;
 import com.discovery.channel.exception.AuthenticationException;
+import com.discovery.channel.exception.IllegalArgumentException;
 import com.discovery.channel.exception.NoResultsFoundException;
+import com.discovery.channel.form.DeleteRecordsForm;
 import com.discovery.channel.form.UpdateRecordForm;
 import com.discovery.channel.model.*;
+import com.discovery.channel.response.BatchResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.StringUtils;
@@ -16,6 +19,12 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.sql.Connection;
+import java.sql.Date;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 
 
 public class RecordController {
@@ -96,23 +105,56 @@ public class RecordController {
     }
 
     /**
+     * Retrieve multiple records
+     *
+     * @param id
+     * @return List of records
+     */
+    private static final String GET_RECORDS_BY_IDS =
+            "SELECT * " +
+                    "FROM records WHERE Id IN (?)";
+    public static List<Record> getRecordsByIds(List<Integer> ids, boolean verbose) throws SQLException {
+        List<Record> records = new ArrayList<>();
+
+        if (ids == null || ids.isEmpty()) {
+            return records;
+        }
+
+        try (Connection connection = DbConnect.getConnection();
+             PreparedStatement ps = connection.prepareStatement(GET_RECORD_BY_ID)) {
+            ps.setArray(1, connection.createArrayOf("int",ids.toArray()));
+            try (ResultSet resultSet = ps.executeQuery()) {
+                while (resultSet.next()) {
+                    Record record = parseResultSet(resultSet);
+                    if (verbose) {
+                        loadRecordDetail(record);
+                    }
+                    records.add(record);
+                }
+            }
+        }
+        return records;
+    }
+
+    /**
      * Load record details, including location, type, state, and retention schedule
      *
      * @param record
      * @throws SQLException
      */
     private static void loadRecordDetail(Record record) throws SQLException {
-        record.setLocation(getLocationName(record.getLocationId()));
+        record.setLocation(LocationController.getLocationNameByLocationId(record.getLocationId()));
         record.setType(RecordTypeController.getTypeName(record.getTypeId()));
-        record.setState(getStateName(record.getStateId()));
-        record.setContainer(getContainerNumber(record.getContainerId()));
+        record.setState(StateController.getStateName(record.getStateId()));
+        record.setContainerNumber(getContainerNumber(record.getContainerId()));
 
-        Map<String, String> schedule = getRetentionSchedule(record.getScheduleId());
+        Map<String, String> schedule = RetentionScheduleController.getRetentionSchedule(record.getScheduleId());
         record.setSchedule(schedule.get("Name"));
         record.setScheduleYear(Integer.valueOf(schedule.get("Years")));
 
         // Load classifications
         List<Integer> classIds = getRecordClassifications(record.getId());
+        record.setClassIds(classIds);
         List<Classification> classifications = new ArrayList<>();
         for (int classId : classIds) {
             classifications.add(ClassificationController.findClassificationById(classId));
@@ -120,7 +162,7 @@ public class RecordController {
         record.setClassifications(Classification.buildClassificationString(classifications));
 
         // Load notes
-        record.setNotes(getRecordNotes(record.getId()));
+        record.setNotes(NoteTableController.getRecordNotes(record.getId()));
     }
 
     /**
@@ -156,56 +198,6 @@ public class RecordController {
                     closedAt);
     }
 
-
-    /**
-     * Retrieve name for a location given location id
-     *
-     * @param location id
-     * @return location name
-     */
-    private static final String GET_LOCATION_NAME_BY_ID = "SELECT Name " +
-            "FROM locations " +
-            "WHERE Id=?";
-
-    private static String getLocationName(int locationId) throws SQLException {
-        try (Connection con = DbConnect.getConnection();
-             PreparedStatement ps = con.prepareStatement(GET_LOCATION_NAME_BY_ID)) {
-            ps.setInt(1, locationId);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    return rs.getString("Name");
-                }
-            }
-        }
-        return null;
-    }
-
-
-    /**
-     * retentionschedules table to get schedule name and years by Id
-     *
-     * @param retention schedule id
-     * @return schedule name and years
-     */
-    private static final String GET_RECORD_SCHEDULE = "SELECT * " +
-            "FROM retentionschedules " +
-            "WHERE Id=?";
-    private static Map<String, String> getRetentionSchedule(int id) throws SQLException {
-        Map<String, String> schedule = new HashMap<String, String>();
-        try (Connection con = DbConnect.getConnection();
-             PreparedStatement ps = con.prepareStatement(GET_RECORD_SCHEDULE)) {
-            ps.setInt(1, id);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    schedule.put("Name", rs.getString("Name"));
-                    schedule.put("Years", String.valueOf(rs.getInt("Years")));
-                }
-            }
-        }
-        return schedule;
-    }
-
-
     /**
      * Join records table with containers table to get container name
      *
@@ -223,30 +215,6 @@ public class RecordController {
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     return rs.getString("Number");
-                }
-            }
-        }
-        return null;
-    }
-
-
-    /**
-     * Get state name by id
-     *
-     * @param stateId
-     * @return state name
-     */
-    private static final String GET_STATE_BY_ID = "SELECT Name " +
-            "FROM recordstates " +
-            "WHERE Id = ?";
-
-    private static String getStateName(int stateId) throws SQLException {
-        try (Connection con = DbConnect.getConnection();
-             PreparedStatement ps = con.prepareStatement(GET_STATE_BY_ID)) {
-            ps.setInt(1, stateId);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    return rs.getString("Name");
                 }
             }
         }
@@ -358,7 +326,7 @@ public class RecordController {
             }
             saveClassificationForRecord(newRecordId, record.getClassifications());
             if (!StringUtils.isEmpty(record.getNotes()) ) {
-                saveNotesForRecord(newRecordId, record.getNotes());
+                NoteTableController.saveNotesForRecord(newRecordId, record.getNotes());
             }
             return newRecordId;
         }
@@ -390,87 +358,6 @@ public class RecordController {
     }
 
     /**
-     * Get ordered list of classifications Ids for a record
-     *
-     * @param recordId
-     * @return
-     * @throws SQLException
-     */
-    private static final String GET_RECORD_NOTES = "SELECT Text " +
-            "FROM notes " +
-            "WHERE TableId=? AND RowId=? " +
-            "ORDER BY Chunk ASC";
-    private static String getRecordNotes(int recordId) throws SQLException {
-        String notes = "";
-        try (Connection conn = DbConnect.getConnection();
-             PreparedStatement ps = conn.prepareStatement(GET_RECORD_NOTES)) {
-            ps.setInt(1, NoteTable.RECORDS.id);
-            ps.setInt(2, recordId);
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    notes = notes + rs.getString("Text");
-                }
-            }
-        }
-        return notes;
-    }
-
-    /**
-     * Save notes to db
-     *
-     * @param recordId
-     * @param notes
-     * @throws SQLException
-     */
-    private static final int MAX_NOTE_LEN = Integer.MAX_VALUE;
-    private static final String INSERT_RECORD_NOTE = "INSERT INTO notes (TableId, RowId, Chunk, Text) " +
-            "VALUES(?, ? , ? , ?)";
-    private static void saveNotesForRecord(int recordId, String notes) throws SQLException {
-        try (Connection conn = DbConnect.getConnection();
-             PreparedStatement ps = conn.prepareStatement(INSERT_RECORD_NOTE)){
-            int chunkNum = 0;
-            int startIndex = 0;
-            while (startIndex < notes.length()) {
-                ps.setInt(1, NoteTable.RECORDS.id);
-                ps.setInt(2, recordId);
-                ps.setInt(3, chunkNum);
-                ps.setString(4, notes.substring(startIndex,
-                        startIndex + MAX_NOTE_LEN >= notes.length()? notes.length() : startIndex + MAX_NOTE_LEN));
-                ps.addBatch();
-                startIndex = startIndex + MAX_NOTE_LEN;
-                chunkNum = chunkNum + 1;
-            }
-            ps.executeBatch();
-        }
-        LOGGER.info("Saved notes {} for record {}", notes, recordId);
-    }
-
-    /**
-     * Delete all chunks of notes for a record
-     * @param recordId
-     * @return
-     * @throws SQLException
-     */
-    private static final String DELETE_NOTE_FOR_RECORD = "DELETE FROM notes " +
-            "WHERE TableId=? AND RowId = ?";
-    private static int deleteNotesForRecord(int recordId) throws SQLException {
-        int rowsUpdated = 0;
-        try(Connection connection = DbConnect.getConnection();
-            PreparedStatement ps = connection.prepareStatement(DELETE_NOTE_FOR_RECORD)) {
-            ps.setInt(1, NoteTable.RECORDS.id);
-            ps.setInt(2, recordId);
-            rowsUpdated = ps.executeUpdate();
-        }
-        LOGGER.info("Deleted {} note entries for record {}", rowsUpdated, recordId);
-        return rowsUpdated;
-    }
-
-    private static void updateRecordNotes(int recordId, String newNotes) throws SQLException {
-        deleteNotesForRecord(recordId);
-        saveNotesForRecord(recordId, newNotes);
-    }
-
-    /**
      * Delete a record by Id
      *
      * @param id
@@ -479,11 +366,8 @@ public class RecordController {
      */
     private static final String DELETE_RECORD_BY_ID = "DELETE FROM records " +
             "where Id=?";
-    public static boolean deleteRecord(Integer id, int userId) throws SQLException {
+    private static boolean deleteRecord(Integer id, int userId) throws SQLException {
         // TODO : audit log
-        if (!Authenticator.authenticate(userId, Role.RMC)) {
-            throw new AuthenticationException(String.format("User %d is not authenticated to delete record", userId));
-        }
 
         Record record = getRecordById(id);
 
@@ -492,7 +376,7 @@ public class RecordController {
         }
 
         if (!Authenticator.isUserAuthenticatedForLocation(userId, record.getLocationId())) {
-            throw new AuthenticationException(String.format("User %d is not authenticated to delete record under localtion %d", userId, record.getLocationId()));
+            throw new AuthenticationException(String.format("User %d is not authenticated to delete record under location %d", userId, record.getLocationId()));
         }
 
         LOGGER.info("About to delete record {}", id);
@@ -509,12 +393,36 @@ public class RecordController {
         AuditLogger.log(userId, AuditLogger.Target.RECORD, id, AuditLogger.ACTION.UPDATE);
 
         // 3. Delete notes
-        boolean success = rowsModified == 1;
-        if (success) {
-            deleteNotesForRecord(id);
+        NoteTableController.deleteNotesForRecord(id);
+
+        return rowsModified == 1;
+    }
+
+    public static BatchResponse deleteRecords(int userId, DeleteRecordsForm form) throws SQLException {
+        BatchResponse response = new BatchResponse();
+
+        if (form.getRecordIds().isEmpty()) {
+            LOGGER.info("No record ids found in delete records form. Returning true");
+            return response;
         }
 
-        return success;
+        if (!Authenticator.authenticate(userId, Role.RMC)) {
+            throw new AuthenticationException(String.format("User %d is not authenticated to delete record", userId));
+        }
+
+        for (int recordId : form.getRecordIds()) {
+            try {
+                if (deleteRecord(recordId, userId)) {
+                    response.addResponse(recordId, "", true);
+                } else {
+                    response.addResponse(recordId, "", false);
+                }
+            } catch (Exception e) {
+                LOGGER.error(e.getMessage());
+                response.addResponse(recordId, e.getMessage(), false);
+            }
+        }
+        return response;
     }
 
     /**
@@ -539,12 +447,12 @@ public class RecordController {
         }
 
         if (!Authenticator.isUserAuthenticatedForLocation(userId, record.getLocationId())) {
-            throw new AuthenticationException(String.format("User %d is not authenticated to update record under localtion %d", userId, record.getLocationId()));
+            throw new AuthenticationException(String.format("User %d is not authenticated to update record under location %d", userId, record.getLocationId()));
         }
 
         // RMC can't move a record to a location tht they're not a part of
         if (!Authenticator.isUserAuthenticatedForLocation(userId, record.getLocationId())) {
-            throw new AuthenticationException(String.format("User %d is not authenticated to update record under localtion %d", userId, record.getLocationId()));
+            throw new AuthenticationException(String.format("User %d is not authenticated to update record under location %d", userId, record.getLocationId()));
         }
 
         // Only certain types of states are valid for certain retention schedules
@@ -586,9 +494,9 @@ public class RecordController {
 
         // Update notes if need to
         if (StringUtils.isEmpty(updateForm.getNotes())) {
-            deleteNotesForRecord(id);
+            NoteTableController.deleteNotesForRecord(id);
         }else if(!updateForm.getNotes().equals(record.getNotes())) {
-            updateRecordNotes(id, updateForm.getNotes());
+            NoteTableController.updateRecordNotes(id, updateForm.getNotes());
         }
 
         AuditLogger.log(userId, AuditLogger.Target.RECORD, id, AuditLogger.ACTION.DELETE);
