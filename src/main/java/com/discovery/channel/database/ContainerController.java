@@ -180,17 +180,17 @@ public class ContainerController {
                     destinationContainer.getConsignmentCode() + "', but record has consignment code of '" +
                     record.getConsignmentCode() + "'");
         if (destinationContainer.getTypeId() != record.getTypeId())
-            throw new ValidationException("tried to add record to container with type: '" +
-                    destinationContainer.getConsignmentCode() + "', but record has consignment code of '" +
-                record.getConsignmentCode() + "'");
+            throw new ValidationException("tried to add record to container with record type: '" +
+                    destinationContainer.getType() + "', but record has record type of '" +
+                record.getType() + "'");
         if (destinationContainer.getLocationId() != record.getLocationId())
-            throw new ValidationException("tried to add record to container with type: '" +
-                    destinationContainer.getConsignmentCode() + "', but record has consignment code of '" +
-                    record.getConsignmentCode() + "'");
+            throw new ValidationException("tried to add record to container with location: '" +
+                    destinationContainer.getLocationName() + "', but record has location '" +
+                    record.getLocation() + "'");
         if (destinationContainer.getScheduleId() != record.getScheduleId())
-            throw new ValidationException("tried to add record to container with type: '" +
-                    destinationContainer.getConsignmentCode() + "', but record has consignment code of '" +
-                    record.getConsignmentCode() + "'");
+            throw new ValidationException("tried to add record to container with schedule: '" +
+                    destinationContainer.getScheduleName() + "', but record has schedule '" +
+                    record.getSchedule() + "'");
         if (destinationContainer.getStateId() != record.getStateId())
             throw new ValidationException("tried to add record to container with type: '" +
                     destinationContainer.getConsignmentCode() + "', but record has consignment code of '" +
