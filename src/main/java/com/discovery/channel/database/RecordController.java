@@ -109,6 +109,7 @@ public class RecordController {
      * Retrieve multiple records
      *
      * @param ids
+     * @param verbose
      * @return List of records
      */
  
