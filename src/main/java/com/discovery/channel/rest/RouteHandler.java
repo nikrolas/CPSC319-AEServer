@@ -15,6 +15,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
 
 @RestController
@@ -260,6 +261,24 @@ public class RouteHandler {
         return ContainerController.deleteContainers(ids, userId);
     }
 
+
+
+    /**
+     * Get a destruction date given record ids
+     *
+     * @param  ids
+     * @return Destruction date in millisecond if success, error message otherwise
+     */
+    @RequestMapping(
+            value = "destructiondate",
+            params = {"ids", "userId"},
+            method = RequestMethod.GET)
+    public ResponseEntity<?> getDestructionDate(@RequestParam("ids") ArrayList<Integer> ids, @RequestParam("userId") int userId) throws SQLException{
+        LOGGER.info("Calculating destruction date given ids {}", ids);
+        return DestructionDateController.calculateDestructionDate(ids);
+    }
+
+
     /**
      * Search container(s) by number
      *
@@ -274,4 +293,5 @@ public class RouteHandler {
         LOGGER.info("Searching containers filtered by {}", num);
         return ContainerController.getContainerByNumber(num);
     }
+
 }
