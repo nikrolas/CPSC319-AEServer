@@ -1,5 +1,7 @@
 package com.discovery.channel.rest;
 
+import com.discovery.channel.audit.AuditLogEntry;
+import com.discovery.channel.audit.AuditLogger;
 import com.discovery.channel.database.*;
 import com.discovery.channel.form.DeleteRecordsForm;
 import com.discovery.channel.form.UpdateRecordForm;
@@ -234,7 +236,6 @@ public class RouteHandler {
     /**
      * Get a user by id in user table
      *
-     *
      * @param  id
      * @return the user with the given user id
      */
@@ -242,7 +243,6 @@ public class RouteHandler {
             value = "users/{id}",
             method = RequestMethod.GET)
     public User getUserByUserTableId(@PathVariable("id") Integer id) throws SQLException{
-        LOGGER.info("Searching for user with id {}", id);
         return UserController.getUserByUserTableId(id);
     }
 
@@ -292,6 +292,16 @@ public class RouteHandler {
     public List<Container> getContainerByNumber(@RequestParam("num") String num, @RequestParam("userId") int userId) throws SQLException{
         LOGGER.info("Searching containers filtered by {}", num);
         return ContainerController.getContainerByNumber(num);
+    }
+
+    /**
+     * Get audit logs
+     */
+    @RequestMapping(
+            value = "auditlogs",
+            method = RequestMethod.GET)
+    public List<AuditLogEntry> getAuditLogs() throws SQLException{
+        return AuditLogger.getLogs();
     }
 
 }

@@ -1,5 +1,6 @@
 package com.discovery.channel.database;
 
+import com.discovery.channel.audit.AuditLogger;
 import com.discovery.channel.authenticator.Authenticator;
 import com.discovery.channel.authenticator.Role;
 import com.discovery.channel.exception.AuthenticationException;
@@ -124,7 +125,8 @@ public class ContainerController {
 
         NoteTableController.saveNotesForContainer(newContainerId, container.getNotes());
 
-        LOGGER.info("Created record. Record Id {}", newContainerId);
+        LOGGER.info("Created container. Container Id {}", newContainerId);
+        AuditLogger.log(userId, AuditLogger.Target.CONTAINER, newContainerId, AuditLogger.ACTION.UPDATE);
 
         return getContainerById(newContainerId);
     }
@@ -188,6 +190,7 @@ public class ContainerController {
             ps.executeUpdate();
 
             NoteTableController.updateContainerNotes(containerId, container.getNotes());
+            AuditLogger.log(userId, AuditLogger.Target.CONTAINER, containerId, AuditLogger.ACTION.UPDATE);
 
             return getContainerById(containerId);
         }
@@ -262,6 +265,7 @@ public class ContainerController {
             LOGGER.info("Passed all validation checks. Deleting container {}", ids);
             for (String id : listOfIds) {
                 deleteOneContainer(id);
+                AuditLogger.log(userId, AuditLogger.Target.CONTAINER, Integer.valueOf(id), AuditLogger.ACTION.DELETE);
             }
             return ResponseEntity.status(HttpStatus.OK).build();
         }else{
