@@ -31,9 +31,9 @@ public class ClassificationController {
     }
 
     /**
-     * Find classification by name
+     * Find classification by classification ID
      *
-     * @param name
+     * @param id
      * @return
      * @throws SQLException
      */
