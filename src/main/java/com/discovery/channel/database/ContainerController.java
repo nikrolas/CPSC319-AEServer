@@ -126,7 +126,7 @@ public class ContainerController {
         NoteTableController.saveNotesForContainer(newContainerId, container.getNotes());
 
         LOGGER.info("Created container. Container Id {}", newContainerId);
-        AuditLogger.log(userId, AuditLogger.Target.CONTAINER, newContainerId, AuditLogger.ACTION.UPDATE);
+        AuditLogger.log(userId, AuditLogger.Target.CONTAINER, newContainerId, AuditLogger.ACTION.CREATE);
 
         return getContainerById(newContainerId);
     }
