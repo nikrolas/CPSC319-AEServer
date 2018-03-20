@@ -104,7 +104,7 @@ public class RecordController {
                 }
             }
         }
-        LOGGER.info("Record {} does not exist");
+        LOGGER.info("Record {} does not exist", id);
         return null;
     }
 
@@ -260,12 +260,14 @@ public class RecordController {
      * @return
      */
     public static Record createRecord (Record record, int userId) throws SQLException {
-        if (!Authenticator.authenticate(userId, Role.RMC)) {
-            throw new AuthenticationException(String.format("User %d is not authenticated to create record", userId));
+        String userName = UserController.getUserByUserTableId(userId).getUserId();
+        if (!Authenticator.authenticate(userId, Role.RMC) && !Authenticator.authenticate(userId, Role.ADMINISTRATOR)) {
+            throw new AuthenticationException(String.format("User %s is not authenticated to create record", userName));
         }
 
         if (!Authenticator.isUserAuthenticatedForLocation(userId, record.getLocationId())) {
-            throw new AuthenticationException(String.format("User %d is not authenticated to create record under localtion %d", userId, record.getLocationId()));
+            throw new AuthenticationException(String.format("User %s is not authenticated to create record under location %s",
+                    userName, record.getLocation()));
         }
 
 
@@ -275,7 +277,7 @@ public class RecordController {
                 numberPattern.matchLocation(
                         LocationController.getLocationCodeById(record.getId()),
                         record.getNumber())) {
-            throw new IllegalArgumentException(String.format("Invalid record number: %s for record type %d", record.getNumber(), record.getTypeId()));
+            throw new IllegalArgumentException(String.format("Invalid record number: %s for record type %s", record.getNumber(), record.getType()));
         }
 
         record.setNumber(numberPattern.fillAutoGenField(record.getNumber()));
@@ -376,13 +378,14 @@ public class RecordController {
         // TODO : audit log
 
         Record record = getRecordById(id);
+        String userName = UserController.getUserByUserTableId(userId).getUserId();
 
         if (record == null) {
-            throw new NoResultsFoundException(String.format("Record %d does not exist", id));
+            throw new NoResultsFoundException(String.format("Record %s does not exist", record.getNumber()));
         }
 
         if (!Authenticator.isUserAuthenticatedForLocation(userId, record.getLocationId())) {
-            throw new AuthenticationException(String.format("User %d is not authenticated to delete record under location %d", userId, record.getLocationId()));
+            throw new AuthenticationException(String.format("User %s is not authenticated to delete record under location %s", userName, record.getLocation()));
         }
 
         LOGGER.info("About to delete record {}", id);
@@ -406,14 +409,14 @@ public class RecordController {
 
     public static BatchResponse deleteRecords(int userId, DeleteRecordsForm form) throws SQLException {
         BatchResponse response = new BatchResponse();
-
+        String userName = UserController.getUserByUserTableId(userId).getUserId();
         if (form.getRecordIds().isEmpty()) {
             LOGGER.info("No record ids found in delete records form. Returning true");
             return response;
         }
 
-        if (!Authenticator.authenticate(userId, Role.RMC)) {
-            throw new AuthenticationException(String.format("User %d is not authenticated to delete record", userId));
+        if (!Authenticator.authenticate(userId, Role.RMC) && !Authenticator.authenticate(userId, Role.ADMINISTRATOR)) {
+            throw new AuthenticationException(String.format("User %s is not authenticated to delete record", userName));
         }
 
         for (int recordId : form.getRecordIds()) {
@@ -443,27 +446,30 @@ public class RecordController {
             "SET Title=?, ScheduleId=?, StateId=?, ConsignmentCode=?,ContainerId=?, UpdatedAt=NOW() " +
             "WHERE Id= ?";
     public static void updateRecord(Integer id, int userId, UpdateRecordForm updateForm) throws SQLException {
-        if (!Authenticator.authenticate(userId, Role.RMC)) {
-            throw new AuthenticationException(String.format("User %d is not authenticated to update record", userId));
+        String userName = UserController.getUserByUserTableId(userId).getUserId();
+        if (!Authenticator.authenticate(userId, Role.RMC) && !Authenticator.authenticate(userId, Role.ADMINISTRATOR)) {
+            throw new AuthenticationException(String.format("User %s is not authenticated to update record", userName));
         }
 
         Record record = getRecordById(id);
         if (record == null) {
-            throw new NoResultsFoundException(String.format("Record %d does not exist", id));
+            throw new NoResultsFoundException(String.format("Record %s does not exist", record.getNumber()));
         }
 
         if (!Authenticator.isUserAuthenticatedForLocation(userId, record.getLocationId())) {
-            throw new AuthenticationException(String.format("User %d is not authenticated to update record under location %d", userId, record.getLocationId()));
+            throw new AuthenticationException(String.format("User %s is not authenticated to update record under location %s", userName, record.getLocation()));
         }
 
         // RMC can't move a record to a location tht they're not a part of
         if (!Authenticator.isUserAuthenticatedForLocation(userId, record.getLocationId())) {
-            throw new AuthenticationException(String.format("User %d is not authenticated to update record under location %d", userId, record.getLocationId()));
+            throw new AuthenticationException(String.format("User %s is not authenticated to update record under location %s", userName, record.getLocation()));
         }
 
         // Only certain types of states are valid for certain retention schedules
         if (!RecordState.fromId(updateForm.getStateId()).isValidforRetentionSchedule(updateForm.getScheduleId() > 0)) {
-            throw new IllegalArgumentException(String.format("State %d is not valid for retention schedule %d", updateForm.getStateId(), updateForm.getScheduleId()));
+            Map<String, String> schedule = RetentionScheduleController.getRetentionSchedule(updateForm.getScheduleId());
+            String state = StateController.getStateName(updateForm.getStateId());
+            throw new IllegalArgumentException(String.format("State %s is not valid for retention schedule %s", state, schedule.get("Name")));
         }
 
         // Validate classifications
