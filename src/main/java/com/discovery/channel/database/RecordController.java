@@ -26,7 +26,6 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
->>>>>>> src/main/java/com/discovery/channel/database/RecordController.java
 
 
 public class RecordController {
