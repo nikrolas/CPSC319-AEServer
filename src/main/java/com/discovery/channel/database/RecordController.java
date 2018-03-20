@@ -616,12 +616,13 @@ public class RecordController {
 
     public static void destroyRecords(List<Integer> ids) throws SQLException {
 
-        String query = "UPDATE records" + " SET StateId = 6 " + "WHERE Id IN (";
+        String query = "UPDATE records" + " SET StateId = 6, UpdatedAt = now() " + "WHERE Id IN (";
         String destroyRecordsQuery = buildString(ids, query);
 
         try (Connection conn = DbConnect.getConnection();
              PreparedStatement ps = conn.prepareStatement(destroyRecordsQuery)){
             ps.executeUpdate();
+
         }
     }
 
