@@ -270,6 +270,11 @@ public class RecordControllerTest {
 
     }
 
+    @Test
+    public void testDestroyRecord()throws SQLException{
+        //Todo
+    }
+
 
 
     private Record createNewRecordWithoutContainer(String title, String recordNumber,int locationId, int scheduleId, int typeId) {
