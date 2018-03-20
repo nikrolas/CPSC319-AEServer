@@ -443,8 +443,6 @@ public class RecordController {
         }
 
         Record record = getRecordById(id);
-        Container destinationContainer = updateForm.getContainerId() <= 0 ?
-                null : ContainerController.getContainerById(updateForm.getContainerId());
 
         if (record == null) {
             throw new NoResultsFoundException(String.format("Record %d does not exist", id));
@@ -470,6 +468,8 @@ public class RecordController {
         }
 
         // Validate container update
+        Container destinationContainer = updateForm.getContainerId() <= 0 ?
+                null : ContainerController.getContainerById(updateForm.getContainerId());
         if (destinationContainer != null && isContainerChanged(record, updateForm.getContainerId())){
             ContainerController.validateContainerChangeForRecord(record, destinationContainer);
         }
@@ -516,7 +516,7 @@ public class RecordController {
                 ContainerController.clearContainerRecordInformation(record.getContainerId());
             }
         }
-        
+
         AuditLogger.log(userId, AuditLogger.Target.RECORD, id, AuditLogger.ACTION.UPDATE);
     }
 
