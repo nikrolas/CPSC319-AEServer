@@ -15,6 +15,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.util.StringUtils;
 
 import java.sql.*;
+import java.sql.Date;
+import java.util.*;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -107,12 +109,11 @@ public class RecordController {
     /**
      * Retrieve multiple records
      *
-     * @param id
+     * @param ids
+     * @param verbose
      * @return List of records
      */
-    private static final String GET_RECORDS_BY_IDS =
-            "SELECT * " +
-                    "FROM records WHERE Id IN (?)";
+ 
     public static List<Record> getRecordsByIds(List<Integer> ids, boolean verbose) throws SQLException {
         List<Record> records = new ArrayList<>();
 
@@ -120,9 +121,10 @@ public class RecordController {
             return records;
         }
 
+        String idStr = buildString(ids);
+
         try (Connection connection = DbConnect.getConnection();
-             PreparedStatement ps = connection.prepareStatement(GET_RECORD_BY_ID)) {
-            ps.setArray(1, connection.createArrayOf("int",ids.toArray()));
+             PreparedStatement ps = connection.prepareStatement(idStr)) {
             try (ResultSet resultSet = ps.executeQuery()) {
                 while (resultSet.next()) {
                     Record record = parseResultSet(resultSet);
@@ -530,6 +532,32 @@ public class RecordController {
             ps.setInt(1, recordId);
             ps.executeUpdate();
         }
+    }
+
+
+
+    /**
+     * build sql statement for getRecordsByIds
+     *
+     * @param ids
+     * @return sql statement
+     */
+    private static String buildString(List<Integer> ids){
+
+
+        String str = "SELECT * FROM records WHERE Id IN (";
+        Iterator<Integer> idsIterator = ids.iterator();
+        while(idsIterator.hasNext())
+        {
+            str = str + idsIterator.next().toString();
+            if(idsIterator.hasNext()){
+                str = str + ",";
+            }
+        }
+
+        str = str + ")";
+
+        return str;
     }
 
 }
