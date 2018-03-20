@@ -6,6 +6,7 @@ import com.discovery.channel.exception.NoResultsFoundException;
 import com.discovery.channel.form.DeleteRecordsForm;
 import com.discovery.channel.form.UpdateRecordForm;
 import com.discovery.channel.model.Record;
+import com.discovery.channel.response.BatchResponse;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.platform.commons.util.StringUtils;
@@ -233,6 +234,39 @@ public class RecordControllerTest {
         recordForDeletion.setRecordIds(recordIds);
 
         RecordController.deleteRecords(135, recordForDeletion);
+
+    }
+
+
+    @Test
+    public void testDeleteMultipleRecordsWithNonExistentRecords() throws SQLException{
+        Record r = createNewRecordWithoutContainer("TESTING-Deletion-1", "EDM-2018", 51, 10, 3);
+        Record record = RecordController.createRecord(r, 110);
+
+        List<Integer> recordIds = new ArrayList<>();
+        recordIds.add(record.getId());
+        recordIds.add(50);
+        recordIds.add(49);
+        DeleteRecordsForm recordForDeletion = new DeleteRecordsForm();
+        recordForDeletion.setRecordIds(recordIds);
+
+        BatchResponse response = RecordController.deleteRecords(110, recordForDeletion);
+        List<BatchResponse.Response> responses = response.getResponseList();
+        assertTrue(responses.get(0).isStatus());
+        assertFalse(responses.get(1).isStatus());
+        assertFalse(responses.get(2).isStatus());
+
+    }
+
+    @Test
+    public void testDeleteRecordsWithEmptyInput()throws SQLException{
+
+        List<Integer> recordIds = new ArrayList<>();
+        DeleteRecordsForm recordForDeletion = new DeleteRecordsForm();
+        recordForDeletion.setRecordIds(recordIds);
+
+        BatchResponse response = RecordController.deleteRecords(500, recordForDeletion);
+        assertTrue(response.getResponseList().isEmpty());
 
     }
 
