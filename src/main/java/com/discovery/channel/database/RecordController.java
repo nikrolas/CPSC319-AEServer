@@ -18,7 +18,6 @@ import java.sql.*;
 import java.sql.Date;
 import java.util.*;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.sql.Connection;
@@ -444,6 +443,9 @@ public class RecordController {
         }
 
         Record record = getRecordById(id);
+        Container destinationContainer = updateForm.getContainerId() <= 0 ?
+                null : ContainerController.getContainerById(updateForm.getContainerId());
+
         if (record == null) {
             throw new NoResultsFoundException(String.format("Record %d does not exist", id));
         }
@@ -465,6 +467,11 @@ public class RecordController {
         // Validate classifications
         if (!Classification.validateClassification(updateForm.getClassifications())) {
             throw new IllegalArgumentException(String.format("Classification %s is not valid", updateForm.getClassifications()));
+        }
+
+        // Validate container update
+        if (destinationContainer != null && isContainerChanged(record, updateForm.getContainerId())){
+            ContainerController.validateContainerChangeForRecord(record, destinationContainer);
         }
 
         LOGGER.info("About to update record {}", id);
@@ -497,11 +504,24 @@ public class RecordController {
         // Update notes if need to
         if (StringUtils.isEmpty(updateForm.getNotes())) {
             NoteTableController.deleteNotesForRecord(id);
-        }else if(!updateForm.getNotes().equals(record.getNotes())) {
+        } else if(!updateForm.getNotes().equals(record.getNotes())) {
             NoteTableController.updateRecordNotes(id, updateForm.getNotes());
         }
 
+        // Update container information if need to
+        if (isContainerChanged(record, updateForm.getContainerId())){
+            if (destinationContainer != null){
+                ContainerController.addRecordToContainer(destinationContainer, record);
+            } else if (ContainerController.getContainerById(record.getContainerId()).getChildRecordIds().size()==0){
+                ContainerController.clearContainerRecordInformation(record.getContainerId());
+            }
+        }
+        
         AuditLogger.log(userId, AuditLogger.Target.RECORD, id, AuditLogger.ACTION.UPDATE);
+    }
+
+    private static boolean isContainerChanged(Record record, int containerId) throws SQLException {
+        return record.getContainerId() != containerId;
     }
 
     /**
@@ -534,8 +554,6 @@ public class RecordController {
         }
     }
 
-
-
     /**
      * build sql statement for getRecordsByIds
      *
@@ -543,7 +561,6 @@ public class RecordController {
      * @return sql statement
      */
     private static String buildString(List<Integer> ids){
-
 
         String str = "SELECT * FROM records WHERE Id IN (";
         Iterator<Integer> idsIterator = ids.iterator();
@@ -559,5 +576,4 @@ public class RecordController {
 
         return str;
     }
-
 }

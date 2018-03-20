@@ -30,7 +30,6 @@ public class Container {
     private String scheduleName;
     private int typeId;
     private String type;
-
     private String notes;
     private List<Integer> childRecordIds;
 
