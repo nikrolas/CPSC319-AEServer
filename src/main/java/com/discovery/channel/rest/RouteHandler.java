@@ -1,9 +1,11 @@
 package com.discovery.channel.rest;
 
 import com.discovery.channel.database.*;
+import com.discovery.channel.form.DeleteRecordsForm;
 import com.discovery.channel.form.UpdateRecordForm;
 import com.discovery.channel.model.*;
 
+import com.discovery.channel.response.BatchResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -160,18 +162,12 @@ public class RouteHandler {
 
     // END OF Facilitating endpoints for creating records
 
-    /**
-     * Delete a record
-     *
-     * @param  id
-     * @return a list of records filtered by search content
-     */
     @RequestMapping(
-            value = "record/{id}",
+            value = "records",
             params = {"userId"},
             method = RequestMethod.DELETE)
-    public boolean deleteRecord (@PathVariable("id") Integer id, @RequestParam("userId") int userId) throws SQLException {
-        return RecordController.deleteRecord(id, userId);
+    public BatchResponse deleteRecords(@RequestParam("userId") int userId, @RequestBody DeleteRecordsForm form) throws SQLException {
+        return RecordController.deleteRecords(userId, form);
     }
 
     /**
@@ -221,7 +217,23 @@ public class RouteHandler {
     }
 
     /**
+     * Update a container
+     *
+     * @return the newly updated container
+     */
+    @RequestMapping(
+            value = "container/{id}",
+            params = {"userId"},
+            method = RequestMethod.PUT)
+    public ResponseEntity<Container> updateContainer(@PathVariable("id") Integer id,
+                                                     @RequestParam("userId") int userId,
+                                                     @RequestBody Container updatedFields)  throws SQLException{
+        return new ResponseEntity<>(ContainerController.updateContainer(id, updatedFields, userId), HttpStatus.OK);
+    }
+
+    /**
      * Get a user by id in user table
+     *
      *
      * @param  id
      * @return the user with the given user id
@@ -232,8 +244,23 @@ public class RouteHandler {
     public User getUserByUserTableId(@PathVariable("id") Integer id) throws SQLException{
         LOGGER.info("Searching for user with id {}", id);
         return UserController.getUserByUserTableId(id);
-
     }
+
+    /**
+     * Delete container(s)
+     *
+     * @return  a list of container(s) that can't be deleted
+     */
+    @RequestMapping(
+            value = "containers",
+            params = {"ids", "userId"},
+            method = RequestMethod.DELETE)
+
+    public ResponseEntity<?> deleteContainers(@RequestParam("ids") String ids, @RequestParam("userId") int userId) throws SQLException{
+        LOGGER.info("Deleting container(s) {}", ids);
+        return ContainerController.deleteContainers(ids, userId);
+    }
+
 
 
     /**
@@ -249,6 +276,22 @@ public class RouteHandler {
     public ResponseEntity<?> getDestructionDate(@RequestParam("ids") ArrayList<Integer> ids, @RequestParam("userId") int userId) throws SQLException{
         LOGGER.info("Calculating destruction date given ids {}", ids);
         return DestructionDateController.calculateDestructionDate(ids);
+    }
+
+
+    /**
+     * Search container(s) by number
+     *
+     * @return  a list of container(s) matches the given number
+     */
+    @RequestMapping(
+            value = "containers",
+            params = {"num", "userId"},
+            method = RequestMethod.GET)
+
+    public List<Container> getContainerByNumber(@RequestParam("num") String num, @RequestParam("userId") int userId) throws SQLException{
+        LOGGER.info("Searching containers filtered by {}", num);
+        return ContainerController.getContainerByNumber(num);
     }
 
 }

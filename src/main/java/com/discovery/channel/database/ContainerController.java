@@ -7,15 +7,15 @@ import com.discovery.channel.exception.NoResultsFoundException;
 import com.discovery.channel.model.Container;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 
 import java.sql.Connection;
 import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.Calendar;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.*;
 
 public class ContainerController {
 
@@ -28,19 +28,41 @@ public class ContainerController {
         String consignmentCode = resultSet.getString("ConsignmentCode");
         Date createdAt = resultSet.getDate("CreatedAt");
         Date updatedAt = resultSet.getDate("UpdatedAt");
-        Date destructionDate = resultSet.getDate("UpdatedAt"); //TODO: calculate from containing records
+        int stateId = resultSet.getInt("stateId");
+        int locationId = resultSet.getInt("locationId");
+        int scheduleId = resultSet.getInt("scheduleId");
+        int typeId = resultSet.getInt("typeId");
+        Date destructionDate = resultSet.getDate("DestructionDate");
+
         List<Integer> childRecordIds = getRecordIdsInContainer(id);
-        String notes = "Container notes"; //TODO: get container notes
-        return new Container(id,
+        String notes = NoteTableController.getContainerNotes(id);
+
+        Container c = new Container(id,
                 number,
                 title,
                 consignmentCode,
                 createdAt,
                 updatedAt,
+                stateId,
+                locationId,
+                scheduleId,
+                typeId,
                 destructionDate,
                 childRecordIds,
                 notes);
+        loadContainerDetail(c);
+        return c;
     }
+
+    private static void loadContainerDetail(Container container) throws SQLException {
+        container.setType(RecordTypeController.getTypeName(container.getTypeId()));
+        container.setLocationName(LocationController.getLocationNameByLocationId(container.getLocationId()));
+        Map<String, String> schedule = RetentionScheduleController.getRetentionSchedule(container.getScheduleId());
+        container.setScheduleName(schedule.get("Name"));
+        container.setState(StateController.getStateName(container.getStateId()));
+        container.setNotes(NoteTableController.getContainerNotes(container.getContainerId()));
+    }
+
 
     private static final String GET_RECORD_IDS_IN_CONTAINER =
             "SELECT Id FROM records " +
@@ -56,7 +78,6 @@ public class ContainerController {
                 }
                 return recordIds;
             }
-
         }
     }
 
@@ -101,6 +122,8 @@ public class ContainerController {
         container.setUpdatedAt(createdAt);
         int newContainerId = saveContainerToDb(container);
 
+        NoteTableController.saveNotesForContainer(newContainerId, container.getNotes());
+
         LOGGER.info("Created record. Record Id {}", newContainerId);
 
         return getContainerById(newContainerId);
@@ -134,9 +157,117 @@ public class ContainerController {
             ps.setDate(5, c.getCreatedAt());
             ps.setDate(6, c.getUpdatedAt());
             ps.executeUpdate();
-            //todo save notes to db
             return id;
         }
     }
 
+    private static final String UPDATE_CONTAINER =
+            "UPDATE containers " +
+                    "SET Number = ?, Title = ?, UpdatedAt = NOW() " +
+                    "WHERE Id = ?";
+    /**
+     * Update a container
+     *
+     * @param container the request body translated to a container object, containing the updated container information
+     * @param userId the id of the user submitting the request
+     * @throws SQLException rethrows any SQLException
+     * @throws AuthenticationException AuthenticationException thrown if the user does not have RMC rights
+     */
+    public static Container updateContainer(int containerId, Container container, int userId) throws SQLException{
+        if (!Authenticator.authenticate(userId, Role.RMC)) {
+            throw new AuthenticationException(String.format("User %d is not authenticated to update record", userId));
+        }
+        LOGGER.info("Passed all validation checks. Updating Container {}", container); //todo this message could be better
+
+        try (Connection connection = DbConnect.getConnection();
+             PreparedStatement ps = connection.prepareStatement(UPDATE_CONTAINER)) {
+
+            ps.setString(1, container.getContainerNumber());
+            ps.setString(2, container.getTitle());
+            ps.setInt(3, containerId);
+            ps.executeUpdate();
+
+            NoteTableController.updateContainerNotes(containerId, container.getNotes());
+
+            return getContainerById(containerId);
+        }
+    }
+
+    /**
+     * Retrieve containers filtered by container number
+     *
+     * @param containerNumber
+     * @return a list of containers
+     */
+    private static final String GET_CONTAINER_BY_NUMBER = "SELECT * FROM containers " +
+            "WHERE Number LIKE ? " +
+            "ORDER BY UpdatedAt LIMIT 20";
+    public static List<Container> getContainerByNumber(String containerNumber) throws SQLException {
+        List<Container> containers = new ArrayList<>();
+        try (Connection connection = DbConnect.getConnection();
+             PreparedStatement ps = connection.prepareStatement(GET_CONTAINER_BY_NUMBER)) {
+            ps.setString(1, "%" + containerNumber + "%");
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Container container = parseResultSet(rs);
+                    containers.add(container);
+                }
+            }
+        }
+        return containers;
+    }
+
+
+    /**
+     * Delete one container by id
+     *
+     * @param id
+     *
+     */
+    private static final String DELETE_CONTAINERS＿BY_ID =
+            "DELETE FROM containers" + " WHERE Id = ?";
+
+    public static final void deleteOneContainer(String id) throws SQLException {
+
+        try (Connection connection = DbConnect.getConnection();
+             PreparedStatement ps = connection.prepareStatement(DELETE_CONTAINERS＿BY_ID)) {
+            LOGGER.info("Deleting container {}", id);
+            ps.setInt(1, Integer.valueOf(id));
+            ps.executeUpdate();
+        }
+    }
+
+
+    /**
+     * Delete containers by ids
+     *
+     * @param ids
+     * @return Http Status Code
+     */
+    public static final ResponseEntity<?> deleteContainers(String ids, Integer userId) throws SQLException{
+
+        if (!Authenticator.authenticate(userId, Role.RMC)) {
+            throw new AuthenticationException(String.format("User %d is not authenticated to delete record", userId));
+        }
+
+        List<String> failed = new ArrayList<>();
+
+        String[] listOfIds = ids.split(",");
+        for (String id : listOfIds) {
+            if (!getRecordIdsInContainer(Integer.valueOf(id)).isEmpty()) {
+                failed.add(id);
+            }
+        }
+        if(failed.isEmpty()) {
+            LOGGER.info("Passed all validation checks. Deleting container {}", ids);
+            for (String id : listOfIds) {
+                deleteOneContainer(id);
+            }
+            return ResponseEntity.status(HttpStatus.OK).build();
+        }else{
+            return new ResponseEntity(failed, HttpStatus.PRECONDITION_FAILED);
+        }
+
+
+    }
 }

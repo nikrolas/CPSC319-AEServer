@@ -19,3 +19,6 @@ INSERT INTO userlocations (UserId, LocationId)
 (SELECT users.Id,51
 FROM users
 WHERE users.Id <= 200);
+
+INSERT INTO userlocations(UserId, LocationId)
+VALUES (500, 8)
