@@ -390,7 +390,7 @@ public class RecordController {
             rowsModified = ps.executeUpdate();
         }
 
-        AuditLogger.log(userId, AuditLogger.Target.RECORD, id, AuditLogger.ACTION.UPDATE);
+        AuditLogger.log(userId, AuditLogger.Target.RECORD, id, AuditLogger.ACTION.DELETE);
 
         // 3. Delete notes
         NoteTableController.deleteNotesForRecord(id);
@@ -499,7 +499,7 @@ public class RecordController {
             NoteTableController.updateRecordNotes(id, updateForm.getNotes());
         }
 
-        AuditLogger.log(userId, AuditLogger.Target.RECORD, id, AuditLogger.ACTION.DELETE);
+        AuditLogger.log(userId, AuditLogger.Target.RECORD, id, AuditLogger.ACTION.UPDATE);
     }
 
     /**
