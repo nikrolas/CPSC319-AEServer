@@ -92,8 +92,6 @@ public class RecordController {
 
         int recordCount = 0;
         int containerCount = 0;
-        List<Document> records;
-        List<Document> containers;
         List<Document> documents;
 
         if (searchRecord && searchContainer) {
@@ -105,12 +103,10 @@ public class RecordController {
             }
             else if (recordCount > (page - 1) * perPage &&
                      recordCount < page * perPage) {
-                records = (List)getRecordPageByNumber(number, page, perPage);
-                containers = (List)ContainerController.getContainerPageByNumber(number,
-                        1, perPage - (recordCount - (page - 1) * perPage));
                 documents = new ArrayList<>(perPage);
-                documents.addAll(records);
-                documents.addAll(containers);
+                documents.addAll((List)getRecordPageByNumber(number, page, perPage));
+                documents.addAll((List)ContainerController.getContainerPageByNumber(number,
+                        1, perPage - (recordCount - (page - 1) * perPage)));
             }
             else { // recordCount < (page - 1) * perPage
                 documents = (List)ContainerController.getContainerPageByNumber(number, page, perPage);
