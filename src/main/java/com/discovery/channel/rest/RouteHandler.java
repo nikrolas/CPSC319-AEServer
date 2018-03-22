@@ -64,7 +64,7 @@ public class RouteHandler {
      */
     @RequestMapping(
             value = "search",
-            params = { "userId" , "num", "record", "container", "page", "perPage"},
+            params = { "userId" , "num", "record", "container", "page", "pageSize"},
             method = RequestMethod.GET)
     @ResponseBody
     public PagedResults<Document> searchByNumber(@RequestParam("userId") int userId,
@@ -72,9 +72,9 @@ public class RouteHandler {
                                               @RequestParam(value="record", required=false, defaultValue="false") Boolean record,
                                               @RequestParam(value="container", required=false, defaultValue="false") Boolean container,
                                               @RequestParam(value="page", required=false, defaultValue="1") int page,
-                                              @RequestParam(value="perPage", required=false, defaultValue="20") int perPage)
+                                              @RequestParam(value="pageSize", required=false, defaultValue="20") int pageSize)
                                               throws SQLException{
-        return RecordController.getByNumber(num, record, container, page, perPage, userId);
+        return RecordController.getByNumber(num, record, container, page, pageSize, userId);
     }
 
     /**

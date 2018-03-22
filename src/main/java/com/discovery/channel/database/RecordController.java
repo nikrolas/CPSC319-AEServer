@@ -43,13 +43,13 @@ public class RecordController {
             "ORDER BY Number ASC " +
             " LIMIT ?, ?";
     public static List<Record> getRecordPageByNumber(String number,
-                                                      int page, int perPage) throws SQLException{
+                                                      int page, int pageSize) throws SQLException{
         List<Record> records = new ArrayList<>();
         try (Connection connection = DbConnect.getConnection();
              PreparedStatement ps = connection.prepareStatement(GET_RECORD_BY_NUMBER)) {
             ps.setString(1, "%" + number + "%");
-            ps.setInt(2, (page - 1) * perPage);
-            ps.setInt(3, perPage);
+            ps.setInt(2, (page - 1) * pageSize);
+            ps.setInt(3, pageSize);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     Record record = parseResultSet(rs);
@@ -81,9 +81,9 @@ public class RecordController {
 
     public static PagedResults<Document> getByNumber(String number,
                                                    Boolean searchRecord, Boolean searchContainer,
-                                                   int page, int perPage,
+                                                   int page, int pageSize,
                                                    int userId) throws SQLException {
-        if (page < 1 || perPage < 1) {
+        if (page < 1 || pageSize < 1) {
             throw new IllegalArgumentException("Page number and results per page must be at least 1.");
         }
         if (!(searchRecord || searchContainer)) {
@@ -98,32 +98,32 @@ public class RecordController {
             recordCount = getRecordCountByNumber(number);
             containerCount = ContainerController.getContainerCountByNumber(number);
 
-            if (recordCount > page * perPage) {
-                documents = (List)getRecordPageByNumber(number, page, perPage);
+            if (recordCount > page * pageSize) {
+                documents = (List)getRecordPageByNumber(number, page, pageSize);
             }
-            else if (recordCount > (page - 1) * perPage &&
-                     recordCount < page * perPage) {
-                documents = new ArrayList<>(perPage);
-                documents.addAll((List)getRecordPageByNumber(number, page, perPage));
+            else if (recordCount > (page - 1) * pageSize &&
+                     recordCount < page * pageSize) {
+                documents = new ArrayList<>(pageSize);
+                documents.addAll((List)getRecordPageByNumber(number, page, pageSize));
                 documents.addAll((List)ContainerController.getContainerPageByNumber(number,
-                        1, perPage - (recordCount - (page - 1) * perPage)));
+                        1, pageSize - (recordCount - (page - 1) * pageSize)));
             }
-            else { // recordCount < (page - 1) * perPage
-                documents = (List)ContainerController.getContainerPageByNumber(number, page, perPage);
+            else { // recordCount < (page - 1) * pageSize
+                documents = (List)ContainerController.getContainerPageByNumber(number, page, pageSize);
             }
         }
         else if (searchRecord) {
             recordCount = getRecordCountByNumber(number);
-            documents = (List)ContainerController.getContainerPageByNumber(number, page, perPage);
+            documents = (List)ContainerController.getContainerPageByNumber(number, page, pageSize);
         }
         else { // only searchContainer
             containerCount = ContainerController.getContainerCountByNumber(number);
-            documents = (List)ContainerController.getContainerPageByNumber(number, page, perPage);
+            documents = (List)ContainerController.getContainerPageByNumber(number, page, pageSize);
         }
 
         documents = scrubDocuments(documents, userId);
 
-        return new PagedResults<>(page, (recordCount + containerCount + perPage - 1) / perPage,
+        return new PagedResults<>(page, (recordCount + containerCount + pageSize - 1) / pageSize,
                 documents);
     }
 
