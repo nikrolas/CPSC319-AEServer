@@ -1,21 +1,20 @@
 package com.discovery.channel.database;
 
-import com.discovery.channel.database.RecordController;
 import com.discovery.channel.exception.AuthenticationException;
-import com.discovery.channel.exception.NoResultsFoundException;
 import com.discovery.channel.form.DeleteRecordsForm;
 import com.discovery.channel.form.UpdateRecordForm;
 import com.discovery.channel.model.Record;
 import com.discovery.channel.response.BatchResponse;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.platform.commons.util.StringUtils;
-import org.springframework.test.context.jdbc.Sql;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 
-import java.sql.Date;
+
+
 import java.sql.SQLException;
+import java.text.ParseException;
 import java.util.ArrayList;
-import java.util.Calendar;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -270,9 +269,28 @@ public class RecordControllerTest {
 
     }
 
+
     @Test
-    public void testDestroyRecord()throws SQLException{
-        //Todo
+    public void testDestroyOneRecord() throws SQLException, ParseException {
+        // Todo
+    }
+
+
+    @Test
+    public void testDestroyOneRecordWtihNoClosedAt()throws SQLException{
+        Record r = createNewRecordWithoutContainer("TESTING-Destroy", "EDM-2018", 51, 10, 3);
+        Record record = RecordController.createRecord(r, 110);
+
+        List<Integer> recordIds = new ArrayList<>();
+        recordIds.add(record.getId());
+
+        ResponseEntity<?> response = RecordController.prepareToDestroyRecords(recordIds, 110);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+
+        DeleteRecordsForm recordForDeletion = new DeleteRecordsForm();
+        recordForDeletion.setRecordIds(recordIds);
+        RecordController.deleteRecords(110, recordForDeletion);
     }
 
 
@@ -282,7 +300,5 @@ public class RecordControllerTest {
                 0, locationId, "Advisory Services/Advice/Reports",
                 "CREATED FOR TESTING -- testCreateRecord");
     }
-
-
 
 }
