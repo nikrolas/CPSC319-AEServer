@@ -1,24 +1,27 @@
 package com.discovery.channel.database;
 
+import com.discovery.channel.audit.AuditLogger;
 import com.discovery.channel.authenticator.Authenticator;
 import com.discovery.channel.authenticator.Role;
 import com.discovery.channel.exception.AuthenticationException;
 import com.discovery.channel.exception.NoResultsFoundException;
+import com.discovery.channel.exception.ValidationException;
 import com.discovery.channel.model.Container;
+import com.discovery.channel.model.Record;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.StringUtils;
 
+import javax.validation.Valid;
+import javax.validation.Validation;
 import java.sql.Connection;
 import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.*;
 
 public class ContainerController {
 
@@ -31,19 +34,42 @@ public class ContainerController {
         String consignmentCode = resultSet.getString("ConsignmentCode");
         Date createdAt = resultSet.getDate("CreatedAt");
         Date updatedAt = resultSet.getDate("UpdatedAt");
-        Date destructionDate = resultSet.getDate("UpdatedAt"); //TODO: calculate from containing records
+        int stateId = resultSet.getInt("stateId");
+        int locationId = resultSet.getInt("locationId");
+        int scheduleId = resultSet.getInt("scheduleId");
+        int typeId = resultSet.getInt("typeId");
+        Date destructionDate = resultSet.getDate("DestructionDate");
+
         List<Integer> childRecordIds = getRecordIdsInContainer(id);
-        String notes = "Container notes"; //TODO: get container notes
-        return new Container(id,
+        String notes = NoteTableController.getContainerNotes(id);
+
+        Container c = new Container(id,
                 number,
                 title,
                 consignmentCode,
                 createdAt,
                 updatedAt,
+                stateId,
+                locationId,
+                scheduleId,
+                typeId,
                 destructionDate,
                 childRecordIds,
                 notes);
+        loadContainerDetail(c);
+        return c;
     }
+
+    private static void loadContainerDetail(Container container) throws SQLException {
+        container.setNotes(NoteTableController.getContainerNotes(container.getContainerId()));
+        if (isContainerEmpty(container)) return;
+        container.setType(RecordTypeController.getTypeName(container.getTypeId()));
+        container.setLocationName(LocationController.getLocationNameByLocationId(container.getLocationId()));
+        Map<String, String> schedule = RetentionScheduleController.getRetentionSchedule(container.getScheduleId());
+        container.setScheduleName(schedule.get("Name"));
+        container.setState(StateController.getStateName(container.getStateId()));
+    }
+
 
     private static final String GET_RECORD_IDS_IN_CONTAINER =
             "SELECT Id FROM records " +
@@ -59,7 +85,6 @@ public class ContainerController {
                 }
                 return recordIds;
             }
-
         }
     }
 
@@ -97,6 +122,16 @@ public class ContainerController {
         if (!Authenticator.authenticate(userId, Role.RMC)) {
             throw new AuthenticationException(String.format("User %d is not authenticated to create record", userId));
         }
+
+        if (container.getChildRecordIds().size() > 1){
+            try {
+                validateRecordsCanBeAddedToSameContainer(container.getChildRecordIds());
+            } catch (ValidationException e){
+                throw new ValidationException("Could not create container with the following record ids: "
+                        + container.getChildRecordIds() + ". Reason: "+ e.getMessage());
+            }
+        }
+
         LOGGER.info("Passed all validation checks. Creating container {}", container);
 
         Date createdAt = new Date(Calendar.getInstance().getTimeInMillis());
@@ -104,9 +139,72 @@ public class ContainerController {
         container.setUpdatedAt(createdAt);
         int newContainerId = saveContainerToDb(container);
 
-        LOGGER.info("Created record. Record Id {}", newContainerId);
+        if (!StringUtils.isEmpty(container.getNotes())){
+            NoteTableController.saveNotesForContainer(newContainerId, container.getNotes());
+        }
+
+        // update container information on records it contains
+        if (container.getChildRecordIds().size() >= 1){
+            addRecordToContainer(container, RecordController.getRecordById(container.getChildRecordIds().get(0)));
+        }
+
+        LOGGER.info("Created container. Container Id {}", newContainerId);
+        AuditLogger.log(userId, AuditLogger.Target.CONTAINER, newContainerId, AuditLogger.ACTION.CREATE);
+
+        // update records to point to the new container
+        for (int recordId : container.getChildRecordIds()){
+            RecordController.setRecordContainer(recordId, newContainerId);
+        }
 
         return getContainerById(newContainerId);
+    }
+
+    private static void validateRecordsCanBeAddedToSameContainer(List<Integer> recordIds) throws SQLException, ValidationException {
+        List<Record> records = new LinkedList<>();
+        for (Integer recordId : recordIds) {
+            records.add(RecordController.getRecordById(recordId));
+        }
+        if (records.size() <= 1) return;
+        // validate all records have the same consignmentCode
+        String consignmentCode = records.get(0).getConsignmentCode();
+        for (Record r : records){
+            if (!r.getConsignmentCode().equals(consignmentCode)){
+                throw new ValidationException("Record with id '" + r.getId() +
+                        "' has a consignmentCode that differs from at least one other record");
+            }
+        }
+        // validate all records have the same stateId
+        int stateId = records.get(0).getStateId();
+        for (Record r : records){
+            if (r.getStateId() != stateId){
+                throw new ValidationException("Record with id '" + r.getId() +
+                        "' has a stateId that differs from at least one other record");
+            }
+        }
+        // validate all records have the same locationId
+        int locationId = records.get(0).getLocationId();
+        for (Record r : records){
+            if (r.getLocationId() != locationId){
+                throw new ValidationException("Record with id '" + r.getId() +
+                        "' has a locationId that differs from at least one other record");
+            }
+        }
+        // validate all records have the same typeId
+        int typeId = records.get(0).getTypeId();
+        for (Record r : records){
+            if (r.getTypeId() != typeId){
+                throw new ValidationException("Record with id '" + r.getId() +
+                        "' has a typeId that differs from at least one other record");
+            }
+        }
+        // validate all records have the same scheduleId
+        int scheduleId = records.get(0).getScheduleId();
+        for (Record r : records){
+            if (r.getScheduleId() != scheduleId){
+                throw new ValidationException("Record with id '" + r.getId() +
+                        "' has a scheduleId that differs from at least one other record");
+            }
+        }
     }
 
     private static final String GET_MAX_CONTAINER_ID =
@@ -122,8 +220,8 @@ public class ContainerController {
     }
 
     private static final String CREATE_CONTAINER =
-            "INSERT INTO containers(Id, Number, Title, ConsignmentCode, CreatedAt, UpdatedAt)" +
-                    "VALUES(?, ?, ?, ?, ?, ?)";
+            "INSERT INTO containers(Id, Number, Title, CreatedAt, UpdatedAt)" +
+                    "VALUES(?, ?, ?, ?, ?)";
     private static int saveContainerToDb(Container c) throws SQLException {
         try (Connection connection = DbConnect.getConnection();
              PreparedStatement ps = connection.prepareStatement(CREATE_CONTAINER)) {
@@ -133,15 +231,120 @@ public class ContainerController {
             ps.setInt(1, id);
             ps.setString(2, c.getContainerNumber());
             ps.setString(3, c.getTitle());
-            ps.setString(4, "temporaryCode"); //todo: I think it would make more sense to have this be nullable
-            ps.setDate(5, c.getCreatedAt());
-            ps.setDate(6, c.getUpdatedAt());
+            ps.setDate(4, c.getCreatedAt());
+            ps.setDate(5, c.getUpdatedAt());
             ps.executeUpdate();
-            //todo save notes to db
             return id;
         }
     }
 
+    public static void validateContainerChangeForRecord(Record record, Container destinationContainer) throws SQLException {
+        if (isContainerEmpty(destinationContainer)) return;
+        if (!destinationContainer.getConsignmentCode().equals(record.getConsignmentCode()))
+            throw new ValidationException("tried to add record to container with consignmentCode: '" +
+                    destinationContainer.getConsignmentCode() + "', but record has consignment code of '" +
+                    record.getConsignmentCode() + "'");
+        if (destinationContainer.getTypeId() != record.getTypeId())
+            throw new ValidationException("tried to add record to container with record type: '" +
+                    destinationContainer.getType() + "', but record has record type of '" +
+                record.getType() + "'");
+        if (destinationContainer.getLocationId() != record.getLocationId())
+            throw new ValidationException("tried to add record to container with location: '" +
+                    destinationContainer.getLocationName() + "', but record has location '" +
+                    record.getLocation() + "'");
+        if (destinationContainer.getScheduleId() != record.getScheduleId())
+            throw new ValidationException("tried to add record to container with schedule: '" +
+                    destinationContainer.getScheduleName() + "', but record has schedule '" +
+                    record.getSchedule() + "'");
+        if (destinationContainer.getStateId() != record.getStateId())
+            throw new ValidationException("tried to add record to container with type: '" +
+                    destinationContainer.getConsignmentCode() + "', but record has consignment code of '" +
+                    record.getConsignmentCode() + "'");
+    }
+
+    private static boolean isContainerEmpty(Container container) throws SQLException {
+        return container.getChildRecordIds().isEmpty();
+    }
+
+    private static final String UPDATE_CONTAINER_RECORD_INFORMATION =
+            "UPDATE containers " +
+            "SET StateId = ?, LocationId = ?, ScheduleId = ?, TypeId = ?, ConsignmentCode = ?, UpdatedAt = NOW() " +
+            "WHERE Id = ?";
+    public static void addRecordToContainer(Container container, Record record) throws SQLException {
+        if (container.getChildRecordIds().size() == 0){
+
+            try (Connection connection = DbConnect.getConnection();
+                 PreparedStatement ps = connection.prepareStatement(UPDATE_CONTAINER_RECORD_INFORMATION)) {
+
+                ps.setInt(1, record.getStateId());
+                ps.setInt(2, record.getLocationId());
+                ps.setInt(3, record.getScheduleId());
+                ps.setInt(4, record.getTypeId());
+                ps.setString(5, record.getConsignmentCode());
+                ps.setInt(6, container.getContainerId());
+                ps.executeUpdate();
+            }
+        }
+    }
+
+
+    private static final String REMOVE_CONTAINER_RECORD_INFORMATION =
+            "UPDATE containers " +
+            "SET StateId = ?, LocationId = ?, ScheduleId = ?, TypeId = ?, ConsignmentCode = ?, UpdatedAt = NOW() " +
+            "WHERE Id = ?";
+    /**
+     * Clear a information about the kinds of records in the container
+     *
+     * @param containerId the id of the container that should have its container information cleared
+     * @throws SQLException rethrows any SQLException
+     */
+    public static void clearContainerRecordInformation(int containerId) throws SQLException {
+        try (Connection connection = DbConnect.getConnection();
+             PreparedStatement ps = connection.prepareStatement(REMOVE_CONTAINER_RECORD_INFORMATION)) {
+            ps.setNull(1, java.sql.Types.INTEGER);
+            ps.setNull(2, java.sql.Types.INTEGER);
+            ps.setNull(3, java.sql.Types.INTEGER);
+            ps.setNull(4, java.sql.Types.INTEGER);
+            ps.setString(5, null);
+            ps.setInt(6, containerId);
+            ps.executeUpdate();
+        }
+    }
+
+    private static final String UPDATE_CONTAINER =
+            "UPDATE containers " +
+                    "SET Number = ?, Title = ?, UpdatedAt = NOW() " +
+                    "WHERE Id = ?";
+    /**
+     * Update a container
+     *
+     * @param container the request body translated to a container object, containing the updated container information
+     * @param userId the id of the user submitting the request
+     * @throws SQLException rethrows any SQLException
+     * @throws AuthenticationException AuthenticationException thrown if the user does not have RMC rights
+     */
+    public static Container updateContainer(int containerId, Container container, int userId) throws SQLException{
+        if (!Authenticator.authenticate(userId, Role.RMC)) {
+            throw new AuthenticationException(String.format("User %d is not authenticated to update record", userId));
+        }
+        LOGGER.info("Passed all validation checks. Updating Container {}", container); //todo this message could be better
+
+        try (Connection connection = DbConnect.getConnection();
+             PreparedStatement ps = connection.prepareStatement(UPDATE_CONTAINER)) {
+
+            ps.setString(1, container.getContainerNumber());
+            ps.setString(2, container.getTitle());
+            ps.setInt(3, containerId);
+            ps.executeUpdate();
+
+            if (!StringUtils.isEmpty(container.getNotes())){
+                NoteTableController.updateContainerNotes(containerId, container.getNotes());
+            }
+            AuditLogger.log(userId, AuditLogger.Target.CONTAINER, containerId, AuditLogger.ACTION.UPDATE);
+
+            return getContainerById(containerId);
+        }
+    }
 
     /**
      * Retrieve containers filtered by container number
@@ -168,6 +371,7 @@ public class ContainerController {
     }
 
 
+
     /**
      * Delete one container by id
      *
@@ -187,7 +391,6 @@ public class ContainerController {
         }
     }
 
-
     /**
      * Delete containers by ids
      *
@@ -195,13 +398,10 @@ public class ContainerController {
      * @return Http Status Code
      */
     public static final ResponseEntity<?> deleteContainers(String ids, Integer userId) throws SQLException{
-
         if (!Authenticator.authenticate(userId, Role.RMC)) {
-            throw new AuthenticationException(String.format("User %d is not authenticated to create record", userId));
+            throw new AuthenticationException(String.format("User %d is not authenticated to delete record", userId));
         }
-
         List<String> failed = new ArrayList<>();
-
         String[] listOfIds = ids.split(",");
         for (String id : listOfIds) {
             if (!getRecordIdsInContainer(Integer.valueOf(id)).isEmpty()) {
@@ -212,13 +412,11 @@ public class ContainerController {
             LOGGER.info("Passed all validation checks. Deleting container {}", ids);
             for (String id : listOfIds) {
                 deleteOneContainer(id);
+                AuditLogger.log(userId, AuditLogger.Target.CONTAINER, Integer.valueOf(id), AuditLogger.ACTION.DELETE);
             }
             return ResponseEntity.status(HttpStatus.OK).build();
         }else{
             return new ResponseEntity(failed, HttpStatus.PRECONDITION_FAILED);
         }
-
-
     }
-
 }
