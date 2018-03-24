@@ -544,9 +544,9 @@ public class RecordController {
      * Prepare to destroy records
      *
      * @param ids
+     * @param userId
      * @throws SQLException
      */
-    private static final String DESTROY_STATE = "6";
     private static final String RECORD_IS_NOT_CLOSED = "The record is not closed.";
     private static final String RETENTION_NOT_END = "The record's retention period has not ended yet.";
     public static ResponseEntity<?> prepareToDestroyRecords(List<Integer> ids, int userId) throws SQLException {
@@ -575,7 +575,7 @@ public class RecordController {
             if(listOfRecords.size() == ids.size()) {
                 for (Record record : listOfRecords) {
                     if (record != null) {
-                        if (record.getStateId() != Integer.valueOf(DESTROY_STATE)) {
+                        if (record.getStateId() != RecordState.DESTROYED.getId()) {
                             Date destructionDate = new Date(DestructionDateController.addYearToTheLatestClosureDate(record.getScheduleYear(), record.getClosedAt()));
                             if (destructionDate.compareTo(currentDate) > 0) {
                                 failedIds.add(record.getId());
@@ -616,7 +616,7 @@ public class RecordController {
      */
     public static void destroyRecords(List<Integer> ids) throws SQLException {
 
-        String query = "UPDATE records" + " SET StateId = " + DESTROY_STATE + " , UpdatedAt = now() " + "WHERE Id IN (";
+        String query = "UPDATE records" + " SET StateId = " + RecordState.DESTROYED.getId() + " , UpdatedAt = now() " + "WHERE Id IN (";
         String destroyRecordsQuery = buildString(ids, query);
 
         try (Connection conn = DbConnect.getConnection();
