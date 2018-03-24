@@ -119,7 +119,7 @@ public class ContainerController {
      * @throws AuthenticationException AuthenticationException thrown if the user does not have RMC rights
      */
     public static final Container createContainer(Container container, int userId) throws SQLException, AuthenticationException{
-        if (!Authenticator.authenticate(userId, Role.RMC)) {
+        if (!Authenticator.authenticate(userId, Role.ADMINISTRATOR) && !Authenticator.authenticate(userId, Role.RMC)) {
             throw new AuthenticationException(String.format("User %d is not authenticated to create record", userId));
         }
 
@@ -324,7 +324,7 @@ public class ContainerController {
      * @throws AuthenticationException AuthenticationException thrown if the user does not have RMC rights
      */
     public static Container updateContainer(int containerId, Container container, int userId) throws SQLException{
-        if (!Authenticator.authenticate(userId, Role.RMC)) {
+        if (!Authenticator.authenticate(userId, Role.ADMINISTRATOR) && !Authenticator.authenticate(userId, Role.RMC)) {
             throw new AuthenticationException(String.format("User %d is not authenticated to update record", userId));
         }
         LOGGER.info("Passed all validation checks. Updating Container {}", container); //todo this message could be better
@@ -398,7 +398,7 @@ public class ContainerController {
      * @return Http Status Code
      */
     public static final ResponseEntity<?> deleteContainers(String ids, Integer userId) throws SQLException{
-        if (!Authenticator.authenticate(userId, Role.RMC)) {
+        if (!Authenticator.authenticate(userId, Role.ADMINISTRATOR) && !Authenticator.authenticate(userId, Role.RMC)) {
             throw new AuthenticationException(String.format("User %d is not authenticated to delete record", userId));
         }
         List<String> failed = new ArrayList<>();
