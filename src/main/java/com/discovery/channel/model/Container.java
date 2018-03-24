@@ -13,7 +13,7 @@ import java.util.List;
 @Getter
 @Setter
 @AllArgsConstructor
-public class Container {
+public class Container implements Document{
 
     private int containerId;
     private String containerNumber;

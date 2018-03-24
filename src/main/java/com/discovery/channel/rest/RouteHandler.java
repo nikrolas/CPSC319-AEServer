@@ -3,6 +3,7 @@ package com.discovery.channel.rest;
 import com.discovery.channel.audit.AuditLogEntry;
 import com.discovery.channel.audit.AuditLogger;
 import com.discovery.channel.database.*;
+import com.discovery.channel.exception.IllegalArgumentException;
 import com.discovery.channel.form.DeleteRecordsForm;
 import com.discovery.channel.form.UpdateRecordForm;
 import com.discovery.channel.model.*;
@@ -65,14 +66,18 @@ public class RouteHandler {
      * @return a list of records filtered by search content
      */
     @RequestMapping(
-            value = "records",
-            params = { "userId" , "num"},
+            value = "search",
+            params = { "userId" , "num", "record", "container", "page", "pageSize"},
             method = RequestMethod.GET)
     @ResponseBody
-    public List<Record> searchRecordsByNumber(@RequestParam("userId") int userId,
-                                      @RequestParam("num") String num) throws SQLException{
-        return RecordController.getRecordByNumber(num);
-
+    public PagedResults<Document> searchByNumber(@RequestParam("userId") int userId,
+                                              @RequestParam("num") String num,
+                                              @RequestParam(value="record", required=false, defaultValue="false") Boolean record,
+                                              @RequestParam(value="container", required=false, defaultValue="false") Boolean container,
+                                              @RequestParam(value="page", required=false, defaultValue="1") int page,
+                                              @RequestParam(value="pageSize", required=false, defaultValue="20") int pageSize)
+                                              throws SQLException{
+        return RecordController.getByNumber(num, record, container, page, pageSize, userId);
     }
 
     /**
