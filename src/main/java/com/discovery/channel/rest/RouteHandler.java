@@ -1,5 +1,7 @@
 package com.discovery.channel.rest;
 
+import com.discovery.channel.audit.AuditLogEntry;
+import com.discovery.channel.audit.AuditLogger;
 import com.discovery.channel.database.*;
 import com.discovery.channel.exception.IllegalArgumentException;
 import com.discovery.channel.form.DeleteRecordsForm;
@@ -16,6 +18,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
 
 @RestController
@@ -238,7 +241,6 @@ public class RouteHandler {
     /**
      * Get a user by id in user table
      *
-     *
      * @param  id
      * @return the user with the given user id
      */
@@ -246,7 +248,6 @@ public class RouteHandler {
             value = "users/{id}",
             method = RequestMethod.GET)
     public User getUserByUserTableId(@PathVariable("id") Integer id) throws SQLException{
-        LOGGER.info("Searching for user with id {}", id);
         return UserController.getUserByUserTableId(id);
     }
 
@@ -264,4 +265,48 @@ public class RouteHandler {
         LOGGER.info("Deleting container(s) {}", ids);
         return ContainerController.deleteContainers(ids, userId);
     }
+
+
+
+    /**
+     * Get a destruction date given record ids
+     *
+     * @param  ids
+     * @return Destruction date in millisecond if success, error message otherwise
+     */
+    @RequestMapping(
+            value = "destructiondate",
+            params = {"ids", "userId"},
+            method = RequestMethod.GET)
+    public ResponseEntity<?> getDestructionDate(@RequestParam("ids") ArrayList<Integer> ids, @RequestParam("userId") int userId) throws SQLException{
+        LOGGER.info("Calculating destruction date given ids {}", ids);
+        return DestructionDateController.calculateDestructionDate(ids);
+    }
+
+
+    /**
+     * Search container(s) by number
+     *
+     * @return  a list of container(s) matches the given number
+     */
+    @RequestMapping(
+            value = "containers",
+            params = {"num", "userId"},
+            method = RequestMethod.GET)
+
+    public List<Container> getContainerByNumber(@RequestParam("num") String num, @RequestParam("userId") int userId) throws SQLException{
+        LOGGER.info("Searching containers filtered by {}", num);
+        return ContainerController.getContainerByNumber(num);
+    }
+
+    /**
+     * Get audit logs
+     */
+    @RequestMapping(
+            value = "auditlogs",
+            method = RequestMethod.GET)
+    public List<AuditLogEntry> getAuditLogs() throws SQLException{
+        return AuditLogger.getLogs();
+    }
+
 }

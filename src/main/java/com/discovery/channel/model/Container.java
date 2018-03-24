@@ -1,6 +1,7 @@
 package com.discovery.channel.model;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -30,8 +31,8 @@ public class Container implements Document{
     private String scheduleName;
     private int typeId;
     private String type;
-
     private String notes;
+    @JsonFormat(with = JsonFormat.Feature.ACCEPT_SINGLE_VALUE_AS_ARRAY)
     private List<Integer> childRecordIds;
 
     public Container(int containerId,
@@ -65,9 +66,11 @@ public class Container implements Document{
     @JsonCreator
     public Container(@JsonProperty(value = "containerNumber", required = true) String number,
                      @JsonProperty(value = "title", required = true) String title,
-                     @JsonProperty("notes") String notes) {
+                     @JsonProperty("notes") String notes,
+                     @JsonProperty("records") List<Integer> records) {
         this.containerNumber = number;
         this.title = title;
         this.notes = notes;
+        this.childRecordIds = records;
     }
 }

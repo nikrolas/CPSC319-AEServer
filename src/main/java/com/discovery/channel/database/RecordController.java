@@ -1,5 +1,6 @@
 package com.discovery.channel.database;
 
+import com.discovery.channel.audit.AuditLogger;
 import com.discovery.channel.authenticator.Authenticator;
 import com.discovery.channel.authenticator.Role;
 import com.discovery.channel.exception.AuthenticationException;
@@ -14,8 +15,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.util.StringUtils;
 
 import java.sql.*;
+import java.sql.Date;
+import java.util.*;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.sql.Connection;
@@ -179,12 +181,11 @@ public class RecordController {
     /**
      * Retrieve multiple records
      *
-     * @param id
+     * @param ids
+     * @param verbose
      * @return List of records
      */
-    private static final String GET_RECORDS_BY_IDS =
-            "SELECT * " +
-                    "FROM records WHERE Id IN (?)";
+ 
     public static List<Record> getRecordsByIds(List<Integer> ids, boolean verbose) throws SQLException {
         List<Record> records = new ArrayList<>();
 
@@ -192,9 +193,10 @@ public class RecordController {
             return records;
         }
 
+        String idStr = buildString(ids);
+
         try (Connection connection = DbConnect.getConnection();
-             PreparedStatement ps = connection.prepareStatement(GET_RECORD_BY_ID)) {
-            ps.setArray(1, connection.createArrayOf("int",ids.toArray()));
+             PreparedStatement ps = connection.prepareStatement(idStr)) {
             try (ResultSet resultSet = ps.executeQuery()) {
                 while (resultSet.next()) {
                     Record record = parseResultSet(resultSet);
@@ -360,8 +362,7 @@ public class RecordController {
             return null;
         }
         LOGGER.info("Created record. Record Id {}", newRecordId);
-        // TODO save notes
-        // TODO audit log : Need to determine the schema
+        AuditLogger.log(userId, AuditLogger.Target.RECORD, newRecordId, AuditLogger.ACTION.CREATE);
         return getRecordById(newRecordId);
     }
 
@@ -463,6 +464,8 @@ public class RecordController {
             rowsModified = ps.executeUpdate();
         }
 
+        AuditLogger.log(userId, AuditLogger.Target.RECORD, id, AuditLogger.ACTION.DELETE);
+
         // 3. Delete notes
         NoteTableController.deleteNotesForRecord(id);
 
@@ -513,6 +516,7 @@ public class RecordController {
         }
 
         Record record = getRecordById(id);
+
         if (record == null) {
             throw new NoResultsFoundException(String.format("Record %d does not exist", id));
         }
@@ -534,6 +538,13 @@ public class RecordController {
         // Validate classifications
         if (!Classification.validateClassification(updateForm.getClassifications())) {
             throw new IllegalArgumentException(String.format("Classification %s is not valid", updateForm.getClassifications()));
+        }
+
+        // Validate container update
+        Container destinationContainer = updateForm.getContainerId() <= 0 ?
+                null : ContainerController.getContainerById(updateForm.getContainerId());
+        if (destinationContainer != null && isContainerChanged(record, updateForm.getContainerId())){
+            ContainerController.validateContainerChangeForRecord(record, destinationContainer);
         }
 
         LOGGER.info("About to update record {}", id);
@@ -566,11 +577,46 @@ public class RecordController {
         // Update notes if need to
         if (StringUtils.isEmpty(updateForm.getNotes())) {
             NoteTableController.deleteNotesForRecord(id);
-        }else if(!updateForm.getNotes().equals(record.getNotes())) {
+        } else if(!updateForm.getNotes().equals(record.getNotes())) {
             NoteTableController.updateRecordNotes(id, updateForm.getNotes());
         }
 
-        //TODO audit logs
+        // Update container information and/or set record closedAt date if need to
+        if (isContainerChanged(record, updateForm.getContainerId())){
+            if (destinationContainer != null){
+                ContainerController.addRecordToContainer(destinationContainer, record);
+                setRecordClosedAtDate(id);
+            } else if (ContainerController.getContainerById(record.getContainerId()).getChildRecordIds().size()==0){
+                ContainerController.clearContainerRecordInformation(record.getContainerId());
+            }
+        }
+
+        AuditLogger.log(userId, AuditLogger.Target.RECORD, id, AuditLogger.ACTION.UPDATE);
+    }
+
+    private static boolean isContainerChanged(Record record, int containerId) throws SQLException {
+        return record.getContainerId() != containerId;
+    }
+
+    private static final String SET_CLOSED_AT_DATE =
+            "UPDATE records SET closedAt = NOW(), updatedAt = NOW() WHERE id = ?";
+    private static void setRecordClosedAtDate(Integer recordId) throws SQLException {
+        try (Connection conn = DbConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(SET_CLOSED_AT_DATE)){
+            ps.setInt(1, recordId);
+            ps.executeUpdate();
+        }
+    }
+
+    private static final String SET_RECORD_CONTAINER =
+            "UPDATE records SET closedAt = NOW(), updatedAt = NOW(), containerId = ? WHERE id = ?";
+    public static void setRecordContainer(int recordId, int containerId) throws SQLException {
+        try (Connection conn = DbConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(SET_RECORD_CONTAINER)){
+            ps.setInt(1, containerId);
+            ps.setInt(2, recordId);
+            ps.executeUpdate();
+        }
     }
 
     /**
@@ -617,5 +663,28 @@ public class RecordController {
             }
         });
         return documentList;
+    }
+    
+    /**
+     * build sql statement for getRecordsByIds
+     *
+     * @param ids
+     * @return sql statement
+     */
+    private static String buildString(List<Integer> ids){
+
+        String str = "SELECT * FROM records WHERE Id IN (";
+        Iterator<Integer> idsIterator = ids.iterator();
+        while(idsIterator.hasNext())
+        {
+            str = str + idsIterator.next().toString();
+            if(idsIterator.hasNext()){
+                str = str + ",";
+            }
+        }
+
+        str = str + ")";
+
+        return str;
     }
 }
