@@ -535,6 +535,17 @@ public class RecordController {
         }
     }
 
+    private static final String SET_RECORD_CONTAINER =
+            "UPDATE records SET closedAt = NOW(), updatedAt = NOW(), containerId = ? WHERE id = ?";
+    public static void setRecordContainer(int recordId, int containerId) throws SQLException {
+        try (Connection conn = DbConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(SET_RECORD_CONTAINER)){
+            ps.setInt(1, containerId);
+            ps.setInt(2, recordId);
+            ps.executeUpdate();
+        }
+    }
+
     /**
      * Delete old classifications and insert new ones
      * Assuming classification string is valid

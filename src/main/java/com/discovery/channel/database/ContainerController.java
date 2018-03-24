@@ -14,6 +14,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
 
+import javax.validation.Valid;
+import javax.validation.Validation;
 import java.sql.Connection;
 import java.sql.Date;
 import java.sql.PreparedStatement;
@@ -120,7 +122,16 @@ public class ContainerController {
         if (!Authenticator.authenticate(userId, Role.RMC)) {
             throw new AuthenticationException(String.format("User %d is not authenticated to create record", userId));
         }
-        //todo: validate if all the records have the same consignmentCode, typeid, scheuldeid, lcationid, stateid
+
+        if (container.getChildRecordIds().size() > 1){
+            try {
+                validateRecordsCanBeAddedToSameContainer(container.getChildRecordIds());
+            } catch (ValidationException e){
+                throw new ValidationException("Could not create container with the following record ids: "
+                        + container.getChildRecordIds() + ". Reason: "+ e.getMessage());
+            }
+        }
+
         LOGGER.info("Passed all validation checks. Creating container {}", container);
 
         Date createdAt = new Date(Calendar.getInstance().getTimeInMillis());
@@ -132,10 +143,68 @@ public class ContainerController {
             NoteTableController.saveNotesForContainer(newContainerId, container.getNotes());
         }
 
+        // update container information on records it contains
+        if (container.getChildRecordIds().size() >= 1){
+            addRecordToContainer(container, RecordController.getRecordById(container.getChildRecordIds().get(0)));
+        }
+
         LOGGER.info("Created container. Container Id {}", newContainerId);
         AuditLogger.log(userId, AuditLogger.Target.CONTAINER, newContainerId, AuditLogger.ACTION.CREATE);
 
+        // update records to point to the new container
+        for (int recordId : container.getChildRecordIds()){
+            RecordController.setRecordContainer(recordId, newContainerId);
+        }
+
         return getContainerById(newContainerId);
+    }
+
+    private static void validateRecordsCanBeAddedToSameContainer(List<Integer> recordIds) throws SQLException, ValidationException {
+        List<Record> records = new LinkedList<>();
+        for (Integer recordId : recordIds) {
+            records.add(RecordController.getRecordById(recordId));
+        }
+        if (records.size() <= 1) return;
+        // validate all records have the same consignmentCode
+        String consignmentCode = records.get(0).getConsignmentCode();
+        for (Record r : records){
+            if (!r.getConsignmentCode().equals(consignmentCode)){
+                throw new ValidationException("Record with id '" + r.getId() +
+                        "' has a consignmentCode that differs from at least one other record");
+            }
+        }
+        // validate all records have the same stateId
+        int stateId = records.get(0).getStateId();
+        for (Record r : records){
+            if (r.getStateId() != stateId){
+                throw new ValidationException("Record with id '" + r.getId() +
+                        "' has a stateId that differs from at least one other record");
+            }
+        }
+        // validate all records have the same locationId
+        int locationId = records.get(0).getLocationId();
+        for (Record r : records){
+            if (r.getLocationId() != locationId){
+                throw new ValidationException("Record with id '" + r.getId() +
+                        "' has a locationId that differs from at least one other record");
+            }
+        }
+        // validate all records have the same typeId
+        int typeId = records.get(0).getTypeId();
+        for (Record r : records){
+            if (r.getTypeId() != typeId){
+                throw new ValidationException("Record with id '" + r.getId() +
+                        "' has a typeId that differs from at least one other record");
+            }
+        }
+        // validate all records have the same scheduleId
+        int scheduleId = records.get(0).getScheduleId();
+        for (Record r : records){
+            if (r.getScheduleId() != scheduleId){
+                throw new ValidationException("Record with id '" + r.getId() +
+                        "' has a scheduleId that differs from at least one other record");
+            }
+        }
     }
 
     private static final String GET_MAX_CONTAINER_ID =
@@ -167,10 +236,6 @@ public class ContainerController {
             ps.executeUpdate();
             return id;
         }
-    }
-
-    private void validateRecordsCanBeAddedToSameContainer(List<Integer> recordIds) throws SQLException {
-        //todo
     }
 
     public static void validateContainerChangeForRecord(Record record, Container destinationContainer) throws SQLException {
