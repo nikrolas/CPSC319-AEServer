@@ -81,7 +81,7 @@ public class Record {
                   @JsonProperty("consignmentCode") String consignmentCode,
                   @JsonProperty("containerId") int containerId,
                   @JsonProperty(value = "locationId", required = true) int locationId,
-                  @JsonProperty(value = "classifications", required = true) String classifications,
+                  @JsonProperty(value = "classIds", required = true) List<Integer> classIds,
                   @JsonProperty("notes") String notes) {
         this.title = title;
         this.number = number;
@@ -90,7 +90,7 @@ public class Record {
         this.consignmentCode = consignmentCode;
         this.containerId = containerId;
         this.locationId = locationId;
-        this.classifications = classifications;
+        this.classIds = classIds;
         this.notes = notes;
     }
 
