@@ -11,9 +11,11 @@ import java.util.List;
 
 public class ClassificationController {
 
-    private static final String FIND_ROOT_CLASSIFICATIONS = "SELECT Id, Name, Keyword " +
+    private static final String FIND_ROOT_CLASSIFICATIONS =
+            "SELECT Id, Name, Keyword " +
             "FROM classifications " +
-            "WHERE KeyWord = ?";
+            "WHERE KeyWord = ? " +
+            "ORDER BY Name ASC";
     public static List<Classification> getRootClassifications() throws SQLException {
         List<Classification> classifications = new ArrayList<>();
         try(Connection conn = DbConnect.getConnection();
@@ -39,8 +41,8 @@ public class ClassificationController {
      */
     private static final String FIND_CLASSIFICATION_BY_NAME =
             "SELECT Id, Name, KeyWord " +
-                    "FROM classifications " +
-                    "WHERE Name = ?";
+            "FROM classifications " +
+            "WHERE Name = ?";
     public static Classification findClassificationByName(String name) throws SQLException {
         try(Connection conn = DbConnect.getConnection();
             PreparedStatement ps = conn.prepareStatement(FIND_CLASSIFICATION_BY_NAME)) {
@@ -63,10 +65,10 @@ public class ClassificationController {
      * @return
      * @throws SQLException
      */
-    private static final String FIND_CLASSIFICATION_BY_ID=
+    private static final String FIND_CLASSIFICATION_BY_ID =
             "SELECT Id, Name, KeyWord " +
-                    "FROM classifications " +
-                    "WHERE Id = ?";
+            "FROM classifications " +
+            "WHERE Id = ?";
     public static Classification findClassificationById(int id) throws SQLException {
         try(Connection conn = DbConnect.getConnection();
             PreparedStatement ps = conn.prepareStatement(FIND_CLASSIFICATION_BY_ID)) {
@@ -87,9 +89,10 @@ public class ClassificationController {
      * @param clasId
      * @return
      */
-    private static final String FIND_CHILDREN_CLASS_ID = "SELECT ChildId " +
+    private static final String FIND_CHILDREN_CLASS_ID =
+            "SELECT ChildId " +
             "FROM classhierarchy " +
-            "WHERE ParentId = ?";
+            "WHERE ParentId = ? ";
     public static List<Integer> findChildrenClassificationIds(int classId) throws SQLException {
         List<Integer> childIds = new ArrayList<>();
         try(Connection conn = DbConnect.getConnection();
@@ -109,11 +112,13 @@ public class ClassificationController {
      * @param clasId
      * @return
      */
-    private static final String FIND_CHILDREN_CLASS = "SELECT c.Id AS Id, Name, KeyWord " +
+    private static final String FIND_CHILDREN_CLASS =
+            "SELECT c.Id AS Id, Name, KeyWord " +
             "FROM classhierarchy ch " +
             "INNER JOIN  classifications c " +
             "ON ch.childId = c.Id " +
-            "WHERE ch.ParentId = ?";
+            "WHERE ch.ParentId = ? " +
+            "ORDER BY Name ASC";
     public static List<Classification> findChildrenClassifications(int parentId) throws SQLException {
         List<Classification> children = new ArrayList<>();
         try(Connection conn = DbConnect.getConnection();
