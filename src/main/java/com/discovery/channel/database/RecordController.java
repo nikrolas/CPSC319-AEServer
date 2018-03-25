@@ -607,7 +607,7 @@ public class RecordController {
             "WHERE TableId = ? AND RowId = ?";
     // todo use @Transactional
     public static Record createVolume(Integer id, int userId, Boolean copyNotes) throws SQLException{
-        if (!Authenticator.authenticate(userId, Role.ADMINISTRATOR) ||
+        if (!Authenticator.authenticate(userId, Role.ADMINISTRATOR) &&
                 !Authenticator.authenticate(userId, Role.RMC)) {
             throw new AuthenticationException(String.format("User %d is not authenticated to create volume", userId));
         }
