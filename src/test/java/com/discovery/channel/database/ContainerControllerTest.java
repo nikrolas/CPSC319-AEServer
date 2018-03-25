@@ -29,6 +29,8 @@ class ContainerControllerTest {
     private static final int RMC_USER_ID = 500;
     private static final int NON_RMC_USER_ID = 100;
 
+    private static final int FULL_PRIVILEGE_RMC = 600;
+
     @Test
     void getMultipleRecordsInContainer() throws SQLException{
         List<Integer> ids = ContainerController.getRecordIdsInContainer(11125);
@@ -40,14 +42,14 @@ class ContainerControllerTest {
     @Test
     void getNonExistantContainer() {
         NoResultsFoundException e = assertThrows(NoResultsFoundException.class, () -> {
-            ContainerController.getContainerById(-1);
+            ContainerController.getContainerById(-1, FULL_PRIVILEGE_RMC);
         });
         assertTrue(e.getMessage().contains("The query returned no results"));
     }
 
     @Test
     void getContainerHappyPath() throws SQLException {
-        Container c = ContainerController.getContainerById(11125);
+        Container c = ContainerController.getContainerById(11125, FULL_PRIVILEGE_RMC);
         assertEquals(c.getContainerId(), 11125);
         assertEquals(c.getContainerNumber(),"2006/002-EDM");
         assertEquals(c.getTitle(), "Vel itaque vitae repellendus architecto");
@@ -131,15 +133,15 @@ class ContainerControllerTest {
 
     @Test
     void  deleteOneContainerWithRecords() throws SQLException{
-        Container c = ContainerController.getContainerById(16348);
+        Container c = ContainerController.getContainerById(16348, RMC_USER_ID);
         ResponseEntity responseStatus = ContainerController.deleteContainers(String.valueOf(c.getContainerId()), RMC_USER_ID);
         assertEquals(responseStatus.getStatusCode(), HttpStatus.PRECONDITION_FAILED);
     }
 
     @Test
     void deleteContainersWithRecords() throws SQLException{
-        Container c1 = ContainerController.getContainerById(16348);
-        Container c2 = ContainerController.getContainerById(16349);
+        Container c1 = ContainerController.getContainerById(16348, RMC_USER_ID);
+        Container c2 = ContainerController.getContainerById(16349, RMC_USER_ID);
         String ids = String.valueOf(c1.getContainerId()) + "," + String.valueOf(c2.getContainerId());
         ResponseEntity responseStatus = ContainerController.deleteContainers(ids, RMC_USER_ID);
         assertEquals(responseStatus.getStatusCode(), HttpStatus.PRECONDITION_FAILED);

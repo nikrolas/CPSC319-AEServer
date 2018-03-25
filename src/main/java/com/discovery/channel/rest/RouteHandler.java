@@ -1,7 +1,9 @@
 package com.discovery.channel.rest;
 
+import com.discovery.channel.audit.AuditLogEntry;
+import com.discovery.channel.audit.AuditLogger;
 import com.discovery.channel.database.*;
-import com.discovery.channel.form.DeleteRecordsForm;
+import com.discovery.channel.form.RecordsForm;
 import com.discovery.channel.form.UpdateRecordForm;
 import com.discovery.channel.model.*;
 
@@ -15,6 +17,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
 
 @RestController
@@ -34,7 +37,7 @@ public class RouteHandler {
             method = RequestMethod.GET)
     public Record getRecordById(@PathVariable("id") Integer id,
                                 @RequestParam("userId") int userId) throws SQLException {
-        return RecordController.getRecordById(id);
+        return RecordController.getRecordById(id, userId);
     }
 
 
@@ -50,7 +53,7 @@ public class RouteHandler {
             method = RequestMethod.GET)
     @ResponseBody
     public List<Record> getAllRecords(@RequestParam("userId") int userId) throws SQLException{
-        return RecordController.getAllRecords();
+        return RecordController.getAllRecords(userId);
 
     }
 
@@ -62,14 +65,19 @@ public class RouteHandler {
      * @return a list of records filtered by search content
      */
     @RequestMapping(
-            value = "records",
-            params = { "userId" , "num"},
+            value = "search",
+            params = { "userId" , "num", "record", "container", "page", "pageSize"},
             method = RequestMethod.GET)
     @ResponseBody
-    public List<Record> searchRecordsByNumber(@RequestParam("userId") int userId,
-                                      @RequestParam("num") String num) throws SQLException{
-        return RecordController.getRecordByNumber(num);
 
+    public PagedResults<Document> searchByNumber(@RequestParam("userId") int userId,
+                                              @RequestParam("num") String num,
+                                              @RequestParam(value="record", required=false, defaultValue="false") Boolean record,
+                                              @RequestParam(value="container", required=false, defaultValue="false") Boolean container,
+                                              @RequestParam(value="page", required=false, defaultValue="1") int page,
+                                              @RequestParam(value="pageSize", required=false, defaultValue="20") int pageSize)
+                                              throws SQLException{
+        return RecordController.getByNumber(num, record, container, page, pageSize, userId);
     }
 
     /**
@@ -165,7 +173,7 @@ public class RouteHandler {
             value = "records",
             params = {"userId"},
             method = RequestMethod.DELETE)
-    public BatchResponse deleteRecords(@RequestParam("userId") int userId, @RequestBody DeleteRecordsForm form) throws SQLException {
+    public BatchResponse deleteRecords(@RequestParam("userId") int userId, @RequestBody RecordsForm form) throws SQLException {
         return RecordController.deleteRecords(userId, form);
     }
 
@@ -182,7 +190,7 @@ public class RouteHandler {
             consumes = MediaType.APPLICATION_JSON_UTF8_VALUE)
     public Record updateOneRecord(@PathVariable("id") Integer id, @RequestParam("userId") int userId,  @RequestBody UpdateRecordForm updateForm) throws SQLException {
         RecordController.updateRecord(id, userId, updateForm);
-        return RecordController.getRecordById(id);
+        return RecordController.getRecordById(id, userId);
     }
 
 
@@ -198,7 +206,7 @@ public class RouteHandler {
             method = RequestMethod.GET)
     public Container getContainerById(@PathVariable("id") Integer id, @RequestParam("userId") int userId) throws SQLException{
         LOGGER.info("Searching for container with id {}", id);
-        return ContainerController.getContainerById(id);
+        return ContainerController.getContainerById(id, userId);
     }
 
     /**
@@ -233,7 +241,6 @@ public class RouteHandler {
     /**
      * Get a user by id in user table
      *
-     *
      * @param  id
      * @return the user with the given user id
      */
@@ -241,7 +248,6 @@ public class RouteHandler {
             value = "users/{id}",
             method = RequestMethod.GET)
     public User getUserByUserTableId(@PathVariable("id") Integer id) throws SQLException{
-        LOGGER.info("Searching for user with id {}", id);
         return UserController.getUserByUserTableId(id);
     }
 
@@ -260,19 +266,35 @@ public class RouteHandler {
         return ContainerController.deleteContainers(ids, userId);
     }
 
+
+
     /**
-     * Search container(s) by number
+     * Get a destruction date given record ids
      *
-     * @return  a list of container(s) matches the given number
+     * @param  ids
+     * @return Destruction date in millisecond if success, error message otherwise
      */
     @RequestMapping(
-            value = "containers",
-            params = {"num", "userId"},
+            value = "destructiondate",
+            params = {"ids", "userId"},
             method = RequestMethod.GET)
+    public ResponseEntity<?> getDestructionDate(@RequestParam("ids") ArrayList<Integer> ids, @RequestParam("userId") int userId) throws SQLException{
+        LOGGER.info("Calculating destruction date given ids {}", ids);
+        return DestructionDateController.calculateDestructionDate(ids);
+    }
 
-    public List<Container> getContainerByNumber(@RequestParam("num") String num, @RequestParam("userId") int userId) throws SQLException{
-        LOGGER.info("Searching containers filtered by {}", num);
-        return ContainerController.getContainerByNumber(num);
+    /**
+     * Create a new volume
+     * @param id
+     * @return
+     */
+    @RequestMapping(
+            value = "volume/{id}",
+            params = {"copyNotes", "userId"},
+            method = RequestMethod.POST)
+    public Record createVolume(@PathVariable("id") Integer id, @RequestParam("userId") int userId,
+                                  @RequestParam("copyNotes") Boolean copyNotes) throws SQLException{
+        return RecordController.createVolume(id, userId, copyNotes);
     }
 
     /**
@@ -289,4 +311,29 @@ public class RouteHandler {
         LOGGER.info("Searching volumes related to number {}", num);
         return RecordController.getVolumesByNumber(num);
     }
+
+    /**
+     * Get audit logs
+     */
+    @RequestMapping(
+            value = "auditlogs",
+            method = RequestMethod.GET)
+    public List<AuditLogEntry> getAuditLogs() throws SQLException{
+        return AuditLogger.getLogs();
+    }
+
+    /**
+     * Destroy records given record ids
+     *
+     * @param  form
+     * @return httpstatus 200 if success, error message with record id(s) that can be destroyed otherwise
+     */
+    @RequestMapping(
+            value = "destroyrecords",
+            params = {"userId"},
+            method = RequestMethod.PUT)
+    public ResponseEntity<?> destroyRecords(@RequestParam("userId") int userId, @RequestBody RecordsForm form) throws SQLException {
+        return RecordController.prepareToDestroyRecords(form, userId);
+    }
+
 }

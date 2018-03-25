@@ -74,4 +74,24 @@ public class Authenticator {
         }
         return false;
     }
+
+    private static final String IS_LOCATION_RESTRICTED = "SELECT Restricted FROM locations WHERE Id = ?";
+    public static boolean canUserViewLocation(int userId, int locationId) throws SQLException {
+        // Containers may have null location id
+        if (locationId == 0) {
+            return true;
+        }
+        try (Connection conn = DbConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(IS_LOCATION_RESTRICTED)) {
+            ps.setInt(1, locationId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    if (rs.getBoolean("Restricted")) {
+                        return isUserAuthenticatedForLocation(userId, locationId);
+                    }
+                }
+            }
+        }
+        return true;
+    }
 }
