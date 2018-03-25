@@ -283,22 +283,6 @@ public class RouteHandler {
         return DestructionDateController.calculateDestructionDate(ids);
     }
 
-
-    /**
-     * Search container(s) by number
-     *
-     * @return  a list of container(s) matches the given number
-     */
-    @RequestMapping(
-            value = "containers",
-            params = {"num", "userId"},
-            method = RequestMethod.GET)
-
-    public List<Container> getContainerByNumber(@RequestParam("num") String num, @RequestParam("userId") int userId) throws SQLException{
-        LOGGER.info("Searching containers filtered by {}", num);
-        return ContainerController.getContainerByNumber(num);
-    }
-
     /**
      * Get audit logs
      */
