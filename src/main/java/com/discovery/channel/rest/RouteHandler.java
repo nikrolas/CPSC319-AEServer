@@ -3,8 +3,7 @@ package com.discovery.channel.rest;
 import com.discovery.channel.audit.AuditLogEntry;
 import com.discovery.channel.audit.AuditLogger;
 import com.discovery.channel.database.*;
-import com.discovery.channel.exception.IllegalArgumentException;
-import com.discovery.channel.form.DeleteRecordsForm;
+import com.discovery.channel.form.RecordsForm;
 import com.discovery.channel.form.UpdateRecordForm;
 import com.discovery.channel.model.*;
 
@@ -173,7 +172,7 @@ public class RouteHandler {
             value = "records",
             params = {"userId"},
             method = RequestMethod.DELETE)
-    public BatchResponse deleteRecords(@RequestParam("userId") int userId, @RequestBody DeleteRecordsForm form) throws SQLException {
+    public BatchResponse deleteRecords(@RequestParam("userId") int userId, @RequestBody RecordsForm form) throws SQLException {
         return RecordController.deleteRecords(userId, form);
     }
 
@@ -305,6 +304,20 @@ public class RouteHandler {
             method = RequestMethod.GET)
     public List<AuditLogEntry> getAuditLogs() throws SQLException{
         return AuditLogger.getLogs();
+    }
+
+    /**
+     * Destroy records given record ids
+     *
+     * @param  form
+     * @return httpstatus 200 if success, error message with record id(s) that can be destroyed otherwise
+     */
+    @RequestMapping(
+            value = "destroyrecords",
+            params = {"userId"},
+            method = RequestMethod.PUT)
+    public ResponseEntity<?> destroyRecords(@RequestParam("userId") int userId, @RequestBody RecordsForm form) throws SQLException {
+        return RecordController.prepareToDestroyRecords(form, userId);
     }
 
 }

@@ -11,7 +11,7 @@ import java.util.List;
 
 @Getter
 @Setter
-public class DeleteRecordsForm {
+public class RecordsForm {
     @JsonFormat(with = JsonFormat.Feature.ACCEPT_SINGLE_VALUE_AS_ARRAY)
     private List<Integer> recordIds;
 }
