@@ -446,7 +446,7 @@ public class ContainerController {
         for (Integer id : ids) {
             if (!getRecordIdsInContainer(id).isEmpty()) {
                 failedId.add(id);
-                Record record = RecordController.getRecordById(id);
+                Record record = RecordController.getRecordById(id, userId);
                 failedNum.add(record.getNumber());
             }
         }
