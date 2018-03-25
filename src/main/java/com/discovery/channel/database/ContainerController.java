@@ -390,7 +390,7 @@ public class ContainerController {
             "( SELECT LocationId  " +
             "FROM locations l  LEFT JOIN userlocations ul ON (ul.LocationId = l.Id ) " +
             "WHERE l.Restricted = false OR ul.UserId = ?) " +
-            "WHERE Number LIKE ? ";
+            "AND Number LIKE ? ";
     public static int getContainerCountByNumber(String number, int userId) throws SQLException {
         try (Connection connection = DbConnect.getConnection();
             PreparedStatement pst = connection.prepareStatement(GET_CONTAINER_COUNT_BY_NUMBER)) {
