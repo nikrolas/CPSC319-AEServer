@@ -302,12 +302,13 @@ public class RouteHandler {
     @RequestMapping(
             value = "volume/{id}",
             params = {"copyNotes", "userId"},
-            method = RequestMethod.PUT)
+            method = RequestMethod.POST)
     public Record createVolume(@PathVariable("id") Integer id, @RequestParam("userId") int userId,
                                   @RequestParam("copyNotes") Boolean copyNotes) throws SQLException{
         return RecordController.createVolume(id, userId, copyNotes);
     }
-                                  
+
+    /**
      * Get audit logs
      */
     @RequestMapping(
