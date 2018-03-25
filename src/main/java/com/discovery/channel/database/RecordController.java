@@ -343,7 +343,7 @@ public class RecordController {
         }
 
         if (!Authenticator.isUserAuthenticatedForLocation(userId, record.getLocationId())) {
-            throw new AuthenticationException(String.format("User %d is not authenticated to create record under localtion %d", userId, record.getLocationId()));
+            throw new AuthenticationException(String.format("User %d is not authenticated to create record under location %d", userId, record.getLocationId()));
         }
 
 
@@ -680,6 +680,139 @@ public class RecordController {
         return documentList;
     }
     
+    /**
+     * Create a new volume
+     * @throws SQLException
+     * @throws IllegalArgumentException
+     */
+    private static final String CHECK_LATEST_VOLUME =
+        "SELECT r.Id = s.Id as latestVolume " +
+        "FROM (SELECT * " +
+                "FROM records " +
+                "WHERE Id = ?) AS r " +
+        "JOIN (SELECT Id, Number " +
+                "FROM records " +
+                      "WHERE Number LIKE BINARY ? " +
+                      "ORDER BY Number DESC " +
+                      "LIMIT 1) AS s; ";
+    private static final String UPDATE_LATEST_VOLUME =
+            "UPDATE records " +
+            "SET Number=?, StateId=?, UpdatedAt=NOW() " +
+            "WHERE Id= ?";;
+    private static final String CREATE_NEW_VOLUME =
+            "INSERT INTO records (Number, Title, ScheduleId, TypeId, ConsignmentCode, StateId, ContainerId, LocationId, CreatedAt, UpdatedAt, ClosedAt) " +
+            "SELECT ?, Title, ScheduleId, TypeId, ConsignmentCode, StateId, ContainerId, LocationId, NOW(), NOW(), ClosedAt " +
+            "FROM records " +
+            "WHERE Id = ?";
+    private static final String COPY_NOTES =
+            "INSERT INTO notes (TableId, RowId, Chunk, Text) " +
+            "SELECT TableId, ?, Chunk, Text " +
+            "FROM notes " +
+            "WHERE TableId = ? AND RowId = ?";
+    // todo use @Transactional
+    public static Record createVolume(Integer id, int userId, Boolean copyNotes) throws SQLException{
+        if (!Authenticator.authenticate(userId, Role.ADMINISTRATOR) &&
+                !Authenticator.authenticate(userId, Role.RMC)) {
+            throw new AuthenticationException(String.format("User %d is not authenticated to create volume", userId));
+        }
+
+        Record baseRecord = getRecordById(id);
+        if (baseRecord == null) {
+            throw new IllegalArgumentException(String.format("Unable to create new volume from record id %d. Record does not exist.", id));
+        }
+
+        if (!Authenticator.isUserAuthenticatedForLocation(userId, baseRecord.getLocationId())) {
+            throw new AuthenticationException(String.format("User %d is not authenticated to create volume under location %d", userId, baseRecord.getLocationId()));
+        }
+
+        // Check colon count to increment volume
+        String number = baseRecord.getNumber();
+        String baseNumber;
+
+        int colonCount = StringUtils.countOccurrencesOf(number, ":");
+        if (colonCount > 1) {
+            throw new IllegalArgumentException(String.format("Unsupported volume format for create volume %s.", baseRecord.getNumber()));
+        } else if (colonCount == 1) {
+            String[] pieces = baseRecord.getNumber().split(":");
+            baseNumber = pieces[0];
+            int newVolume = Integer.parseInt(pieces[1]) + 1;
+            if (newVolume > 99) {
+                throw new IllegalArgumentException(String.format(
+                        "Unable to create volume %d for record %s. Volume numbers over 99 currently not supported.",
+                        newVolume, number));
+            }
+            number = String.format("%s:%02d", baseNumber, newVolume);
+        } else {
+            baseNumber = number;
+            number = number + ":02";
+        }
+
+        // Check if it's the latest volume
+        try (Connection conn = DbConnect.getConnection();
+            PreparedStatement ps = conn.prepareStatement(CHECK_LATEST_VOLUME)){
+            ps.setInt(1, id);
+            ps.setString(2, baseNumber + "%");
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    if (!rs.getBoolean("latestVolume")) {
+                        throw new IllegalArgumentException(String.format(
+                                "Unable to create new volume from record number %s. New volumes can only be created from latest existing volume.",
+                                baseRecord.getNumber()));
+                    }
+                }
+            }
+        }
+
+        int newRecordId = -1;
+        try (Connection conn = DbConnect.getConnection()){
+            conn.setAutoCommit(false);
+
+            // Create the new volume
+            PreparedStatement ps = conn.prepareStatement(CREATE_NEW_VOLUME, Statement.RETURN_GENERATED_KEYS);
+            ps.setString(1, number);
+            ps.setInt(2, id);
+            int rowsModified = ps.executeUpdate();
+
+            try (ResultSet rs = ps.getGeneratedKeys()) {
+                if (rs.next()) {
+                    newRecordId =  rs.getInt(1);
+                }
+            }
+
+            if (newRecordId < 0 || rowsModified != 1) {
+                LOGGER.error(String.format("Failed to save new volume to DB. Rows modified: %d.", rowsModified));
+                throw new SQLException(String.format("Failed to save new volume to DB. Rows modified: %d.", rowsModified));
+            }
+
+            // Copy the notes
+            if (copyNotes) {
+                ps = conn.prepareStatement(COPY_NOTES);
+                ps.setInt(1, newRecordId);
+                ps.setInt(2, NoteTable.RECORDS.id);
+                ps.setInt(3, id);
+                ps.executeUpdate();
+            }
+
+            // Update first volume
+            ps = conn.prepareStatement(UPDATE_LATEST_VOLUME);
+            ps.setString(1, colonCount == 1 ? baseRecord.getNumber() : baseRecord.getNumber() + ":01");
+            ps.setInt(2, RecordState.INACTIVE.getId());
+            ps.setInt(3, id);
+            rowsModified = ps.executeUpdate();
+
+            if (rowsModified != 1) {
+                throw new SQLException(String.format("Could not update base volume. Updated %d records.", rowsModified));
+            }
+
+            conn.commit();
+        }
+
+        LOGGER.info("Updated record. Record Id {}", id);
+        LOGGER.info("Created record. Record Id {}", newRecordId);
+        // TODO audit log
+        return getRecordById(newRecordId);
+    }
+
     /**
      * build sql statement for getRecordsByIds
      *
