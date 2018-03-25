@@ -6,12 +6,14 @@ import com.discovery.channel.authenticator.Role;
 import com.discovery.channel.exception.AuthenticationException;
 import com.discovery.channel.exception.IllegalArgumentException;
 import com.discovery.channel.exception.NoResultsFoundException;
-import com.discovery.channel.form.DeleteRecordsForm;
+import com.discovery.channel.form.RecordsForm;
 import com.discovery.channel.form.UpdateRecordForm;
 import com.discovery.channel.model.*;
 import com.discovery.channel.response.BatchResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
 
 import java.sql.*;
@@ -21,7 +23,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.sql.Connection;
-import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -193,7 +194,6 @@ public class RecordController {
      * @param verbose
      * @return List of records
      */
-
     public static List<Record> getRecordsByIds(List<Integer> ids, boolean verbose) throws SQLException {
         List<Record> records = new ArrayList<>();
 
@@ -201,7 +201,9 @@ public class RecordController {
             return records;
         }
 
-        String idStr = buildString(ids);
+        String query = "SELECT * FROM records WHERE Id IN (";
+
+        String idStr = buildString(ids, query);
 
         try (Connection connection = DbConnect.getConnection();
              PreparedStatement ps = connection.prepareStatement(idStr)) {
@@ -215,6 +217,7 @@ public class RecordController {
                 }
             }
         }
+
         return records;
     }
 
@@ -483,7 +486,7 @@ public class RecordController {
         return rowsModified == 1;
     }
 
-    public static BatchResponse deleteRecords(int userId, DeleteRecordsForm form) throws SQLException {
+    public static BatchResponse deleteRecords(int userId, RecordsForm form) throws SQLException {
         BatchResponse response = new BatchResponse();
 
         if (form.getRecordIds().isEmpty()) {
@@ -814,18 +817,106 @@ public class RecordController {
     }
 
     /**
-     * build sql statement for getRecordsByIds
+     * Prepare to destroy records
      *
      * @param ids
+     * @param userId
+     * @throws SQLException
+     */
+    private static final String RECORD_IS_NOT_CLOSED = "The record is not closed.";
+    private static final String RETENTION_NOT_END = "The record's retention period has not ended yet.";
+    public static ResponseEntity<?> prepareToDestroyRecords(RecordsForm ids, int userId) throws SQLException {
+
+        User user = UserController.getUserByUserTableId(userId);
+
+        if (!Authenticator.authenticate(userId, Role.RMC) && !Authenticator.authenticate(userId, Role.ADMINISTRATOR)) {
+            throw new AuthenticationException(String.format("User %s is not authenticated to destroy record(s)", user.getUserId()));
+        }
+
+        List<Integer> failedIds = new ArrayList<>();
+        List<String> failedNmbers = new ArrayList<>();
+        Date currentDate = new Date(Calendar.getInstance().getTimeInMillis());
+        HashMap<String, Object> errorResponse = new HashMap<>();
+
+        List<Record> listOfRecords = getRecordsByIds(ids.getRecordIds(), true);
+        Map<String, List<String>> noClosedAt = DestructionDateController.checkRecordsClosedAt(listOfRecords);
+
+        if(!noClosedAt.get("id").isEmpty()){
+            LOGGER.info("Record id(s) do not have ClosedAt", noClosedAt.get("id"));
+            errorResponse.put("id", noClosedAt.get("id"));
+            errorResponse.put("number", noClosedAt.get("number"));
+            errorResponse.put("error", RECORD_IS_NOT_CLOSED);
+
+        }else{
+            if(listOfRecords.size() == ids.getRecordIds().size()) {
+                for (Record record : listOfRecords) {
+                    if (record != null) {
+                        if (record.getStateId() != RecordState.DESTROYED.getId()) {
+                            Date destructionDate = new Date(DestructionDateController.addYearToTheLatestClosureDate(record.getScheduleYear(), record.getClosedAt()));
+                            if (destructionDate.compareTo(currentDate) > 0) {
+                                failedIds.add(record.getId());
+                                failedNmbers.add(record.getNumber());
+                            }
+                        }
+                    } else {
+                        LOGGER.info("Record id {} does not exist", record.getId());
+                        String output = String.format("Record %s does not exist", record.getNumber());
+                        new ResponseEntity<>(output, HttpStatus.BAD_REQUEST);
+                    }
+                }
+
+                if (failedIds.isEmpty()) {
+                    LOGGER.info("Records passed all the checking");
+                    destroyRecords(ids.getRecordIds());
+                    return new ResponseEntity<>(HttpStatus.OK);
+
+                } else {
+                    LOGGER.info("Records destruction date(s) not passed yet");
+                    errorResponse.put("id", failedIds);
+                    errorResponse.put("number", failedNmbers);
+                    errorResponse.put("error", RETENTION_NOT_END);
+                }
+            }else{
+                return new ResponseEntity<>("One or more record(s) do not exist",HttpStatus.BAD_REQUEST);
+            }
+        }
+        return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
+    }
+
+
+    /**
+     * Destroy record(s) given ids
+     *
+     * @param ids
+     * @throws SQLException
+     */
+    public static void destroyRecords(List<Integer> ids) throws SQLException {
+
+        String query = "UPDATE records" + " SET StateId = " + RecordState.DESTROYED.getId() + " , UpdatedAt = now() " + "WHERE Id IN (";
+        String destroyRecordsQuery = buildString(ids, query);
+
+        try (Connection conn = DbConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(destroyRecordsQuery)){
+            ps.executeUpdate();
+
+        }
+    }
+
+
+    /**
+     * build sql statement
+     *
+     * @param ids
+     * @param str
      * @return sql statement
      */
-    private static String buildString(List<Integer> ids) {
+    private static String buildString(List<Integer> ids, String str){
 
-        String str = "SELECT * FROM records WHERE Id IN (";
         Iterator<Integer> idsIterator = ids.iterator();
-        while (idsIterator.hasNext()) {
+        while(idsIterator.hasNext())
+        {
             str = str + idsIterator.next().toString();
-            if (idsIterator.hasNext()) {
+            if(idsIterator.hasNext()){
                 str = str + ",";
             }
         }
