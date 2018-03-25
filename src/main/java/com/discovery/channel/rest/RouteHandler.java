@@ -309,7 +309,7 @@ public class RouteHandler {
     public List<Record> getVolumesByNumber(@RequestParam("num") String num,
                                            @RequestParam("userId") int userId) throws SQLException {
         LOGGER.info("Searching volumes related to number {}", num);
-        return RecordController.getVolumesByNumber(num);
+        return RecordController.getVolumesByNumber(num, userId);
     }
 
     /**

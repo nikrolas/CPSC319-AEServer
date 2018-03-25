@@ -691,9 +691,13 @@ public class RecordController {
     private static final String FIND_VOLUMES_BY_NUMBER =
             "SELECT * " +
             "FROM records " +
-            "WHERE Number LIKE BINARY ? " +
-            "OR Number LIKE BINARY ?";
-    public static List<Record> getVolumesByNumber(String recordNumber) throws SQLException {
+            "WHERE LocationId IN " +
+                "(SELECT LocationId  " +
+                "FROM locations l  LEFT JOIN userlocations ul ON (ul.LocationId = l.Id ) " +
+                "WHERE l.Restricted = false OR ul.UserId = ?) " +
+            "AND (Number LIKE BINARY ? " +
+            "OR Number LIKE BINARY ?)";
+    public static List<Record> getVolumesByNumber(String recordNumber, int userId) throws SQLException {
         int colonIndex = recordNumber.indexOf(":");
         if (colonIndex != -1)
             recordNumber = recordNumber.substring(0, colonIndex);
@@ -702,8 +706,9 @@ public class RecordController {
 
         try (Connection conn = DbConnect.getConnection();
              PreparedStatement ps = conn.prepareStatement(FIND_VOLUMES_BY_NUMBER)){
-            ps.setString(1, recordNumber);
-            ps.setString(2, recordNumber + ":%");
+            ps.setInt(1, userId);
+            ps.setString(2, recordNumber);
+            ps.setString(3, recordNumber + ":%");
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     Record record = parseResultSet(rs);
