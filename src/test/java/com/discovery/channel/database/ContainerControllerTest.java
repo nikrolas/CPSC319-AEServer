@@ -60,6 +60,8 @@ class ContainerControllerTest {
 
         List<Integer> expected = Arrays.asList(274,275,276,313,314,315,316,317,318,319,320,321,3211);
         assertTrue(expected.containsAll(c.getChildRecordIds()) && c.getChildRecordIds().containsAll(expected));
+
+        //todo: this test does not check retrieval of state/stateId, location/locationId, type/typeId, schedule/scheduleId
     }
 
     @Test
@@ -147,8 +149,7 @@ class ContainerControllerTest {
 
 
     private Container createValidNewContainerRequest(String title, String number) throws JSONException{
-        Container c = new Container(0, number, title, null, null, null, null, null, null);
-        return c;
+        return new Container(0, number, title, null, null, null, 1, 5, 1, 8, null, null, null);
     }
 
 

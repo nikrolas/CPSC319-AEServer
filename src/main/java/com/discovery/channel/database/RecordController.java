@@ -1,5 +1,6 @@
 package com.discovery.channel.database;
 
+import com.discovery.channel.audit.AuditLogger;
 import com.discovery.channel.authenticator.Authenticator;
 import com.discovery.channel.authenticator.Role;
 import com.discovery.channel.exception.AuthenticationException;
@@ -14,8 +15,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.util.StringUtils;
 
 import java.sql.*;
+import java.sql.Date;
+import java.util.*;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.sql.Connection;
@@ -24,6 +26,8 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 
 public class RecordController {
@@ -35,20 +39,24 @@ public class RecordController {
      * @param recordNumber
      * @return a list of records
      */
-    private static final String GET_RECORD_BY_NUMBER = "SELECT * " +
-            "FROM records " +
+    private static final String GET_RECORD_BY_NUMBER =
+            "SELECT * FROM records " +
             "WHERE LocationId IN " +
             "( SELECT LocationId  " +
             "FROM locations l  LEFT JOIN userlocations ul ON (ul.LocationId = l.Id ) " +
             "WHERE l.Restricted = false OR ul.UserId = ?) " +
             "AND records.Number LIKE ? " +
-            "ORDER BY UpdatedAt LIMIT 20";
-    public static List<Record> getRecordByNumber(String recordNumber, int userId) throws SQLException {
+            "ORDER BY Number ASC " +
+            " LIMIT ?, ?";
+    public static List<Record> getRecordPageByNumber(String number, int userId,
+                                                      int page, int pageSize) throws SQLException{
         List<Record> records = new ArrayList<>();
         try (Connection connection = DbConnect.getConnection();
-             PreparedStatement ps = connection.prepareStatement(GET_RECORD_BY_NUMBER)) {
+            PreparedStatement ps = connection.prepareStatement(GET_RECORD_BY_NUMBER)) {
             ps.setInt(1, userId);
-            ps.setString(2, "%" + recordNumber + "%");
+            ps.setString(2, "%" + number + "%");
+            ps.setInt(3, (page - 1) * pageSize);
+            ps.setInt(4, pageSize);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     Record record = parseResultSet(rs);
@@ -58,6 +66,77 @@ public class RecordController {
             }
         }
         return records;
+    }
+
+    private static final String GET_RECORD_COUNT_BY_NUMBER =
+            "SELECT COUNT(*) FROM records " +
+            "WHERE LocationId IN" +
+            "( SELECT LocationId  " +
+            "FROM locations l  LEFT JOIN userlocations ul ON (ul.LocationId = l.Id ) " +
+            "WHERE l.Restricted = false OR ul.UserId = ?) " +
+            "AND Number LIKE ? ";
+    public static int getRecordCountByNumber(String number, int userId) throws SQLException {
+        try (Connection connection = DbConnect.getConnection();
+             PreparedStatement ps = connection.prepareStatement(GET_RECORD_COUNT_BY_NUMBER)) {
+            ps.setInt(1, userId);
+            ps.setString(2, "%" + number + "%");
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1);
+                } else {
+                    LOGGER.error(String.format("Could not get count of records: %s", number));
+                    throw new SQLException(String.format("Could not get count of records: %s", number));
+                }
+            }
+        }
+    }
+
+    public static PagedResults<Document> getByNumber(String number,
+                                                   Boolean searchRecord, Boolean searchContainer,
+                                                   int page, int pageSize,
+                                                   int userId) throws SQLException {
+        if (page < 1 || pageSize < 1) {
+            throw new IllegalArgumentException("Page number and results per page must be at least 1.");
+        }
+        if (!(searchRecord || searchContainer)) {
+            throw new IllegalArgumentException("Search must include at least one of the following: {record, container}");
+        }
+
+        int recordCount = 0;
+        int containerCount = 0;
+        List<Document> documents;
+
+        if (searchRecord && searchContainer) {
+            recordCount = getRecordCountByNumber(number, userId);
+            containerCount = ContainerController.getContainerCountByNumber(number, userId);
+
+            if (recordCount > page * pageSize) {
+                documents = (List)getRecordPageByNumber(number, userId, page, pageSize);
+            }
+            else if (recordCount > (page - 1) * pageSize &&
+                     recordCount < page * pageSize) {
+                documents = new ArrayList<>(pageSize);
+                documents.addAll((List)getRecordPageByNumber(number, userId, page, pageSize));
+                documents.addAll((List)ContainerController.getContainerPageByNumber(number, userId,
+                        1, pageSize - (recordCount - (page - 1) * pageSize)));
+            }
+            else { // recordCount < (page - 1) * pageSize
+                documents = (List)ContainerController.getContainerPageByNumber(number, userId, page, pageSize);
+            }
+        }
+        else if (searchRecord) {
+            recordCount = getRecordCountByNumber(number, userId);
+            documents = (List)ContainerController.getContainerPageByNumber(number, userId, page, pageSize);
+        }
+        else { // only searchContainer
+            containerCount = ContainerController.getContainerCountByNumber(number, userId);
+            documents = (List)ContainerController.getContainerPageByNumber(number, userId, page, pageSize);
+        }
+
+        documents = scrubDocuments(documents, userId);
+
+        return new PagedResults<>(page, (recordCount + containerCount + pageSize - 1) / pageSize,
+                documents);
     }
 
     /**
@@ -96,35 +175,40 @@ public class RecordController {
      */
     private static final String GET_RECORD_BY_ID =
             "SELECT * " +
-                    "FROM records WHERE Id = ?";
+            "FROM records WHERE Id = ?";
     public static Record getRecordById(Integer id, int userId) throws SQLException {
         try (Connection connection = DbConnect.getConnection();
              PreparedStatement ps = connection.prepareStatement(GET_RECORD_BY_ID)) {
             ps.setInt(1, id);
             try (ResultSet resultSet = ps.executeQuery()) {
-                if (resultSet.next()) {
-                    Record record = parseResultSet(resultSet);
-                    loadRecordDetail(record);
-                    if (!Authenticator.canUserViewLocation(userId, record.getLocationId())) {
-                        throw new AuthenticationException("User " + userId + " is not allowed to view records on location " + record.getLocation());
-                    }
-                    return record;
+                verifyResultNotEmpty(resultSet);
+                resultSet.next();
+                Record record = parseResultSet(resultSet);
+                loadRecordDetail(record);
+                if (!Authenticator.canUserViewLocation(userId, record.getLocationId())) {
+                    throw new AuthenticationException("User " + userId + " is not allowed to view records on location " + record.getLocation());
                 }
+                return record;
             }
         }
-        LOGGER.info("Record {} does not exist");
-        return null;
+    }
+
+    //todo: consider moving this to a more general location to be used by other controllers
+    public static void verifyResultNotEmpty(ResultSet rs) throws SQLException {
+        if (!rs.isBeforeFirst()) {
+            LOGGER.info("Record {} does not exist");
+            throw new NoResultsFoundException("The query returned no results");
+        }
     }
 
     /**
      * Retrieve multiple records
      *
-     * @param id
+     * @param ids
+     * @param verbose
      * @return List of records
      */
-    private static final String GET_RECORDS_BY_IDS =
-            "SELECT * " +
-                    "FROM records WHERE Id IN (?)";
+
     public static List<Record> getRecordsByIds(List<Integer> ids, boolean verbose) throws SQLException {
         List<Record> records = new ArrayList<>();
 
@@ -132,9 +216,10 @@ public class RecordController {
             return records;
         }
 
+        String idStr = buildString(ids);
+
         try (Connection connection = DbConnect.getConnection();
-             PreparedStatement ps = connection.prepareStatement(GET_RECORD_BY_ID)) {
-            ps.setArray(1, connection.createArrayOf("int",ids.toArray()));
+             PreparedStatement ps = connection.prepareStatement(idStr)) {
             try (ResultSet resultSet = ps.executeQuery()) {
                 while (resultSet.next()) {
                     Record record = parseResultSet(resultSet);
@@ -155,12 +240,12 @@ public class RecordController {
      * @throws SQLException
      */
     private static void loadRecordDetail(Record record) throws SQLException {
-        record.setLocation(getLocationName(record.getLocationId()));
+        record.setLocation(LocationController.getLocationNameByLocationId(record.getLocationId()));
         record.setType(RecordTypeController.getTypeName(record.getTypeId()));
-        record.setState(getStateName(record.getStateId()));
+        record.setState(StateController.getStateName(record.getStateId()));
         record.setContainerNumber(getContainerNumber(record.getContainerId()));
 
-        Map<String, String> schedule = getRetentionSchedule(record.getScheduleId());
+        Map<String, String> schedule = RetentionScheduleController.getRetentionSchedule(record.getScheduleId());
         record.setSchedule(schedule.get("Name"));
         record.setScheduleYear(Integer.valueOf(schedule.get("Years")));
 
@@ -174,91 +259,42 @@ public class RecordController {
         record.setClassifications(Classification.buildClassificationString(classifications));
 
         // Load notes
-        record.setNotes(getRecordNotes(record.getId()));
+        record.setNotes(NoteTableController.getRecordNotes(record.getId()));
     }
 
     /**
      * Parse result set from record table
+     *
      * @param resultSet
      * @return
      * @throws SQLException
      */
     private static Record parseResultSet(ResultSet resultSet) throws SQLException {
-            int id = resultSet.getInt("Id");
-            String title = resultSet.getString("Title");
-            String number = resultSet.getString("Number");
-            int scheduleId = resultSet.getInt("ScheduleId");
-            int typeId = resultSet.getInt("TypeId");
-            String consignmentCode = resultSet.getString("ConsignmentCode");
-            int stateId = resultSet.getInt("StateId");
-            int containerId = resultSet.getInt("ContainerId");
-            int locationId = resultSet.getInt("LocationId");
-            Date createdAt = resultSet.getDate("CreatedAt");
-            Date updatedAt = resultSet.getDate("UpdatedAt");
-            Date closedAt = resultSet.getDate("ClosedAt");
-            return new Record(id,
-                    title,
-                    number,
-                    scheduleId,
-                    typeId,
-                    consignmentCode,
-                    stateId,
-                    containerId,
-                    locationId,
-                    createdAt,
-                    updatedAt,
-                    closedAt);
+        int id = resultSet.getInt("Id");
+        String title = resultSet.getString("Title");
+        String number = resultSet.getString("Number");
+        int scheduleId = resultSet.getInt("ScheduleId");
+        int typeId = resultSet.getInt("TypeId");
+        String consignmentCode = resultSet.getString("ConsignmentCode");
+        int stateId = resultSet.getInt("StateId");
+        int containerId = resultSet.getInt("ContainerId");
+        int locationId = resultSet.getInt("LocationId");
+        Date createdAt = resultSet.getDate("CreatedAt");
+        Date updatedAt = resultSet.getDate("UpdatedAt");
+        Date closedAt = resultSet.getDate("ClosedAt");
+        return new Record(id,
+                title,
+                number,
+                scheduleId,
+                typeId,
+                consignmentCode,
+                stateId,
+                containerId,
+                locationId,
+                createdAt,
+                updatedAt,
+                closedAt);
     }
-
-
-    /**
-     * Retrieve name for a location given location id
-     *
-     * @param location id
-     * @return location name
-     */
-    private static final String GET_LOCATION_NAME_BY_ID = "SELECT Name " +
-            "FROM locations " +
-            "WHERE Id=?";
-
-    private static String getLocationName(int locationId) throws SQLException {
-        try (Connection con = DbConnect.getConnection();
-             PreparedStatement ps = con.prepareStatement(GET_LOCATION_NAME_BY_ID)) {
-            ps.setInt(1, locationId);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    return rs.getString("Name");
-                }
-            }
-        }
-        return null;
-    }
-
-
-    /**
-     * retentionschedules table to get schedule name and years by Id
-     *
-     * @param retention schedule id
-     * @return schedule name and years
-     */
-    private static final String GET_RECORD_SCHEDULE = "SELECT * " +
-            "FROM retentionschedules " +
-            "WHERE Id=?";
-    private static Map<String, String> getRetentionSchedule(int id) throws SQLException {
-        Map<String, String> schedule = new HashMap<String, String>();
-        try (Connection con = DbConnect.getConnection();
-             PreparedStatement ps = con.prepareStatement(GET_RECORD_SCHEDULE)) {
-            ps.setInt(1, id);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    schedule.put("Name", rs.getString("Name"));
-                    schedule.put("Years", String.valueOf(rs.getInt("Years")));
-                }
-            }
-        }
-        return schedule;
-    }
-
 
     /**
      * Join records table with containers table to get container name
@@ -283,30 +319,6 @@ public class RecordController {
         return null;
     }
 
-
-    /**
-     * Get state name by id
-     *
-     * @param stateId
-     * @return state name
-     */
-    private static final String GET_STATE_BY_ID = "SELECT Name " +
-            "FROM recordstates " +
-            "WHERE Id = ?";
-
-    private static String getStateName(int stateId) throws SQLException {
-        try (Connection con = DbConnect.getConnection();
-             PreparedStatement ps = con.prepareStatement(GET_STATE_BY_ID)) {
-            ps.setInt(1, stateId);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    return rs.getString("Name");
-                }
-            }
-        }
-        return null;
-    }
-
     /**
      * Get ordered list of classifications Ids for a record
      *
@@ -318,6 +330,7 @@ public class RecordController {
             "SELECT ClassId " +
                     "FROM recordclassifications " +
                     "WHERE RecordId=? ORDER BY Ordinal ASC";
+
     private static List<Integer> getRecordClassifications(int recordId) throws SQLException {
         List<Integer> classIds = new ArrayList<>();
         try (Connection conn = DbConnect.getConnection();
@@ -340,12 +353,12 @@ public class RecordController {
      * @return
      */
     public static Record createRecord (Record record, int userId) throws SQLException {
-        if (!Authenticator.authenticate(userId, Role.RMC)) {
+        if (!Authenticator.authenticate(userId, Role.ADMINISTRATOR) && !Authenticator.authenticate(userId, Role.RMC)) {
             throw new AuthenticationException(String.format("User %d is not authenticated to create record", userId));
         }
 
         if (!Authenticator.isUserAuthenticatedForLocation(userId, record.getLocationId())) {
-            throw new AuthenticationException(String.format("User %d is not authenticated to create record under localtion %d", userId, record.getLocationId()));
+            throw new AuthenticationException(String.format("User %d is not authenticated to create record under location %d", userId, record.getLocationId()));
         }
 
 
@@ -374,36 +387,36 @@ public class RecordController {
             return null;
         }
         LOGGER.info("Created record. Record Id {}", newRecordId);
-        // TODO save notes
-        // TODO audit log : Need to determine the schema
+        AuditLogger.log(userId, AuditLogger.Target.RECORD, newRecordId, AuditLogger.ACTION.CREATE);
         return getRecordById(newRecordId, userId);
     }
 
 
     private static final String CREATE_RECORD_SQL =
             "INSERT INTO records (Number, Title, ScheduleId, TypeId, ConsignmentCode, StateId, ContainerId, LocationId, CreatedAt, UpdatedAt) " +
-            "VALUES(?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())";
+                    "VALUES(?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())";
+
     private static int saveRecordToDb(Record record) throws SQLException {
-        try(Connection conn = DbConnect.getConnection();
-            PreparedStatement ps = conn.prepareStatement(CREATE_RECORD_SQL, Statement.RETURN_GENERATED_KEYS)) {
+        try (Connection conn = DbConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(CREATE_RECORD_SQL, Statement.RETURN_GENERATED_KEYS)) {
             ps.setString(1, record.getNumber());
             ps.setString(2, record.getTitle());
             ps.setInt(3, record.getScheduleId());
             ps.setInt(4, record.getTypeId());
-            ps.setString(5, record.getConsignmentCode() == null? "" : record.getConsignmentCode());
+            ps.setString(5, record.getConsignmentCode() == null ? "" : record.getConsignmentCode());
             ps.setInt(6, record.getStateId());
-            if (record.getContainerId() <= 0){
+            if (record.getContainerId() <= 0) {
                 ps.setNull(7, java.sql.Types.INTEGER);
-            }else {
+            } else {
                 ps.setInt(7, record.getContainerId());
             }
-            ps.setInt(8,record.getLocationId());
+            ps.setInt(8, record.getLocationId());
             ps.executeUpdate();
 
             int newRecordId = -1;
             try (ResultSet rs = ps.getGeneratedKeys()) {
                 if (rs.next()) {
-                    newRecordId =  rs.getInt(1);
+                    newRecordId = rs.getInt(1);
                 }
             }
 
@@ -412,7 +425,7 @@ public class RecordController {
                 return -1;
             }
             saveClassificationForRecord(newRecordId, record.getClassifications());
-            if (!StringUtils.isEmpty(record.getNotes()) ) {
+            if (!StringUtils.isEmpty(record.getNotes())) {
                 NoteTableController.saveNotesForRecord(newRecordId, record.getNotes());
             }
             return newRecordId;
@@ -421,10 +434,9 @@ public class RecordController {
 
     private static final String INSERT_RECORD_CLASSIFICATION =
             "INSERT INTO recordclassifications (RecordId, ClassId, Ordinal) " +
-            "VALUES (?, ?, ?)";
+                    "VALUES (?, ?, ?)";
 
     /**
-     *
      * @param recordId
      * @param classificationStr
      * @throws SQLException
@@ -432,7 +444,7 @@ public class RecordController {
     private static void saveClassificationForRecord(int recordId, String classificationStr) throws SQLException {
         List<Integer> classificationIds = Classification.parseClassificationStrToIds(classificationStr);
         try (Connection conn = DbConnect.getConnection();
-             PreparedStatement ps = conn.prepareStatement(INSERT_RECORD_CLASSIFICATION)){
+             PreparedStatement ps = conn.prepareStatement(INSERT_RECORD_CLASSIFICATION)) {
             for (int i = 0; i < classificationIds.size(); i++) {
                 ps.setInt(1, recordId);
                 ps.setInt(2, classificationIds.get(i));
@@ -445,32 +457,6 @@ public class RecordController {
     }
 
     /**
-     * Get ordered list of classifications Ids for a record
-     *
-     * @param recordId
-     * @return
-     * @throws SQLException
-     */
-    private static final String GET_RECORD_NOTES = "SELECT Text " +
-            "FROM notes " +
-            "WHERE TableId=? AND RowId=? " +
-            "ORDER BY Chunk ASC";
-    private static String getRecordNotes(int recordId) throws SQLException {
-        String notes = "";
-        try (Connection conn = DbConnect.getConnection();
-             PreparedStatement ps = conn.prepareStatement(GET_RECORD_NOTES)) {
-            ps.setInt(1, NoteTable.RECORDS.id);
-            ps.setInt(2, recordId);
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    notes = notes + rs.getString("Text");
-                }
-            }
-        }
-        return notes;
-    }
-
-    /**
      * Delete a record by Id
      *
      * @param id
@@ -479,6 +465,7 @@ public class RecordController {
      */
     private static final String DELETE_RECORD_BY_ID = "DELETE FROM records " +
             "where Id=?";
+
     private static boolean deleteRecord(Integer id, int userId) throws SQLException {
         // TODO : audit log
 
@@ -498,10 +485,12 @@ public class RecordController {
         // 2. Classifications are deleted because of database constraint
         int rowsModified = 0;
         try (Connection conn = DbConnect.getConnection();
-             PreparedStatement ps = conn.prepareStatement(DELETE_RECORD_BY_ID)){
+             PreparedStatement ps = conn.prepareStatement(DELETE_RECORD_BY_ID)) {
             ps.setInt(1, id);
             rowsModified = ps.executeUpdate();
         }
+
+        AuditLogger.log(userId, AuditLogger.Target.RECORD, id, AuditLogger.ACTION.DELETE);
 
         // 3. Delete notes
         NoteTableController.deleteNotesForRecord(id);
@@ -517,7 +506,7 @@ public class RecordController {
             return response;
         }
 
-        if (!Authenticator.authenticate(userId, Role.RMC)) {
+        if (!Authenticator.authenticate(userId, Role.ADMINISTRATOR) && !Authenticator.authenticate(userId, Role.RMC)) {
             throw new AuthenticationException(String.format("User %d is not authenticated to delete record", userId));
         }
 
@@ -547,12 +536,14 @@ public class RecordController {
     private static final String UPDATE_RECORD = "UPDATE records " +
             "SET Title=?, ScheduleId=?, StateId=?, ConsignmentCode=?,ContainerId=?, UpdatedAt=NOW() " +
             "WHERE Id= ?";
+
     public static void updateRecord(Integer id, int userId, UpdateRecordForm updateForm) throws SQLException {
-        if (!Authenticator.authenticate(userId, Role.RMC)) {
+        if (!Authenticator.authenticate(userId, Role.ADMINISTRATOR) && !Authenticator.authenticate(userId, Role.RMC)) {
             throw new AuthenticationException(String.format("User %d is not authenticated to update record", userId));
         }
 
         Record record = getRecordById(id, userId);
+
         if (record == null) {
             throw new NoResultsFoundException(String.format("Record %d does not exist", id));
         }
@@ -576,6 +567,13 @@ public class RecordController {
             throw new IllegalArgumentException(String.format("Classification %s is not valid", updateForm.getClassifications()));
         }
 
+        // Validate container update
+        Container destinationContainer = updateForm.getContainerId() <= 0 ?
+                null : ContainerController.getContainerById(updateForm.getContainerId(), userId);
+        if (destinationContainer != null && isContainerChanged(record, updateForm.getContainerId())) {
+            ContainerController.validateContainerChangeForRecord(record, destinationContainer);
+        }
+
         LOGGER.info("About to update record {}", id);
 
         try (Connection conn = DbConnect.getConnection();
@@ -587,7 +585,7 @@ public class RecordController {
                 ps.setInt(2, updateForm.getScheduleId());
             }
             ps.setInt(3, updateForm.getStateId());
-            ps.setString(4, updateForm.getConsignmentCode() == null? "" : updateForm.getConsignmentCode());
+            ps.setString(4, updateForm.getConsignmentCode() == null ? "" : updateForm.getConsignmentCode());
             if (updateForm.getContainerId() <= 0) {
                 ps.setNull(5, Types.INTEGER);
             } else {
@@ -606,11 +604,48 @@ public class RecordController {
         // Update notes if need to
         if (StringUtils.isEmpty(updateForm.getNotes())) {
             NoteTableController.deleteNotesForRecord(id);
-        }else if(!updateForm.getNotes().equals(record.getNotes())) {
+        } else if (!updateForm.getNotes().equals(record.getNotes())) {
             NoteTableController.updateRecordNotes(id, updateForm.getNotes());
         }
 
-        //TODO audit logs
+        // Update container information and/or set record closedAt date if need to
+        if (isContainerChanged(record, updateForm.getContainerId())) {
+            if (destinationContainer != null) {
+                ContainerController.addRecordToContainer(destinationContainer, record);
+                setRecordClosedAtDate(id);
+            } else if (ContainerController.getContainerById(record.getContainerId(), userId).getChildRecordIds().size() == 0) {
+                ContainerController.clearContainerRecordInformation(record.getContainerId());
+            }
+        }
+
+        AuditLogger.log(userId, AuditLogger.Target.RECORD, id, AuditLogger.ACTION.UPDATE);
+    }
+
+    private static boolean isContainerChanged(Record record, int containerId) throws SQLException {
+        return record.getContainerId() != containerId;
+    }
+
+    private static final String SET_CLOSED_AT_DATE =
+            "UPDATE records SET closedAt = NOW(), updatedAt = NOW() WHERE id = ?";
+
+    private static void setRecordClosedAtDate(Integer recordId) throws SQLException {
+        try (Connection conn = DbConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(SET_CLOSED_AT_DATE)) {
+            ps.setInt(1, recordId);
+            ps.executeUpdate();
+        }
+    }
+
+    private static final String SET_RECORD_CONTAINER =
+            "UPDATE records SET closedAt = NOW(), updatedAt = NOW(), containerId = ? WHERE id = ?";
+
+    public static void setRecordContainer(int recordId, int containerId) throws SQLException {
+        try (Connection conn = DbConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(SET_RECORD_CONTAINER)) {
+            ps.setInt(1, containerId);
+            ps.setInt(2, recordId);
+            ps.executeUpdate();
+        }
     }
 
     /**
@@ -635,12 +670,183 @@ public class RecordController {
     private static final String DELETE_RECORD_CLASSIFICATIONS = "DELETE " +
             "FROM recordclassifications " +
             "WHERE RecordId=?";
+
     private static void deleteRecordClassfications(int recordId) throws SQLException {
         try (Connection conn = DbConnect.getConnection();
-             PreparedStatement ps = conn.prepareStatement(DELETE_RECORD_CLASSIFICATIONS)){
+             PreparedStatement ps = conn.prepareStatement(DELETE_RECORD_CLASSIFICATIONS)) {
             ps.setInt(1, recordId);
             ps.executeUpdate();
         }
     }
 
+    private static List<Document> scrubDocuments(List<Document> documentList, int userId) throws SQLException {
+        List<Location> locations = LocationController.getUserLocations(userId);
+        List<Integer> locationIds = locations.stream()
+                .map(elt -> elt.getLocationId())
+                .collect(Collectors.toList());
+        documentList.forEach(new Consumer<Document>() {
+            public void accept(Document document) {
+                if (!locationIds.contains(document.getLocationId())) {
+                    document.setConsignmentCode("***");
+                }
+
+            }
+        });
+        return documentList;
+    }
+    
+    /**
+     * Create a new volume
+     * @throws SQLException
+     * @throws IllegalArgumentException
+     */
+    private static final String CHECK_LATEST_VOLUME =
+        "SELECT r.Id = s.Id as latestVolume " +
+        "FROM (SELECT * " +
+                "FROM records " +
+                "WHERE Id = ?) AS r " +
+        "JOIN (SELECT Id, Number " +
+                "FROM records " +
+                      "WHERE Number LIKE BINARY ? " +
+                      "ORDER BY Number DESC " +
+                      "LIMIT 1) AS s; ";
+    private static final String UPDATE_LATEST_VOLUME =
+            "UPDATE records " +
+            "SET Number=?, StateId=?, UpdatedAt=NOW() " +
+            "WHERE Id= ?";;
+    private static final String CREATE_NEW_VOLUME =
+            "INSERT INTO records (Number, Title, ScheduleId, TypeId, ConsignmentCode, StateId, ContainerId, LocationId, CreatedAt, UpdatedAt, ClosedAt) " +
+            "SELECT ?, Title, ScheduleId, TypeId, ConsignmentCode, StateId, ContainerId, LocationId, NOW(), NOW(), ClosedAt " +
+            "FROM records " +
+            "WHERE Id = ?";
+    private static final String COPY_NOTES =
+            "INSERT INTO notes (TableId, RowId, Chunk, Text) " +
+            "SELECT TableId, ?, Chunk, Text " +
+            "FROM notes " +
+            "WHERE TableId = ? AND RowId = ?";
+    // todo use @Transactional
+    public static Record createVolume(Integer id, int userId, Boolean copyNotes) throws SQLException{
+        if (!Authenticator.authenticate(userId, Role.ADMINISTRATOR) &&
+                !Authenticator.authenticate(userId, Role.RMC)) {
+            throw new AuthenticationException(String.format("User %d is not authenticated to create volume", userId));
+        }
+
+        Record baseRecord = getRecordById(id, userId);
+        if (baseRecord == null) {
+            throw new IllegalArgumentException(String.format("Unable to create new volume from record id %d. Record does not exist.", id));
+        }
+
+        if (!Authenticator.isUserAuthenticatedForLocation(userId, baseRecord.getLocationId())) {
+            throw new AuthenticationException(String.format("User %d is not authenticated to create volume under location %d", userId, baseRecord.getLocationId()));
+        }
+
+        // Check colon count to increment volume
+        String number = baseRecord.getNumber();
+        String baseNumber;
+
+        int colonCount = StringUtils.countOccurrencesOf(number, ":");
+        if (colonCount > 1) {
+            throw new IllegalArgumentException(String.format("Unsupported volume format for create volume %s.", baseRecord.getNumber()));
+        } else if (colonCount == 1) {
+            String[] pieces = baseRecord.getNumber().split(":");
+            baseNumber = pieces[0];
+            int newVolume = Integer.parseInt(pieces[1]) + 1;
+            if (newVolume > 99) {
+                throw new IllegalArgumentException(String.format(
+                        "Unable to create volume %d for record %s. Volume numbers over 99 currently not supported.",
+                        newVolume, number));
+            }
+            number = String.format("%s:%02d", baseNumber, newVolume);
+        } else {
+            baseNumber = number;
+            number = number + ":02";
+        }
+
+        // Check if it's the latest volume
+        try (Connection conn = DbConnect.getConnection();
+            PreparedStatement ps = conn.prepareStatement(CHECK_LATEST_VOLUME)){
+            ps.setInt(1, id);
+            ps.setString(2, baseNumber + "%");
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    if (!rs.getBoolean("latestVolume")) {
+                        throw new IllegalArgumentException(String.format(
+                                "Unable to create new volume from record number %s. New volumes can only be created from latest existing volume.",
+                                baseRecord.getNumber()));
+                    }
+                }
+            }
+        }
+
+        int newRecordId = -1;
+        try (Connection conn = DbConnect.getConnection()){
+            conn.setAutoCommit(false);
+
+            // Create the new volume
+            PreparedStatement ps = conn.prepareStatement(CREATE_NEW_VOLUME, Statement.RETURN_GENERATED_KEYS);
+            ps.setString(1, number);
+            ps.setInt(2, id);
+            int rowsModified = ps.executeUpdate();
+
+            try (ResultSet rs = ps.getGeneratedKeys()) {
+                if (rs.next()) {
+                    newRecordId =  rs.getInt(1);
+                }
+            }
+
+            if (newRecordId < 0 || rowsModified != 1) {
+                LOGGER.error(String.format("Failed to save new volume to DB. Rows modified: %d.", rowsModified));
+                throw new SQLException(String.format("Failed to save new volume to DB. Rows modified: %d.", rowsModified));
+            }
+
+            // Copy the notes
+            if (copyNotes) {
+                ps = conn.prepareStatement(COPY_NOTES);
+                ps.setInt(1, newRecordId);
+                ps.setInt(2, NoteTable.RECORDS.id);
+                ps.setInt(3, id);
+                ps.executeUpdate();
+            }
+
+            // Update first volume
+            ps = conn.prepareStatement(UPDATE_LATEST_VOLUME);
+            ps.setString(1, colonCount == 1 ? baseRecord.getNumber() : baseRecord.getNumber() + ":01");
+            ps.setInt(2, RecordState.INACTIVE.getId());
+            ps.setInt(3, id);
+            rowsModified = ps.executeUpdate();
+
+            if (rowsModified != 1) {
+                throw new SQLException(String.format("Could not update base volume. Updated %d records.", rowsModified));
+            }
+
+            conn.commit();
+        }
+
+        LOGGER.info("Updated record. Record Id {}", id);
+        LOGGER.info("Created record. Record Id {}", newRecordId);
+        // TODO audit log
+        return getRecordById(newRecordId, userId);
+    }
+
+    /**
+     * build sql statement for getRecordsByIds
+     *
+     * @param ids
+     * @return sql statement
+     */
+    private static String buildString(List<Integer> ids) {
+
+        String str = "SELECT * FROM records WHERE Id IN (";
+        Iterator<Integer> idsIterator = ids.iterator();
+        while (idsIterator.hasNext()) {
+            str = str + idsIterator.next().toString();
+            if (idsIterator.hasNext()) {
+                str = str + ",";
+            }
+        }
+
+        str = str + ")";
+
+        return str;
+    }
 }

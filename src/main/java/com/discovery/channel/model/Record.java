@@ -18,7 +18,7 @@ import java.util.List;
 @Getter
 @Setter
 @AllArgsConstructor
-public class Record {
+public class Record implements Document{
     // directly accessible from records table
     private int id;
     private String title;

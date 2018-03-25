@@ -15,7 +15,7 @@ ALTER TABLE recordclassifications
 DROP FOREIGN KEY  `FK_RecordClassifications_Records`;
 
 ALTER TABLE recordclassifications
-ADD  CONSTRAINT `FK_RecordClassifications_Records` FOREIGN KEY (`RecordId`) REFERENCES `records` (`Id`) ON DELETE CASCADE ON UPDATE NO ACTION
+ADD  CONSTRAINT `FK_RecordClassifications_Records` FOREIGN KEY (`RecordId`) REFERENCES `records` (`Id`) ON DELETE CASCADE ON UPDATE NO ACTION;
 
 # Update recordtypes number pattern based on https://piazza.com/class/j9rznx4s44a36c?cid=323
 UPDATE recordtypes SET NumberPattern='KKK-yyyy/ggg' WHERE Id = 22;
@@ -27,3 +27,14 @@ UPDATE recordtypes SET NumberPattern='KKK-CLIENT.gggg' WHERE Id=70;
 
 # Update location to have restricted flag
 ALTER TABLE locations ADD Restricted BOOLEAN DEFAULT false;
+
+# Create auditlogs table
+CREATE TABLE IF NOT EXISTS `auditlogs` (
+  `Id` int(11) NOT NULL AUTO_INCREMENT,
+  `UserId` int(11) NOT NULL,
+  `Action` ENUM('CREATE', 'UPDATE', 'DELETE') CHARACTER SET utf8mb4 NOT NULL,
+  `Target` ENUM('RECORD', 'CONTAINER') CHARACTER SET utf8mb4 NOT NULL,
+  `TargetId` INT(11) NOT NULL,
+  `CreatedAt` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+   PRIMARY KEY (`Id`)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8
