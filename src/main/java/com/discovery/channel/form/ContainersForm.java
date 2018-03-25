@@ -6,9 +6,10 @@ import lombok.Setter;
 
 import java.util.List;
 
+
 @Getter
 @Setter
-public class RecordsForm {
+public class ContainersForm {
     @JsonFormat(with = JsonFormat.Feature.ACCEPT_SINGLE_VALUE_AS_ARRAY)
-    private List<Integer> recordIds;
+    private List<Integer> containerIds;
 }

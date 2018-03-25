@@ -3,6 +3,7 @@ package com.discovery.channel.rest;
 import com.discovery.channel.audit.AuditLogEntry;
 import com.discovery.channel.audit.AuditLogger;
 import com.discovery.channel.database.*;
+import com.discovery.channel.form.ContainersForm;
 import com.discovery.channel.form.RecordsForm;
 import com.discovery.channel.form.UpdateRecordForm;
 import com.discovery.channel.model.*;
@@ -257,12 +258,12 @@ public class RouteHandler {
      */
     @RequestMapping(
             value = "containers",
-            params = {"ids", "userId"},
+            params = {"userId"},
             method = RequestMethod.DELETE)
 
-    public ResponseEntity<?> deleteContainers(@RequestParam("ids") String ids, @RequestParam("userId") int userId) throws SQLException{
-        LOGGER.info("Deleting container(s) {}", ids);
-        return ContainerController.deleteContainers(ids, userId);
+    public ResponseEntity<?> deleteContainers(@RequestParam("userId") int userId, @RequestBody ContainersForm form) throws SQLException{
+        LOGGER.info("Deleting container(s) {}", form.getContainerIds());
+        return ContainerController.deleteContainers(form.getContainerIds(), userId);
     }
 
 
@@ -270,16 +271,16 @@ public class RouteHandler {
     /**
      * Get a destruction date given record ids
      *
-     * @param  ids
+     * @param  form
      * @return Destruction date in millisecond if success, error message otherwise
      */
     @RequestMapping(
             value = "destructiondate",
-            params = {"ids", "userId"},
+            params = {"userId"},
             method = RequestMethod.GET)
-    public ResponseEntity<?> getDestructionDate(@RequestParam("ids") ArrayList<Integer> ids, @RequestParam("userId") int userId) throws SQLException{
-        LOGGER.info("Calculating destruction date given ids {}", ids);
-        return DestructionDateController.calculateDestructionDate(ids);
+    public ResponseEntity<?> getDestructionDate(@RequestParam("userId") int userId, @RequestBody RecordsForm form) throws SQLException{
+        LOGGER.info("Calculating destruction date given ids {}", form.getRecordIds());
+        return DestructionDateController.calculateDestructionDate(form.getRecordIds());
     }
 
     /**
