@@ -417,7 +417,7 @@ public class ContainerController {
     private static final String DELETE_CONTAINERS＿BY_ID =
             "DELETE FROM containers" + " WHERE Id = ?";
 
-    public static final void deleteOneContainer(String id) throws SQLException {
+    public static final void deleteOneContainer(Integer id) throws SQLException {
 
         try (Connection connection = DbConnect.getConnection();
              PreparedStatement ps = connection.prepareStatement(DELETE_CONTAINERS＿BY_ID)) {
@@ -433,26 +433,36 @@ public class ContainerController {
      * @param ids
      * @return Http Status Code
      */
-    public static final ResponseEntity<?> deleteContainers(String ids, Integer userId) throws SQLException{
+    public static final ResponseEntity<?> deleteContainers(List<Integer> ids, Integer userId) throws SQLException{
         if (!Authenticator.authenticate(userId, Role.ADMINISTRATOR) && !Authenticator.authenticate(userId, Role.RMC)) {
             throw new AuthenticationException(String.format("User %d is not authenticated to delete record", userId));
         }
-        List<String> failed = new ArrayList<>();
-        String[] listOfIds = ids.split(",");
-        for (String id : listOfIds) {
-            if (!getRecordIdsInContainer(Integer.valueOf(id)).isEmpty()) {
-                failed.add(id);
+
+        Map<String, Object> errorResponse = new HashMap<>();
+        List<Integer> failedId = new ArrayList<>();
+        List<String> failedNum = new ArrayList<>();
+
+
+        for (Integer id : ids) {
+            if (!getRecordIdsInContainer(id).isEmpty()) {
+                failedId.add(id);
+                Record record = RecordController.getRecordById(id);
+                failedNum.add(record.getNumber());
             }
         }
-        if(failed.isEmpty()) {
+
+        if(failedId.isEmpty()) {
             LOGGER.info("Passed all validation checks. Deleting container {}", ids);
-            for (String id : listOfIds) {
+            for (Integer id : ids) {
                 deleteOneContainer(id);
-                AuditLogger.log(userId, AuditLogger.Target.CONTAINER, Integer.valueOf(id), AuditLogger.ACTION.DELETE);
+                AuditLogger.log(userId, AuditLogger.Target.CONTAINER, id, AuditLogger.ACTION.DELETE);
             }
-            return ResponseEntity.status(HttpStatus.OK).build();
+            return new ResponseEntity<>(HttpStatus.OK);
         }else{
-            return new ResponseEntity(failed, HttpStatus.PRECONDITION_FAILED);
+            errorResponse.put("ids", failedId);
+            errorResponse.put("numbers", failedNum);
+            errorResponse.put("error", "Container(s) not empty");
+            return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
         }
     }
 }
