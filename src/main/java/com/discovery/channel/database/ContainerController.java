@@ -119,7 +119,7 @@ public class ContainerController {
      * @throws AuthenticationException AuthenticationException thrown if the user does not have RMC rights
      */
     public static final Container createContainer(Container container, int userId) throws SQLException, AuthenticationException{
-        if (!Authenticator.authenticate(userId, Role.RMC)) {
+        if (!Authenticator.authenticate(userId, Role.ADMINISTRATOR) && !Authenticator.authenticate(userId, Role.RMC)) {
             throw new AuthenticationException(String.format("User %d is not authenticated to create record", userId));
         }
 
@@ -324,7 +324,7 @@ public class ContainerController {
      * @throws AuthenticationException AuthenticationException thrown if the user does not have RMC rights
      */
     public static Container updateContainer(int containerId, Container container, int userId) throws SQLException{
-        if (!Authenticator.authenticate(userId, Role.RMC)) {
+        if (!Authenticator.authenticate(userId, Role.ADMINISTRATOR) && !Authenticator.authenticate(userId, Role.RMC)) {
             throw new AuthenticationException(String.format("User %d is not authenticated to update record", userId));
         }
         LOGGER.info("Passed all validation checks. Updating Container {}", container); //todo this message could be better
@@ -352,14 +352,19 @@ public class ContainerController {
      * @param containerNumber
      * @return a list of containers
      */
-    private static final String GET_CONTAINER_BY_NUMBER = "SELECT * FROM containers " +
+    private static final String GET_CONTAINER_BY_NUMBER =
+            "SELECT * FROM containers " +
             "WHERE Number LIKE ? " +
-            "ORDER BY UpdatedAt LIMIT 20";
-    public static List<Container> getContainerByNumber(String containerNumber) throws SQLException {
+            "ORDER BY Number ASC " +
+            "LIMIT ?, ?";
+    public static List<Container> getContainerPageByNumber(String number,
+                                                           int page, int pageSize) throws SQLException {
         List<Container> containers = new ArrayList<>();
         try (Connection connection = DbConnect.getConnection();
              PreparedStatement ps = connection.prepareStatement(GET_CONTAINER_BY_NUMBER)) {
-            ps.setString(1, "%" + containerNumber + "%");
+            ps.setString(1, "%" + number + "%");
+            ps.setInt(2, (page - 1) * pageSize);
+            ps.setInt(3, pageSize);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     Container container = parseResultSet(rs);
@@ -370,6 +375,23 @@ public class ContainerController {
         return containers;
     }
 
+    private static final String GET_CONTAINER_COUNT_BY_NUMBER =
+            "SELECT COUNT(*) FROM containers " +
+            "WHERE Number LIKE ? ";
+    public static int getContainerCountByNumber(String number) throws SQLException {
+        try (Connection connection = DbConnect.getConnection();
+             PreparedStatement pst = connection.prepareStatement(GET_CONTAINER_COUNT_BY_NUMBER)) {
+            pst.setString(1, "%" + number + "%");
+            try (ResultSet rs = pst.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1);
+                } else {
+                    LOGGER.error(String.format("Could not get count of containers: %s", number));
+                    throw new SQLException(String.format("Could not get count of containers: %s", number));
+                }
+            }
+        }
+    }
 
 
     /**
@@ -398,7 +420,7 @@ public class ContainerController {
      * @return Http Status Code
      */
     public static final ResponseEntity<?> deleteContainers(String ids, Integer userId) throws SQLException{
-        if (!Authenticator.authenticate(userId, Role.RMC)) {
+        if (!Authenticator.authenticate(userId, Role.ADMINISTRATOR) && !Authenticator.authenticate(userId, Role.RMC)) {
             throw new AuthenticationException(String.format("User %d is not authenticated to delete record", userId));
         }
         List<String> failed = new ArrayList<>();

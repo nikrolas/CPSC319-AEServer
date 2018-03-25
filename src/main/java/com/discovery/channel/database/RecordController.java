@@ -26,6 +26,8 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 
 public class RecordController {
@@ -37,15 +39,19 @@ public class RecordController {
      * @param recordNumber
      * @return a list of records
      */
-    private static final String GET_RECORD_BY_NUMBER = "SELECT * FROM records " +
+    private static final String GET_RECORD_BY_NUMBER =
+            "SELECT * FROM records " +
             "WHERE Number LIKE ? " +
-            "ORDER BY UpdatedAt LIMIT 20";
-
-    public static List<Record> getRecordByNumber(String recordNumber) throws SQLException {
+            "ORDER BY Number ASC " +
+            " LIMIT ?, ?";
+    public static List<Record> getRecordPageByNumber(String number,
+                                                      int page, int pageSize) throws SQLException{
         List<Record> records = new ArrayList<>();
         try (Connection connection = DbConnect.getConnection();
              PreparedStatement ps = connection.prepareStatement(GET_RECORD_BY_NUMBER)) {
-            ps.setString(1, "%" + recordNumber + "%");
+            ps.setString(1, "%" + number + "%");
+            ps.setInt(2, (page - 1) * pageSize);
+            ps.setInt(3, pageSize);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     Record record = parseResultSet(rs);
@@ -55,6 +61,72 @@ public class RecordController {
             }
         }
         return records;
+    }
+
+    private static final String GET_RECORD_COUNT_BY_NUMBER =
+            "SELECT COUNT(*) FROM records " +
+            "WHERE Number LIKE ? ";
+    public static int getRecordCountByNumber(String number) throws SQLException {
+        try (Connection connection = DbConnect.getConnection();
+             PreparedStatement ps = connection.prepareStatement(GET_RECORD_COUNT_BY_NUMBER)) {
+            ps.setString(1, "%" + number + "%");
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1);
+                } else {
+                    LOGGER.error(String.format("Could not get count of records: %s", number));
+                    throw new SQLException(String.format("Could not get count of records: %s", number));
+                }
+            }
+        }
+    }
+
+    public static PagedResults<Document> getByNumber(String number,
+                                                   Boolean searchRecord, Boolean searchContainer,
+                                                   int page, int pageSize,
+                                                   int userId) throws SQLException {
+        if (page < 1 || pageSize < 1) {
+            throw new IllegalArgumentException("Page number and results per page must be at least 1.");
+        }
+        if (!(searchRecord || searchContainer)) {
+            throw new IllegalArgumentException("Search must include at least one of the following: {record, container}");
+        }
+
+        int recordCount = 0;
+        int containerCount = 0;
+        List<Document> documents;
+
+        if (searchRecord && searchContainer) {
+            recordCount = getRecordCountByNumber(number);
+            containerCount = ContainerController.getContainerCountByNumber(number);
+
+            if (recordCount > page * pageSize) {
+                documents = (List)getRecordPageByNumber(number, page, pageSize);
+            }
+            else if (recordCount > (page - 1) * pageSize &&
+                     recordCount < page * pageSize) {
+                documents = new ArrayList<>(pageSize);
+                documents.addAll((List)getRecordPageByNumber(number, page, pageSize));
+                documents.addAll((List)ContainerController.getContainerPageByNumber(number,
+                        1, pageSize - (recordCount - (page - 1) * pageSize)));
+            }
+            else { // recordCount < (page - 1) * pageSize
+                documents = (List)ContainerController.getContainerPageByNumber(number, page, pageSize);
+            }
+        }
+        else if (searchRecord) {
+            recordCount = getRecordCountByNumber(number);
+            documents = (List)ContainerController.getContainerPageByNumber(number, page, pageSize);
+        }
+        else { // only searchContainer
+            containerCount = ContainerController.getContainerCountByNumber(number);
+            documents = (List)ContainerController.getContainerPageByNumber(number, page, pageSize);
+        }
+
+        documents = scrubDocuments(documents, userId);
+
+        return new PagedResults<>(page, (recordCount + containerCount + pageSize - 1) / pageSize,
+                documents);
     }
 
     /**
@@ -265,8 +337,8 @@ public class RecordController {
      * @param userId
      * @return
      */
-    public static Record createRecord(Record record, int userId) throws SQLException {
-        if (!Authenticator.authenticate(userId, Role.RMC)) {
+    public static Record createRecord (Record record, int userId) throws SQLException {
+        if (!Authenticator.authenticate(userId, Role.ADMINISTRATOR) && !Authenticator.authenticate(userId, Role.RMC)) {
             throw new AuthenticationException(String.format("User %d is not authenticated to create record", userId));
         }
 
@@ -419,7 +491,7 @@ public class RecordController {
             return response;
         }
 
-        if (!Authenticator.authenticate(userId, Role.RMC)) {
+        if (!Authenticator.authenticate(userId, Role.ADMINISTRATOR) && !Authenticator.authenticate(userId, Role.RMC)) {
             throw new AuthenticationException(String.format("User %d is not authenticated to delete record", userId));
         }
 
@@ -451,7 +523,7 @@ public class RecordController {
             "WHERE Id= ?";
 
     public static void updateRecord(Integer id, int userId, UpdateRecordForm updateForm) throws SQLException {
-        if (!Authenticator.authenticate(userId, Role.RMC)) {
+        if (!Authenticator.authenticate(userId, Role.ADMINISTRATOR) && !Authenticator.authenticate(userId, Role.RMC)) {
             throw new AuthenticationException(String.format("User %d is not authenticated to update record", userId));
         }
 
@@ -592,6 +664,22 @@ public class RecordController {
         }
     }
 
+    private static List<Document> scrubDocuments(List<Document> documentList, int userId) throws SQLException {
+        List<Location> locations = LocationController.getUserLocations(userId);
+        List<Integer> locationIds = locations.stream()
+                .map(elt -> elt.getLocationId())
+                .collect(Collectors.toList());
+        documentList.forEach(new Consumer<Document>() {
+            public void accept(Document document) {
+                if (!locationIds.contains(document.getLocationId())) {
+                    document.setConsignmentCode("***");
+                }
+
+            }
+        });
+        return documentList;
+    }
+    
     /**
      * build sql statement for getRecordsByIds
      *
