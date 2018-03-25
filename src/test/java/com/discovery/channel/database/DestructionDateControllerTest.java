@@ -17,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class DestructionDateControllerTest {
 
-
+    private static final int FULL_PRIV_RMC = 600;
 
     @Test
     void getDestructionDateFromOneRecord() throws SQLException {
@@ -79,7 +79,7 @@ public class DestructionDateControllerTest {
 
     private Date calculateDate(int id) throws SQLException {
 
-        Record record = RecordController.getRecordById(id);
+        Record record = RecordController.getRecordById(id, FULL_PRIV_RMC);
 
         Calendar calendar = Calendar.getInstance();
         calendar.setTime(record.getClosedAt());

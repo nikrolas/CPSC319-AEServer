@@ -18,7 +18,7 @@ ADD KEY FK_Containers_Locations (LocationId),
 ADD KEY FK_Containers_Schedule (ScheduleId),
 ADD KEY FK_Containers_RecordTypes (TypeId),
 
-ALTER TABLE containers MODIFY ConsignmentCode varchar(50) CHARACTER SET utf8mb4,
+MODIFY ConsignmentCode varchar(50) CHARACTER SET utf8mb4,
 
 ADD CONSTRAINT FK_Containers_RecordStates FOREIGN KEY (StateId) REFERENCES recordstates (Id) ON DELETE NO ACTION ON UPDATE NO ACTION,
 ADD CONSTRAINT FK_Containers_Locations FOREIGN KEY (LocationId) REFERENCES locations (Id) ON DELETE NO ACTION ON UPDATE NO ACTION,

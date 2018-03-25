@@ -37,7 +37,7 @@ public class RouteHandler {
             method = RequestMethod.GET)
     public Record getRecordById(@PathVariable("id") Integer id,
                                 @RequestParam("userId") int userId) throws SQLException {
-        return RecordController.getRecordById(id);
+        return RecordController.getRecordById(id, userId);
     }
 
 
@@ -53,7 +53,7 @@ public class RouteHandler {
             method = RequestMethod.GET)
     @ResponseBody
     public List<Record> getAllRecords(@RequestParam("userId") int userId) throws SQLException{
-        return RecordController.getAllRecords();
+        return RecordController.getAllRecords(userId);
 
     }
 
@@ -69,6 +69,7 @@ public class RouteHandler {
             params = { "userId" , "num", "record", "container", "page", "pageSize"},
             method = RequestMethod.GET)
     @ResponseBody
+
     public PagedResults<Document> searchByNumber(@RequestParam("userId") int userId,
                                               @RequestParam("num") String num,
                                               @RequestParam(value="record", required=false, defaultValue="false") Boolean record,
@@ -189,7 +190,7 @@ public class RouteHandler {
             consumes = MediaType.APPLICATION_JSON_UTF8_VALUE)
     public Record updateOneRecord(@PathVariable("id") Integer id, @RequestParam("userId") int userId,  @RequestBody UpdateRecordForm updateForm) throws SQLException {
         RecordController.updateRecord(id, userId, updateForm);
-        return RecordController.getRecordById(id);
+        return RecordController.getRecordById(id, userId);
     }
 
 
@@ -205,7 +206,7 @@ public class RouteHandler {
             method = RequestMethod.GET)
     public Container getContainerById(@PathVariable("id") Integer id, @RequestParam("userId") int userId) throws SQLException{
         LOGGER.info("Searching for container with id {}", id);
-        return ContainerController.getContainerById(id);
+        return ContainerController.getContainerById(id, userId);
     }
 
     /**

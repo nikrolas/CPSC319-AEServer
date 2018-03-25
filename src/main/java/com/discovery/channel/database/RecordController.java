@@ -42,17 +42,22 @@ public class RecordController {
      */
     private static final String GET_RECORD_BY_NUMBER =
             "SELECT * FROM records " +
-            "WHERE Number LIKE ? " +
+            "WHERE LocationId IN " +
+            "( SELECT LocationId  " +
+            "FROM locations l  LEFT JOIN userlocations ul ON (ul.LocationId = l.Id ) " +
+            "WHERE l.Restricted = false OR ul.UserId = ?) " +
+            "AND records.Number LIKE ? " +
             "ORDER BY Number ASC " +
             " LIMIT ?, ?";
-    public static List<Record> getRecordPageByNumber(String number,
+    public static List<Record> getRecordPageByNumber(String number, int userId,
                                                       int page, int pageSize) throws SQLException{
         List<Record> records = new ArrayList<>();
         try (Connection connection = DbConnect.getConnection();
-             PreparedStatement ps = connection.prepareStatement(GET_RECORD_BY_NUMBER)) {
-            ps.setString(1, "%" + number + "%");
-            ps.setInt(2, (page - 1) * pageSize);
-            ps.setInt(3, pageSize);
+            PreparedStatement ps = connection.prepareStatement(GET_RECORD_BY_NUMBER)) {
+            ps.setInt(1, userId);
+            ps.setString(2, "%" + number + "%");
+            ps.setInt(3, (page - 1) * pageSize);
+            ps.setInt(4, pageSize);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     Record record = parseResultSet(rs);
@@ -66,11 +71,16 @@ public class RecordController {
 
     private static final String GET_RECORD_COUNT_BY_NUMBER =
             "SELECT COUNT(*) FROM records " +
-            "WHERE Number LIKE ? ";
-    public static int getRecordCountByNumber(String number) throws SQLException {
+            "WHERE LocationId IN" +
+            "( SELECT LocationId  " +
+            "FROM locations l  LEFT JOIN userlocations ul ON (ul.LocationId = l.Id ) " +
+            "WHERE l.Restricted = false OR ul.UserId = ?) " +
+            "AND Number LIKE ? ";
+    public static int getRecordCountByNumber(String number, int userId) throws SQLException {
         try (Connection connection = DbConnect.getConnection();
              PreparedStatement ps = connection.prepareStatement(GET_RECORD_COUNT_BY_NUMBER)) {
-            ps.setString(1, "%" + number + "%");
+            ps.setInt(1, userId);
+            ps.setString(2, "%" + number + "%");
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     return rs.getInt(1);
@@ -98,30 +108,30 @@ public class RecordController {
         List<Document> documents;
 
         if (searchRecord && searchContainer) {
-            recordCount = getRecordCountByNumber(number);
-            containerCount = ContainerController.getContainerCountByNumber(number);
+            recordCount = getRecordCountByNumber(number, userId);
+            containerCount = ContainerController.getContainerCountByNumber(number, userId);
 
             if (recordCount > page * pageSize) {
-                documents = (List)getRecordPageByNumber(number, page, pageSize);
+                documents = (List)getRecordPageByNumber(number, userId, page, pageSize);
             }
             else if (recordCount > (page - 1) * pageSize &&
                      recordCount < page * pageSize) {
                 documents = new ArrayList<>(pageSize);
-                documents.addAll((List)getRecordPageByNumber(number, page, pageSize));
-                documents.addAll((List)ContainerController.getContainerPageByNumber(number,
+                documents.addAll((List)getRecordPageByNumber(number, userId, page, pageSize));
+                documents.addAll((List)ContainerController.getContainerPageByNumber(number, userId,
                         1, pageSize - (recordCount - (page - 1) * pageSize)));
             }
             else { // recordCount < (page - 1) * pageSize
-                documents = (List)ContainerController.getContainerPageByNumber(number, page, pageSize);
+                documents = (List)ContainerController.getContainerPageByNumber(number, userId, page, pageSize);
             }
         }
         else if (searchRecord) {
-            recordCount = getRecordCountByNumber(number);
-            documents = (List)ContainerController.getContainerPageByNumber(number, page, pageSize);
+            recordCount = getRecordCountByNumber(number, userId);
+            documents = (List)ContainerController.getContainerPageByNumber(number, userId, page, pageSize);
         }
         else { // only searchContainer
-            containerCount = ContainerController.getContainerCountByNumber(number);
-            documents = (List)ContainerController.getContainerPageByNumber(number, page, pageSize);
+            containerCount = ContainerController.getContainerCountByNumber(number, userId);
+            documents = (List)ContainerController.getContainerPageByNumber(number, userId, page, pageSize);
         }
 
         documents = scrubDocuments(documents, userId);
@@ -136,13 +146,16 @@ public class RecordController {
      * @return a list of records, currently limit 20 order by UpdatedAt
      */
     private static final String GET_ALL_RECORDS = "SELECT * " +
-            "FROM records " +
+            "FROM records  " +
+            "WHERE LocationId IN ( SELECT LocationId  " +
+            "FROM locations l  LEFT JOIN userlocations ul ON (ul.LocationId = l.Id ) " +
+            "WHERE l.Restricted = false OR ul.UserId = ?) " +
             "ORDER BY UpdatedAt LIMIT 20";
-
-    public static List<Record> getAllRecords() throws SQLException {
+    public static List<Record> getAllRecords(int userId) throws SQLException {
         List<Record> records = new ArrayList<>();
         try (Connection connection = DbConnect.getConnection();
              PreparedStatement ps = connection.prepareStatement(GET_ALL_RECORDS)) {
+            ps.setInt(1, userId);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     Record record = parseResultSet(rs);
@@ -163,9 +176,8 @@ public class RecordController {
      */
     private static final String GET_RECORD_BY_ID =
             "SELECT * " +
-                    "FROM records WHERE Id = ?";
-
-    public static Record getRecordById(Integer id) throws SQLException {
+            "FROM records WHERE Id = ?";
+    public static Record getRecordById(Integer id, int userId) throws SQLException {
         try (Connection connection = DbConnect.getConnection();
              PreparedStatement ps = connection.prepareStatement(GET_RECORD_BY_ID)) {
             ps.setInt(1, id);
@@ -174,6 +186,9 @@ public class RecordController {
                 resultSet.next();
                 Record record = parseResultSet(resultSet);
                 loadRecordDetail(record);
+                if (!Authenticator.canUserViewLocation(userId, record.getLocationId())) {
+                    throw new AuthenticationException("User " + userId + " is not allowed to view records on location " + record.getLocation());
+                }
                 return record;
             }
         }
@@ -376,7 +391,7 @@ public class RecordController {
         }
         LOGGER.info("Created record. Record Id {}", newRecordId);
         AuditLogger.log(userId, AuditLogger.Target.RECORD, newRecordId, AuditLogger.ACTION.CREATE);
-        return getRecordById(newRecordId);
+        return getRecordById(newRecordId, userId);
     }
 
 
@@ -457,7 +472,7 @@ public class RecordController {
     private static boolean deleteRecord(Integer id, int userId) throws SQLException {
         // TODO : audit log
 
-        Record record = getRecordById(id);
+        Record record = getRecordById(id, userId);
 
         if (record == null) {
             throw new NoResultsFoundException(String.format("Record %d does not exist", id));
@@ -530,7 +545,7 @@ public class RecordController {
             throw new AuthenticationException(String.format("User %d is not authenticated to update record", userId));
         }
 
-        Record record = getRecordById(id);
+        Record record = getRecordById(id, userId);
 
         if (record == null) {
             throw new NoResultsFoundException(String.format("Record %d does not exist", id));
@@ -557,7 +572,7 @@ public class RecordController {
 
         // Validate container update
         Container destinationContainer = updateForm.getContainerId() <= 0 ?
-                null : ContainerController.getContainerById(updateForm.getContainerId());
+                null : ContainerController.getContainerById(updateForm.getContainerId(), userId);
         if (destinationContainer != null && isContainerChanged(record, updateForm.getContainerId())) {
             ContainerController.validateContainerChangeForRecord(record, destinationContainer);
         }
@@ -601,7 +616,7 @@ public class RecordController {
             if (destinationContainer != null) {
                 ContainerController.addRecordToContainer(destinationContainer, record);
                 setRecordClosedAtDate(id);
-            } else if (ContainerController.getContainerById(record.getContainerId()).getChildRecordIds().size() == 0) {
+            } else if (ContainerController.getContainerById(record.getContainerId(), userId).getChildRecordIds().size() == 0) {
                 ContainerController.clearContainerRecordInformation(record.getContainerId());
             }
         }
@@ -719,7 +734,7 @@ public class RecordController {
             throw new AuthenticationException(String.format("User %d is not authenticated to create volume", userId));
         }
 
-        Record baseRecord = getRecordById(id);
+        Record baseRecord = getRecordById(id, userId);
         if (baseRecord == null) {
             throw new IllegalArgumentException(String.format("Unable to create new volume from record id %d. Record does not exist.", id));
         }
@@ -813,7 +828,7 @@ public class RecordController {
         LOGGER.info("Updated record. Record Id {}", id);
         LOGGER.info("Created record. Record Id {}", newRecordId);
         // TODO audit log
-        return getRecordById(newRecordId);
+        return getRecordById(newRecordId, userId);
     }
 
     /**

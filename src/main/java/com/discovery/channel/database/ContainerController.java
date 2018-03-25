@@ -91,14 +91,18 @@ public class ContainerController {
     private static final String GET_CONTAINER_BY_ID =
             "SELECT * FROM containers " +
             "WHERE Id = ?";
-    public static final Container getContainerById(int id) throws SQLException{
+    public static final Container getContainerById(int id, int userId) throws SQLException{
         try (Connection connection = DbConnect.getConnection();
              PreparedStatement ps = connection.prepareStatement(GET_CONTAINER_BY_ID)) {
             ps.setInt(1, id);
             try (ResultSet rs = ps.executeQuery()){
                 verifyResultNotEmpty(rs);
                 rs.next();
-                return parseResultSet(rs);
+                Container container =  parseResultSet(rs);
+                if (!Authenticator.canUserViewLocation(userId, container.getLocationId())) {
+                    throw new AuthenticationException("User " + userId + " is not allowed to view this location " + container.getLocationName());
+                }
+                return container;
             }
         }
     }
@@ -125,7 +129,7 @@ public class ContainerController {
 
         if (container.getChildRecordIds().size() > 1){
             try {
-                validateRecordsCanBeAddedToSameContainer(container.getChildRecordIds());
+                validateRecordsCanBeAddedToSameContainer(container.getChildRecordIds(), userId);
             } catch (ValidationException e){
                 throw new ValidationException("Could not create container with the following record ids: "
                         + container.getChildRecordIds() + ". Reason: "+ e.getMessage());
@@ -145,7 +149,7 @@ public class ContainerController {
 
         // update container information on records it contains
         if (container.getChildRecordIds().size() >= 1){
-            addRecordToContainer(container, RecordController.getRecordById(container.getChildRecordIds().get(0)));
+            addRecordToContainer(container, RecordController.getRecordById(container.getChildRecordIds().get(0), userId));
         }
 
         LOGGER.info("Created container. Container Id {}", newContainerId);
@@ -156,13 +160,13 @@ public class ContainerController {
             RecordController.setRecordContainer(recordId, newContainerId);
         }
 
-        return getContainerById(newContainerId);
+        return getContainerById(newContainerId, userId);
     }
 
-    private static void validateRecordsCanBeAddedToSameContainer(List<Integer> recordIds) throws SQLException, ValidationException {
+    private static void validateRecordsCanBeAddedToSameContainer(List<Integer> recordIds, int userId) throws SQLException, ValidationException {
         List<Record> records = new LinkedList<>();
         for (Integer recordId : recordIds) {
-            records.add(RecordController.getRecordById(recordId));
+            records.add(RecordController.getRecordById(recordId, userId));
         }
         if (records.size() <= 1) return;
         // validate all records have the same consignmentCode
@@ -342,7 +346,7 @@ public class ContainerController {
             }
             AuditLogger.log(userId, AuditLogger.Target.CONTAINER, containerId, AuditLogger.ACTION.UPDATE);
 
-            return getContainerById(containerId);
+            return getContainerById(containerId, userId);
         }
     }
 
@@ -354,17 +358,22 @@ public class ContainerController {
      */
     private static final String GET_CONTAINER_BY_NUMBER =
             "SELECT * FROM containers " +
-            "WHERE Number LIKE ? " +
+            "WHERE LocationId IN " +
+            "( SELECT LocationId  " +
+            "FROM locations l  LEFT JOIN userlocations ul ON (ul.LocationId = l.Id ) " +
+            "WHERE l.Restricted = false OR ul.UserId = ?) " +
+            "AND Number LIKE ? " +
             "ORDER BY Number ASC " +
             "LIMIT ?, ?";
-    public static List<Container> getContainerPageByNumber(String number,
+    public static List<Container> getContainerPageByNumber(String number, int userId,
                                                            int page, int pageSize) throws SQLException {
         List<Container> containers = new ArrayList<>();
         try (Connection connection = DbConnect.getConnection();
              PreparedStatement ps = connection.prepareStatement(GET_CONTAINER_BY_NUMBER)) {
-            ps.setString(1, "%" + number + "%");
-            ps.setInt(2, (page - 1) * pageSize);
-            ps.setInt(3, pageSize);
+            ps.setInt(1, userId);
+            ps.setString(2, "%" + number + "%");
+            ps.setInt(3, (page - 1) * pageSize);
+            ps.setInt(4, pageSize);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     Container container = parseResultSet(rs);
@@ -377,11 +386,16 @@ public class ContainerController {
 
     private static final String GET_CONTAINER_COUNT_BY_NUMBER =
             "SELECT COUNT(*) FROM containers " +
+            "WHERE LocationId IN" +
+            "( SELECT LocationId  " +
+            "FROM locations l  LEFT JOIN userlocations ul ON (ul.LocationId = l.Id ) " +
+            "WHERE l.Restricted = false OR ul.UserId = ?) " +
             "WHERE Number LIKE ? ";
-    public static int getContainerCountByNumber(String number) throws SQLException {
+    public static int getContainerCountByNumber(String number, int userId) throws SQLException {
         try (Connection connection = DbConnect.getConnection();
-             PreparedStatement pst = connection.prepareStatement(GET_CONTAINER_COUNT_BY_NUMBER)) {
-            pst.setString(1, "%" + number + "%");
+            PreparedStatement pst = connection.prepareStatement(GET_CONTAINER_COUNT_BY_NUMBER)) {
+            pst.setInt(1, userId);
+            pst.setString(2, "%" + number + "%");
             try (ResultSet rs = pst.executeQuery()) {
                 if (rs.next()) {
                     return rs.getInt(1);
