@@ -106,7 +106,7 @@ public class RecordController {
                     Record record = parseResultSet(resultSet);
                     loadRecordDetail(record);
                     if (!Authenticator.canUserViewLocation(userId, record.getLocationId())) {
-                        throw new AuthenticationException("User " + userId + "is not allowed to view records on location " + record.getLocation());
+                        throw new AuthenticationException("User " + userId + " is not allowed to view records on location " + record.getLocation());
                     }
                     return record;
                 }

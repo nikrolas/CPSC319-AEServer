@@ -75,7 +75,7 @@ public class ContainerController {
                 rs.next();
                 Container container =  parseResultSet(rs);
                 if (!Authenticator.canUserViewLocation(userId, container.getLocationId())) {
-                    throw new AuthenticationException("User " + userId + "is not allowed to view this location " + container.getLocationName());
+                    throw new AuthenticationException("User " + userId + " is not allowed to view this location " + container.getLocationName());
                 }
                 return container;
             }
