@@ -127,7 +127,7 @@ public class RecordController {
         }
         else if (searchRecord) {
             recordCount = getRecordCountByNumber(number, userId);
-            documents = (List)ContainerController.getContainerPageByNumber(number, userId, page, pageSize);
+            documents = (List)RecordController.getRecordPageByNumber(number, userId, page, pageSize);
         }
         else { // only searchContainer
             containerCount = ContainerController.getContainerCountByNumber(number, userId);
