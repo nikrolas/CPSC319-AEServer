@@ -229,10 +229,22 @@ public class RecordControllerTest {
         recordIds.add(record.getId());
         recordIds.add(record2.getId());
         recordIds.add(record3.getId());
-        RecordsForm recordForDeletion = new RecordsForm();
-        recordForDeletion.setRecordIds(recordIds);
+        RecordsForm recordsForDeletion = new RecordsForm();
+        recordsForDeletion.setRecordIds(recordIds);
 
-        RecordController.deleteRecords(135, recordForDeletion);
+        RecordController.deleteRecords(135, recordsForDeletion);
+
+        NoResultsFoundException em1 = assertThrows(NoResultsFoundException.class, () -> {
+            RecordController.getRecordById(recordsForDeletion.getRecordIds().get(0), FULL_PRIV_RMC);
+        });
+
+        NoResultsFoundException em2 = assertThrows(NoResultsFoundException.class, () -> {
+            RecordController.getRecordById(recordsForDeletion.getRecordIds().get(1), FULL_PRIV_RMC);
+        });
+
+        NoResultsFoundException em3 = assertThrows(NoResultsFoundException.class, () -> {
+            RecordController.getRecordById(recordsForDeletion.getRecordIds().get(2), FULL_PRIV_RMC);
+        });
 
     }
 
