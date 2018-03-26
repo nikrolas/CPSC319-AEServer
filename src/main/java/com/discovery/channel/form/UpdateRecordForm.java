@@ -4,11 +4,13 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
 
+import java.util.List;
+
 @Getter
 public class UpdateRecordForm {
     private String title;
     private int scheduleId;
-    private String classifications;
+    private List<Integer> classifications;
     private String consignmentCode;
     private String notes;
     private int stateId;
@@ -17,7 +19,7 @@ public class UpdateRecordForm {
     @JsonCreator
     public UpdateRecordForm(@JsonProperty("title") String title,
                             @JsonProperty("scheduleId") int scheduleId,
-                            @JsonProperty("classifications") String classifications,
+                            @JsonProperty("classifications") List<Integer> classifications,
                             @JsonProperty("consignmentCode") String consignmentCode,
                             @JsonProperty("notes") String notes,
                             @JsonProperty("stateId") int stateId,

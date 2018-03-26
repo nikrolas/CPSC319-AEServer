@@ -33,35 +33,9 @@ public class ClassificationController {
     }
 
     /**
-     * Find classification by name
+     * Find classification by id
      *
-     * @param name
-     * @return
-     * @throws SQLException
-     */
-    private static final String FIND_CLASSIFICATION_BY_NAME =
-            "SELECT Id, Name, KeyWord " +
-            "FROM classifications " +
-            "WHERE Name = ?";
-    public static Classification findClassificationByName(String name) throws SQLException {
-        try(Connection conn = DbConnect.getConnection();
-            PreparedStatement ps = conn.prepareStatement(FIND_CLASSIFICATION_BY_NAME)) {
-            ps.setString(1, name);
-            try(ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    return new Classification(rs.getInt("Id"),
-                            rs.getString("Name"),
-                            Classification.CLASSIFICATION_TYPE.fromName(rs.getString("KeyWord")));
-                }
-            }
-        }
-        return null;
-    }
-
-    /**
-     * Find classification by name
-     *
-     * @param name
+     * @param id
      * @return
      * @throws SQLException
      */
