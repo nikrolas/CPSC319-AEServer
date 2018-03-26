@@ -299,6 +299,21 @@ public class RouteHandler {
     }
 
     /**
+     * Search for volumes related to a record Number
+     *
+     * @return a list of volumes matching the given record Number
+     */
+    @RequestMapping(
+            value = "volume",
+            params = {"num", "userId"},
+            method = RequestMethod.GET)
+    public List<Record> getVolumesByNumber(@RequestParam("num") String num,
+                                           @RequestParam("userId") int userId) throws SQLException {
+        LOGGER.info("Searching volumes related to number {}", num);
+        return RecordController.getVolumesByNumber(num, userId);
+    }
+
+    /**
      * Get audit logs
      */
     @RequestMapping(

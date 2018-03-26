@@ -682,6 +682,44 @@ public class RecordController {
         }
     }
 
+    /**
+     * Find all volumes related to a record Number
+     *
+     * @param String recordNumber
+     * @throws SQLException
+     */
+    private static final String FIND_VOLUMES_BY_NUMBER =
+            "SELECT * " +
+            "FROM records " +
+            "WHERE LocationId IN " +
+                "(SELECT LocationId  " +
+                "FROM locations l  LEFT JOIN userlocations ul ON (ul.LocationId = l.Id ) " +
+                "WHERE l.Restricted = false OR ul.UserId = ?) " +
+            "AND (Number LIKE BINARY ? " +
+            "OR Number LIKE BINARY ?)";
+    public static List<Record> getVolumesByNumber(String recordNumber, int userId) throws SQLException {
+        int colonIndex = recordNumber.indexOf(":");
+        if (colonIndex != -1)
+            recordNumber = recordNumber.substring(0, colonIndex);
+
+        List<Record> records = new ArrayList<>();
+
+        try (Connection conn = DbConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(FIND_VOLUMES_BY_NUMBER)){
+            ps.setInt(1, userId);
+            ps.setString(2, recordNumber);
+            ps.setString(3, recordNumber + ":%");
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Record record = parseResultSet(rs);
+                    loadRecordDetail(record);
+                    records.add(record);
+                }
+            }
+        }
+        return records;
+    }
+
     private static List<Document> scrubDocuments(List<Document> documentList, int userId) throws SQLException {
         List<Location> locations = LocationController.getUserLocations(userId);
         List<Integer> locationIds = locations.stream()
