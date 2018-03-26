@@ -366,13 +366,13 @@ public class ContainerController {
             "ORDER BY Number ASC " +
             "LIMIT ?, ?";
     public static List<Container> getContainerPageByNumber(String number, int userId,
-                                                           int page, int pageSize) throws SQLException {
+                                                           int page, int pageSize, int offset) throws SQLException {
         List<Container> containers = new ArrayList<>();
         try (Connection connection = DbConnect.getConnection();
              PreparedStatement ps = connection.prepareStatement(GET_CONTAINER_BY_NUMBER)) {
             ps.setInt(1, userId);
             ps.setString(2, "%" + number + "%");
-            ps.setInt(3, (page - 1) * pageSize);
+            ps.setInt(3, (page - 1) * pageSize + offset);
             ps.setInt(4, pageSize);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
