@@ -54,27 +54,26 @@ public class Classification {
      * Return true iff classification string is valid, that is
      *  a. A record has at least two valid classifications
      *  b. The root classifications must have type "T"
-     * @param classificationStr
+     * @param classIds
      * @return
      * @throws SQLException
      */
-    public static boolean validateClassification(String classificationStr) throws SQLException {
-        if (StringUtils.isEmpty(classificationStr)) {
+    public static boolean validateClassification(List<Integer> classIds) throws SQLException {
+        if (StringUtils.isEmpty(classIds)) {
             return false;
         }
         // At least two classifications
-        String[] classificationNames = classificationStr.split(CLASSIFICATION_SEPARATOR);
-        if (classificationNames.length < 2) {
-            LOGGER.info("Classification String {} invalid. Need at least two classifications", classificationStr);
+        if (classIds.size() < 2) {
+            LOGGER.info("Classification String {} invalid. Need at least two classifications", classIds);
             return false;
         }
 
         // Make sure they exist in Database
         List<Classification> classifications = new ArrayList<>();
-        for (String name : classificationNames) {
-            Classification classification = ClassificationController.findClassificationByName(name);
+        for (Integer id : classIds) {
+            Classification classification = ClassificationController.findClassificationById(id);
             if (classification == null) {
-                LOGGER.info("Could not find classification with name {}", name);
+                LOGGER.info("Could not find classification with id {}", id);
                 return false;
             }
             classifications.add(classification);
@@ -100,24 +99,6 @@ public class Classification {
         }
 
         return true;
-    }
-
-    /**
-     * Parse classification string, find them in DB, and return a list of Ids (in order)
-     *
-     * @param classificationStr
-     * @return
-     */
-    public static List<Integer> parseClassificationStrToIds(String classificationStr) {
-        List<Integer> ids = new ArrayList<>();
-        Arrays.stream(classificationStr.split(CLASSIFICATION_SEPARATOR)).forEach(aClassification -> {
-            try {
-                ids.add(ClassificationController.findClassificationByName(aClassification.trim()).getId());
-            } catch (SQLException e) {
-                LOGGER.error("Failed to query classification with name {}", aClassification);
-            }
-        });
-        return ids;
     }
 
     /**
