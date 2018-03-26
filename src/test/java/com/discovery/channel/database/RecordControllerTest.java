@@ -107,8 +107,13 @@ public class RecordControllerTest {
         Record r = createNewRecordWithoutContainer("TESTING", "EDM-2018", 5, 26, 3);
         Record record = RecordController.createRecord(r, 500);
         int recordId = record.getId();
+
+        List<Integer> classIds = new ArrayList<>();
+        classIds.add(1052);
+        classIds.add(144);
+
         UpdateRecordForm form = new UpdateRecordForm("TESTING-UPDATE", 10,
-                "ADVISORY SERVICES/ADVICE",
+                classIds,
                 "445810223",
                 "updating a record",
                 1,
@@ -139,8 +144,12 @@ public class RecordControllerTest {
         Record r = createNewRecordWithoutContainer("TESTING-BAD-ROLES", "EDM-2018", 5, 26, 3);
         Record record = RecordController.createRecord(r, 500);
 
+        List<Integer> classIds = new ArrayList<>();
+        classIds.add(1052);
+        classIds.add(144);
+
         UpdateRecordForm form = new UpdateRecordForm("TESTING-UPDATE", 10,
-                "ADVISORY SERVICES/ADVICE",
+                classIds,
                 "anConsignmentCode",
                 "updating a record",
                 1,
@@ -168,8 +177,12 @@ public class RecordControllerTest {
         Record r = createNewRecordWithoutContainer("TESTING-BAD-Location", "EDM-2018", 5, 26, 3);
         Record record = RecordController.createRecord(r, 500);
 
+        List<Integer> classIds = new ArrayList<>();
+        classIds.add(1052);
+        classIds.add(144);
+
         UpdateRecordForm form = new UpdateRecordForm("TESTING-UPDATE", 10,
-                "ADVISORY SERVICES/ADVICE",
+                classIds,
                 "anConsignmentCode",
                 "updating a record",
                 1,
@@ -306,8 +319,13 @@ public class RecordControllerTest {
 
 
     private Record createNewRecordWithoutContainer(String title, String recordNumber,int locationId, int scheduleId, int typeId) {
+
+        List<Integer> classIds = new ArrayList<>();
+        classIds.add(1052);
+        classIds.add(14);
+
         return new Record(title, recordNumber, scheduleId, typeId, "RF011329724",
-                0, locationId, "Advisory Services/Advice/Reports",
+                0, locationId, classIds,
                 "CREATED FOR TESTING -- testCreateRecord");
     }
 
