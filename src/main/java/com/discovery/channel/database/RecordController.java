@@ -427,8 +427,8 @@ public class RecordController {
                 LOGGER.error("Failed to save new record to DB. Returning -1");
                 return -1;
             }
-            saveClassificationForRecord(newRecordId, record.getClassifications());
-            if (!StringUtils.isEmpty(record.getNotes())) {
+            saveClassificationForRecord(newRecordId, record.getClassIds());
+            if (!StringUtils.isEmpty(record.getNotes()) ) {
                 NoteTableController.saveNotesForRecord(newRecordId, record.getNotes());
             }
             return newRecordId;
@@ -441,22 +441,21 @@ public class RecordController {
 
     /**
      * @param recordId
-     * @param classificationStr
+     * @param classIds
      * @throws SQLException
      */
-    private static void saveClassificationForRecord(int recordId, String classificationStr) throws SQLException {
-        List<Integer> classificationIds = Classification.parseClassificationStrToIds(classificationStr);
+    private static void saveClassificationForRecord(int recordId, List<Integer> classIds) throws SQLException {
         try (Connection conn = DbConnect.getConnection();
-             PreparedStatement ps = conn.prepareStatement(INSERT_RECORD_CLASSIFICATION)) {
-            for (int i = 0; i < classificationIds.size(); i++) {
+             PreparedStatement ps = conn.prepareStatement(INSERT_RECORD_CLASSIFICATION)){
+            for (int i = 0; i < classIds.size(); i++) {
                 ps.setInt(1, recordId);
-                ps.setInt(2, classificationIds.get(i));
+                ps.setInt(2, classIds.get(i));
                 ps.setInt(3, i);
                 ps.addBatch();
             }
             ps.executeBatch();
         }
-        LOGGER.info("Saved classifications {} for record {}", classificationStr, recordId);
+        LOGGER.info("Saved classifications {} for record {}", classIds, recordId);
     }
 
     /**
@@ -658,7 +657,7 @@ public class RecordController {
      * @param recordId
      * @param newClassifications
      */
-    private static void updateRecordClassifications(int recordId, String newClassifications) throws SQLException {
+    private static void updateRecordClassifications(int recordId, List<Integer> newClassifications) throws SQLException {
         deleteRecordClassfications(recordId);
         saveClassificationForRecord(recordId, newClassifications);
     }
@@ -735,7 +734,7 @@ public class RecordController {
         });
         return documentList;
     }
-    
+
     /**
      * Create a new volume
      * @throws SQLException
