@@ -1,6 +1,7 @@
 package com.discovery.channel.database;
 
 import com.discovery.channel.authenticator.Role;
+import com.discovery.channel.exception.NoResultsFoundException;
 import com.discovery.channel.model.User;
 
 import org.slf4j.Logger;
@@ -54,16 +55,13 @@ public class UserController {
             ps.setInt(1, id);
 
             try (ResultSet resultSet = ps.executeQuery()) {
-                if (resultSet.next()) {
-                    User user = parseResultSet(resultSet);
-                    loadUserDetails(user);
-                    return user;
-                }
+                verifyResultNotEmpty(resultSet);
+                resultSet.next();
+                User user = parseResultSet(resultSet);
+                loadUserDetails(user);
+                return user;
             }
         }
-
-        LOGGER.info("User {} does not exist", id);
-        return null;
     }
 
     /**
@@ -133,6 +131,12 @@ public class UserController {
         LOGGER.info("User {} does not exist", id);
         return 0;
 
+    }
+
+    public static void verifyResultNotEmpty(ResultSet rs) throws SQLException {
+        if (!rs.isBeforeFirst()){
+            throw new NoResultsFoundException("The query returned no results");
+        }
     }
 
 }
