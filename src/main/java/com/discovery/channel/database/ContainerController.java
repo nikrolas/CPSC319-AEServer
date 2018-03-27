@@ -100,7 +100,7 @@ public class ContainerController {
                 rs.next();
                 Container container =  parseResultSet(rs);
                 if (!Authenticator.canUserViewLocation(userId, container.getLocationId())) {
-                    throw new AuthenticationException("User " + userId + " is not allowed to view this location " + container.getLocationName());
+                    throw new AuthenticationException("You are not allowed to view at this location " + container.getLocationName() + ".");
                 }
                 return container;
             }
@@ -110,7 +110,7 @@ public class ContainerController {
     //todo: consider moving this to a more general location to be used by other controllers
     public static void verifyResultNotEmpty(ResultSet rs) throws SQLException {
         if (!rs.isBeforeFirst()){
-            throw new NoResultsFoundException("The query returned no results");
+            throw new NoResultsFoundException("The query returned no results.");
         }
     }
 
@@ -124,15 +124,24 @@ public class ContainerController {
      */
     public static final Container createContainer(Container container, int userId) throws SQLException, AuthenticationException{
         if (!Authenticator.authenticate(userId, Role.ADMINISTRATOR) && !Authenticator.authenticate(userId, Role.RMC)) {
-            throw new AuthenticationException(String.format("User %d is not authenticated to create record", userId));
+            throw new AuthenticationException(String.format("You are not authenticated to create container."));
         }
 
         if (container.getChildRecordIds().size() > 1){
             try {
                 validateRecordsCanBeAddedToSameContainer(container.getChildRecordIds(), userId);
             } catch (ValidationException e){
-                throw new ValidationException("Could not create container with the following record ids: "
-                        + container.getChildRecordIds() + ". Reason: "+ e.getMessage());
+                String recordNumbers = "";
+                List<Record> listOfRecords = RecordController.getRecordsByIds(container.getChildRecordIds(), false);
+                for(Record r : listOfRecords){
+                    if(recordNumbers != ""){
+                        recordNumbers = r.getNumber();
+                    }else{
+                        recordNumbers = recordNumbers.concat(",") + r.getNumber();
+                    }
+                }
+                throw new ValidationException("Could not create container with the following record numbers: "
+                        + recordNumbers + ". Reason: "+ e.getMessage() + ".");
             }
         }
 
@@ -173,40 +182,40 @@ public class ContainerController {
         String consignmentCode = records.get(0).getConsignmentCode();
         for (Record r : records){
             if (!r.getConsignmentCode().equals(consignmentCode)){
-                throw new ValidationException("Record with id '" + r.getId() +
-                        "' has a consignmentCode that differs from at least one other record");
+                throw new ValidationException("Record '" + r.getNumber() +
+                        "' has a consignmentCode that differs from at least one other record.");
             }
         }
         // validate all records have the same stateId
         int stateId = records.get(0).getStateId();
         for (Record r : records){
             if (r.getStateId() != stateId){
-                throw new ValidationException("Record with id '" + r.getId() +
-                        "' has a stateId that differs from at least one other record");
+                throw new ValidationException("Record '" + r.getNumber() +
+                        "' has a stateId that differs from at least one other record.");
             }
         }
         // validate all records have the same locationId
         int locationId = records.get(0).getLocationId();
         for (Record r : records){
             if (r.getLocationId() != locationId){
-                throw new ValidationException("Record with id '" + r.getId() +
-                        "' has a locationId that differs from at least one other record");
+                throw new ValidationException("Record '" + r.getNumber() +
+                        "' has a locationId that differs from at least one other record.");
             }
         }
         // validate all records have the same typeId
         int typeId = records.get(0).getTypeId();
         for (Record r : records){
             if (r.getTypeId() != typeId){
-                throw new ValidationException("Record with id '" + r.getId() +
-                        "' has a typeId that differs from at least one other record");
+                throw new ValidationException("Record '" + r.getNumber() +
+                        "' has a typeId that differs from at least one other record.");
             }
         }
         // validate all records have the same scheduleId
         int scheduleId = records.get(0).getScheduleId();
         for (Record r : records){
             if (r.getScheduleId() != scheduleId){
-                throw new ValidationException("Record with id '" + r.getId() +
-                        "' has a scheduleId that differs from at least one other record");
+                throw new ValidationException("Record '" + r.getNumber() +
+                        "' has a scheduleId that differs from at least one other record.");
             }
         }
     }
@@ -247,23 +256,23 @@ public class ContainerController {
         if (!destinationContainer.getConsignmentCode().equals(record.getConsignmentCode()))
             throw new ValidationException("tried to add record to container with consignmentCode: '" +
                     destinationContainer.getConsignmentCode() + "', but record has consignment code of '" +
-                    record.getConsignmentCode() + "'");
+                    record.getConsignmentCode() + "'.");
         if (destinationContainer.getTypeId() != record.getTypeId())
             throw new ValidationException("tried to add record to container with record type: '" +
                     destinationContainer.getType() + "', but record has record type of '" +
-                record.getType() + "'");
+                record.getType() + "'.");
         if (destinationContainer.getLocationId() != record.getLocationId())
             throw new ValidationException("tried to add record to container with location: '" +
                     destinationContainer.getLocationName() + "', but record has location '" +
-                    record.getLocation() + "'");
+                    record.getLocation() + "'.");
         if (destinationContainer.getScheduleId() != record.getScheduleId())
             throw new ValidationException("tried to add record to container with schedule: '" +
                     destinationContainer.getScheduleName() + "', but record has schedule '" +
-                    record.getSchedule() + "'");
+                    record.getSchedule() + "'.");
         if (destinationContainer.getStateId() != record.getStateId())
             throw new ValidationException("tried to add record to container with type: '" +
                     destinationContainer.getConsignmentCode() + "', but record has consignment code of '" +
-                    record.getConsignmentCode() + "'");
+                    record.getConsignmentCode() + "'.");
     }
 
     private static boolean isContainerEmpty(Container container) throws SQLException {
@@ -329,7 +338,7 @@ public class ContainerController {
      */
     public static Container updateContainer(int containerId, Container container, int userId) throws SQLException{
         if (!Authenticator.authenticate(userId, Role.ADMINISTRATOR) && !Authenticator.authenticate(userId, Role.RMC)) {
-            throw new AuthenticationException(String.format("User %d is not authenticated to update record", userId));
+            throw new AuthenticationException(String.format("You are not authenticated to update container %s.", container.getContainerNumber()));
         }
         LOGGER.info("Passed all validation checks. Updating Container {}", container); //todo this message could be better
 
@@ -400,8 +409,8 @@ public class ContainerController {
                 if (rs.next()) {
                     return rs.getInt(1);
                 } else {
-                    LOGGER.error(String.format("Could not get count of containers: %s", number));
-                    throw new SQLException(String.format("Could not get count of containers: %s", number));
+                    LOGGER.error(String.format("Could not get count of containers: %s.", number));
+                    throw new SQLException(String.format("Could not get count of containers: %s.", number));
                 }
             }
         }
@@ -422,7 +431,7 @@ public class ContainerController {
         try (Connection connection = DbConnect.getConnection();
              PreparedStatement ps = connection.prepareStatement(DELETE_CONTAINERS＿BY_ID)) {
             LOGGER.info("Deleting container {}", id);
-            ps.setInt(1, Integer.valueOf(id));
+            ps.setInt(1, id);
             ps.executeUpdate();
         }
     }
@@ -435,7 +444,7 @@ public class ContainerController {
      */
     public static final ResponseEntity<?> deleteContainers(List<Integer> ids, Integer userId) throws SQLException{
         if (!Authenticator.authenticate(userId, Role.ADMINISTRATOR) && !Authenticator.authenticate(userId, Role.RMC)) {
-            throw new AuthenticationException(String.format("User %d is not authenticated to delete record", userId));
+            throw new AuthenticationException(String.format("You are not authenticated to delete container."));
         }
 
         Map<String, Object> errorResponse = new HashMap<>();

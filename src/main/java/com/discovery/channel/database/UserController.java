@@ -135,7 +135,7 @@ public class UserController {
 
     public static void verifyResultNotEmpty(ResultSet rs) throws SQLException {
         if (!rs.isBeforeFirst()){
-            throw new NoResultsFoundException("The query returned no results");
+            throw new NoResultsFoundException("The query returned no results.");
         }
     }
 
