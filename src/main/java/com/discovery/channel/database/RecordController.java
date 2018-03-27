@@ -71,11 +71,11 @@ public class RecordController {
 
     private static final String GET_RECORD_COUNT_BY_NUMBER =
             "SELECT COUNT(*) FROM records " +
-            "WHERE LocationId IN" +
+            "WHERE LocationId IN " +
             "( SELECT LocationId  " +
             "FROM locations l  LEFT JOIN userlocations ul ON (ul.LocationId = l.Id ) " +
             "WHERE l.Restricted = false OR ul.UserId = ?) " +
-            "AND Number LIKE ? ";
+            "AND Number LIKE ?";
     public static int getRecordCountByNumber(String number, int userId) throws SQLException {
         try (Connection connection = DbConnect.getConnection();
              PreparedStatement ps = connection.prepareStatement(GET_RECORD_COUNT_BY_NUMBER)) {
@@ -119,19 +119,20 @@ public class RecordController {
                 documents = new ArrayList<>(pageSize);
                 documents.addAll((List)getRecordPageByNumber(number, userId, page, pageSize));
                 documents.addAll((List)ContainerController.getContainerPageByNumber(number, userId,
-                        1, pageSize - (recordCount - (page - 1) * pageSize)));
+                        1, pageSize - (recordCount - (page - 1) * pageSize), 0));
             }
             else { // recordCount < (page - 1) * pageSize
-                documents = (List)ContainerController.getContainerPageByNumber(number, userId, page, pageSize);
+                documents = (List)ContainerController.getContainerPageByNumber(number, userId,
+                        page - ((recordCount + pageSize - 1) / pageSize), pageSize, pageSize - (recordCount % pageSize));
             }
         }
         else if (searchRecord) {
             recordCount = getRecordCountByNumber(number, userId);
-            documents = (List)ContainerController.getContainerPageByNumber(number, userId, page, pageSize);
+            documents = (List)RecordController.getRecordPageByNumber(number, userId, page, pageSize);
         }
         else { // only searchContainer
             containerCount = ContainerController.getContainerCountByNumber(number, userId);
-            documents = (List)ContainerController.getContainerPageByNumber(number, userId, page, pageSize);
+            documents = (List)ContainerController.getContainerPageByNumber(number, userId, page, pageSize, 0);
         }
 
         documents = scrubDocuments(documents, userId);
