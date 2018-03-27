@@ -111,7 +111,7 @@ public class RecordController {
             recordCount = getRecordCountByNumber(number, userId);
             containerCount = ContainerController.getContainerCountByNumber(number, userId);
 
-            if (recordCount > page * pageSize) {
+            if (recordCount >= page * pageSize) {
                 documents = (List)getRecordPageByNumber(number, userId, page, pageSize);
             }
             else if (recordCount > (page - 1) * pageSize &&
