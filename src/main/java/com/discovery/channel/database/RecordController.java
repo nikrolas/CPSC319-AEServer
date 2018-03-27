@@ -483,8 +483,14 @@ public class RecordController {
 
         LOGGER.info("About to delete record {}", id);
 
-        // 1. Delete from records
-        // 2. Classifications are deleted because of database constraint
+        // 1. Update container that contained the record if necessary
+        int containerId = record.getContainerId();
+        if (containerId > 0) {
+            ContainerController.removeRecordFromContainer(record, userId);
+        }
+
+        // 2. Delete from records
+        // 3. Classifications are deleted because of database constraint
         int rowsModified = 0;
         try (Connection conn = DbConnect.getConnection();
              PreparedStatement ps = conn.prepareStatement(DELETE_RECORD_BY_ID)) {
@@ -494,7 +500,7 @@ public class RecordController {
 
         AuditLogger.log(userId, AuditLogger.Target.RECORD, id, AuditLogger.ACTION.DELETE);
 
-        // 3. Delete notes
+        // 4. Delete notes
         NoteTableController.deleteNotesForRecord(id);
 
         return rowsModified == 1;
@@ -578,6 +584,14 @@ public class RecordController {
 
         LOGGER.info("About to update record {}", id);
 
+        // Update container information and/or set record closedAt date if need to
+        if (isContainerChanged(record, updateForm.getContainerId())) {
+            if (destinationContainer != null) {
+                ContainerController.addRecordToContainer(destinationContainer, record);
+                setRecordClosedAtDate(id);
+            } else ContainerController.removeRecordFromContainer(record, userId);
+        }
+
         try (Connection conn = DbConnect.getConnection();
              PreparedStatement ps = conn.prepareStatement(UPDATE_RECORD)) {
             ps.setString(1, updateForm.getTitle());
@@ -608,16 +622,6 @@ public class RecordController {
             NoteTableController.deleteNotesForRecord(id);
         } else if (!updateForm.getNotes().equals(record.getNotes())) {
             NoteTableController.updateRecordNotes(id, updateForm.getNotes());
-        }
-
-        // Update container information and/or set record closedAt date if need to
-        if (isContainerChanged(record, updateForm.getContainerId())) {
-            if (destinationContainer != null) {
-                ContainerController.addRecordToContainer(destinationContainer, record);
-                setRecordClosedAtDate(id);
-            } else if (ContainerController.getContainerById(record.getContainerId(), userId).getChildRecordIds().size() == 0) {
-                ContainerController.clearContainerRecordInformation(record.getContainerId());
-            }
         }
 
         AuditLogger.log(userId, AuditLogger.Target.RECORD, id, AuditLogger.ACTION.UPDATE);

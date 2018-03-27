@@ -124,7 +124,7 @@ public class ContainerController {
      */
     public static final Container createContainer(Container container, int userId) throws SQLException, AuthenticationException{
         if (!Authenticator.authenticate(userId, Role.ADMINISTRATOR) && !Authenticator.authenticate(userId, Role.RMC)) {
-            throw new AuthenticationException(String.format("User %d is not authenticated to create record", userId));
+            throw new AuthenticationException(String.format("User %d is not authenticated to create container", userId));
         }
 
         if (container.getChildRecordIds().size() > 1){
@@ -291,26 +291,33 @@ public class ContainerController {
         }
     }
 
+    /**
+     * Clear information about the kinds of records in the container if the last record
+     * in the container is being removed.
+     *
+     * @param record the record being removed
+     * @throws SQLException rethrows any SQLException
+     */
+    public static void removeRecordFromContainer(Record record, int userId) throws SQLException {
+        Container container = getContainerById(record.getContainerId(), userId);
+        // remove certain container information when removing the last record from the container
+        if (container.getChildRecordIds().size() == 1){
+            clearContainerRecordInformation(container.getContainerId());
+        }
+
+    }
 
     private static final String REMOVE_CONTAINER_RECORD_INFORMATION =
             "UPDATE containers " +
-            "SET StateId = ?, LocationId = ?, ScheduleId = ?, TypeId = ?, ConsignmentCode = ?, UpdatedAt = NOW() " +
+            "SET StateId = ?, ScheduleId = ?, TypeId = ?, UpdatedAt = NOW() " +
             "WHERE Id = ?";
-    /**
-     * Clear a information about the kinds of records in the container
-     *
-     * @param containerId the id of the container that should have its container information cleared
-     * @throws SQLException rethrows any SQLException
-     */
-    public static void clearContainerRecordInformation(int containerId) throws SQLException {
+    private static void clearContainerRecordInformation(int containerId) throws SQLException {
         try (Connection connection = DbConnect.getConnection();
              PreparedStatement ps = connection.prepareStatement(REMOVE_CONTAINER_RECORD_INFORMATION)) {
             ps.setNull(1, java.sql.Types.INTEGER);
             ps.setNull(2, java.sql.Types.INTEGER);
             ps.setNull(3, java.sql.Types.INTEGER);
-            ps.setNull(4, java.sql.Types.INTEGER);
-            ps.setString(5, null);
-            ps.setInt(6, containerId);
+            ps.setInt(4, containerId);
             ps.executeUpdate();
         }
     }
