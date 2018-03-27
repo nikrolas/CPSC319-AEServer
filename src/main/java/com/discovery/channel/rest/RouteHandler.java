@@ -337,4 +337,19 @@ public class RouteHandler {
         return RecordController.prepareToDestroyRecords(form, userId);
     }
 
+
+    /**
+     * Get the most recent ClosedAt given a container id
+     *
+     * @param  containerId
+     * @return httpstatus 200 if success, error message with record(s) that don't not have ClosedAt
+     */
+    @RequestMapping(
+            value = "mostrecentclosedat/{id}",
+            params = {"userId"},
+            method = RequestMethod.GET)
+    public ResponseEntity<?> getTheMostRecentClosedAt(@PathVariable("id") Integer containerId, @RequestParam("userId") int userId) throws SQLException {
+        return DestructionDateController.getTheMostRecentClosedAt(containerId, userId);
+    }
+
 }

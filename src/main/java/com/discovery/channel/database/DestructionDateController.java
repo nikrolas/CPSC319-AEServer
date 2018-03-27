@@ -1,5 +1,7 @@
 package com.discovery.channel.database;
 
+import com.discovery.channel.exception.NoResultsFoundException;
+import com.discovery.channel.model.Container;
 import com.discovery.channel.model.Record;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,10 +34,10 @@ public class DestructionDateController {
         int scheduleYear = 0;
 
         List<Record> listOfRecords = RecordController.getRecordsByIds(listOfRecordIds, true);
-        Map<String, List<String>> listOfRecordsWithoutClosureDate = checkRecordsClosedAt(listOfRecords);
-        List<String> temp = listOfRecordsWithoutClosureDate.get("id");
+        Map<String, Object> listOfRecordsWithoutClosureDate = checkRecordsClosedAt(listOfRecords);
+        Object failed = listOfRecordsWithoutClosureDate.get("id");
 
-        if(temp.isEmpty() && !listOfRecords.isEmpty()){
+        if(failed != null && !listOfRecords.isEmpty()){
 
 
             LOGGER.info("Getting the latest closure date given ids {}", listOfRecordIds);
@@ -69,14 +71,7 @@ public class DestructionDateController {
             return new ResponseEntity<>(addYearToTheLatestClosureDate(scheduleYear, theLatestClosedAt), HttpStatus.OK);
 
         }else{
-
-            Object recordIds = listOfRecordsWithoutClosureDate.get("id");
-            LOGGER.info("Records id {} do not have ClosedAt", recordIds);
-            Map<String, Object> response = new HashMap<>();
-            response.put("number", listOfRecordsWithoutClosureDate.get("number"));
-            response.put("id", recordIds);
-            response.put("error", "Record(s) do not have ClosedAt");
-            return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+            return new ResponseEntity<>(listOfRecordsWithoutClosureDate, HttpStatus.BAD_REQUEST);
         }
 
     }
@@ -111,9 +106,9 @@ public class DestructionDateController {
      * @return Record ids that do not meet requirements
      * @throws SQLException
      */
-    public static Map<String, List<String>> checkRecordsClosedAt(List<Record> listOfRecords) throws SQLException {
+    public static Map<String, Object> checkRecordsClosedAt(List<Record> listOfRecords) throws SQLException {
 
-        Map<String, List<String>> response = new HashMap<>();
+        Map<String, Object> response = new HashMap<>();
 
         List<String> recordNumbers = new ArrayList<>();
         List<String> recordIds = new ArrayList<>();
@@ -129,8 +124,67 @@ public class DestructionDateController {
 
         response.put("number", recordNumbers);
         response.put("id", recordIds);
+        response.put("error", "Record(s) do not have ClosedAt");
 
         return response;
+    }
+
+
+    /**
+     * Get the most recent ClosedAt by accessing records in the container
+     *
+     * @param containerId
+     * @return date in millisecond if success, bad request with record(s) without ClosedAt otherwise.
+     * @throws SQLException
+     */
+    public static ResponseEntity<?> getTheMostRecentClosedAt(Integer containerId, Integer userId) throws SQLException {
+
+        Container container = ContainerController.getContainerById(containerId, userId);
+        List<Integer> listOfRecordIds = ContainerController.getRecordIdsInContainer(containerId);
+
+        if(listOfRecordIds.isEmpty()){
+            throw new NoResultsFoundException(String.format("Container %s does not contain record(s)", container.getContainerNumber()));
+        }
+
+        List<Record> listOfRecords = RecordController.getRecordsByIds(listOfRecordIds, true);
+
+        if(listOfRecordIds.isEmpty()){
+            throw new NoResultsFoundException(String.format("Container %s does not contain record(s)", container.getContainerNumber()));
+        }
+
+        Map<String, Object> listOfRecordsWithoutClosureDate = checkRecordsClosedAt(listOfRecords);
+        Object failed = listOfRecordsWithoutClosureDate.get("id");
+
+        Date currentClosedAt;
+        Date theLatestClosedAt = null;
+
+
+        if(failed != null){
+
+            LOGGER.info("Getting the latest closure date given ids {}", listOfRecordIds);
+
+            for (Record record : listOfRecords){
+                LOGGER.info("Getting a record by id {}", record.getId());
+
+                currentClosedAt = record.getClosedAt();
+
+                if (theLatestClosedAt == null) {
+                    theLatestClosedAt = currentClosedAt;
+                } else {
+                    if (currentClosedAt.compareTo(theLatestClosedAt) == 1) {
+                        theLatestClosedAt = currentClosedAt;
+                    }
+                }
+            }
+
+            LOGGER.info("Passing all the validation");
+            return new ResponseEntity<>(theLatestClosedAt.toInstant().toEpochMilli(), HttpStatus.OK);
+
+
+        }else{
+
+            return new ResponseEntity<>(listOfRecordsWithoutClosureDate, HttpStatus.BAD_REQUEST);
+        }
     }
 
 }
