@@ -469,34 +469,32 @@ public class RecordController {
     private static final String DELETE_RECORD_BY_ID = "DELETE FROM records " +
             "where Id=?";
 
-    private static boolean deleteRecord(Integer id, int userId) throws SQLException {
+    private static boolean deleteRecord(Record record, int userId) throws SQLException {
         // TODO : audit log
 
-        Record record = getRecordById(id, userId);
-
         if (record == null) {
-            throw new NoResultsFoundException(String.format("Record %d does not exist", id));
+            throw new NoResultsFoundException(String.format("Record %d does not exist", record.getId()));
         }
 
         if (!Authenticator.isUserAuthenticatedForLocation(userId, record.getLocationId())) {
             throw new AuthenticationException(String.format("User %d is not authenticated to delete record under location %d", userId, record.getLocationId()));
         }
 
-        LOGGER.info("About to delete record {}", id);
+        LOGGER.info("About to delete record {}", record.getId());
 
         // 1. Delete from records
         // 2. Classifications are deleted because of database constraint
         int rowsModified = 0;
         try (Connection conn = DbConnect.getConnection();
              PreparedStatement ps = conn.prepareStatement(DELETE_RECORD_BY_ID)) {
-            ps.setInt(1, id);
+            ps.setInt(1, record.getId());
             rowsModified = ps.executeUpdate();
         }
 
-        AuditLogger.log(userId, AuditLogger.Target.RECORD, id, AuditLogger.ACTION.DELETE);
+        AuditLogger.log(userId, AuditLogger.Target.RECORD, record.getId(), AuditLogger.ACTION.DELETE);
 
         // 3. Delete notes
-        NoteTableController.deleteNotesForRecord(id);
+        NoteTableController.deleteNotesForRecord(record.getId());
 
         return rowsModified == 1;
     }
@@ -514,15 +512,16 @@ public class RecordController {
         }
 
         for (int recordId : form.getRecordIds()) {
+            Record record = getRecordById(recordId, userId);
             try {
-                if (deleteRecord(recordId, userId)) {
-                    response.addResponse(recordId, "", true);
+                if (deleteRecord(record, userId)) {
+                    response.addResponse(recordId, record.getNumber(), "", true);
                 } else {
-                    response.addResponse(recordId, "", false);
+                    response.addResponse(recordId, record.getNumber(), "", false);
                 }
             } catch (Exception e) {
                 LOGGER.error(e.getMessage());
-                response.addResponse(recordId, e.getMessage(), false);
+                response.addResponse(recordId, record.getNumber(), e.getMessage(), false);
             }
         }
         return response;
