@@ -35,9 +35,9 @@ public class DestructionDateController {
 
         List<Record> listOfRecords = RecordController.getRecordsByIds(listOfRecordIds, true);
         Map<String, Object> listOfRecordsWithoutClosureDate = checkRecordsClosedAt(listOfRecords);
-        Object failed = listOfRecordsWithoutClosureDate.get("id");
+        Object anyRecordNotHaveClosedAt = listOfRecordsWithoutClosureDate.get("id");
 
-        if(failed != null && !listOfRecords.isEmpty()){
+        if(anyRecordNotHaveClosedAt == null && !listOfRecords.isEmpty()){
 
 
             LOGGER.info("Getting the latest closure date given ids {}", listOfRecordIds);
@@ -111,13 +111,13 @@ public class DestructionDateController {
         Map<String, Object> response = new HashMap<>();
 
         List<String> recordNumbers = new ArrayList<>();
-        List<String> recordIds = new ArrayList<>();
+        List<Integer> recordIds = new ArrayList<>();
 
         for (Record record : listOfRecords){
             if(record != null){
                 if(record.getClosedAt() == null) {
                     recordNumbers.add(record.getNumber());
-                    recordIds.add(String.valueOf(record.getId()));
+                    recordIds.add(record.getId());
                 }
             }
         }
@@ -153,13 +153,13 @@ public class DestructionDateController {
         }
 
         Map<String, Object> listOfRecordsWithoutClosureDate = checkRecordsClosedAt(listOfRecords);
-        Object failed = listOfRecordsWithoutClosureDate.get("id");
+        Object anyRecordNotHaveClosedAt = listOfRecordsWithoutClosureDate.get("id");
 
         Date currentClosedAt;
         Date theLatestClosedAt = null;
 
 
-        if(failed != null){
+        if(anyRecordNotHaveClosedAt == null){
 
             LOGGER.info("Getting the latest closure date given ids {}", listOfRecordIds);
 
@@ -178,7 +178,7 @@ public class DestructionDateController {
             }
 
             LOGGER.info("Passing all the validation");
-            return new ResponseEntity<>(theLatestClosedAt.toInstant().toEpochMilli(), HttpStatus.OK);
+            return new ResponseEntity<>(theLatestClosedAt.getTime(), HttpStatus.OK);
 
 
         }else{
