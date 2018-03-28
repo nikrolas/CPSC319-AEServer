@@ -370,7 +370,7 @@ public class RecordController {
         RecordNumber.NUMBER_PATTERN numberPattern = RecordNumber.NUMBER_PATTERN.fromString(pattern);
         if (!numberPattern.match(record.getNumber()) ||
                 numberPattern.matchLocation(
-                        LocationController.getLocationCodeById(record.getId()),
+                        LocationController.getLocationCodeById(record.getLocationId()),
                         record.getNumber())) {
             throw new IllegalArgumentException(String.format("Invalid record number: %s for record type %d", record.getNumber(), record.getTypeId()));
         }
@@ -640,13 +640,16 @@ public class RecordController {
     }
 
     private static final String SET_RECORD_CONTAINER =
-            "UPDATE records SET closedAt = NOW(), updatedAt = NOW(), containerId = ? WHERE id = ?";
+            "UPDATE records " +
+            "SET StateId = (SELECT StateId FROM containers WHERE Id = ?), " +
+                "ClosedAt = NOW(), UpdatedAt = NOW(), ContainerId = ? WHERE Id = ?";
 
     public static void setRecordContainer(int recordId, int containerId) throws SQLException {
         try (Connection conn = DbConnect.getConnection();
              PreparedStatement ps = conn.prepareStatement(SET_RECORD_CONTAINER)) {
             ps.setInt(1, containerId);
-            ps.setInt(2, recordId);
+            ps.setInt(2, containerId);
+            ps.setInt(3, recordId);
             ps.executeUpdate();
         }
     }

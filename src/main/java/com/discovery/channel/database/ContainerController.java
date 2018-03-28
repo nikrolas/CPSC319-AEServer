@@ -4,18 +4,18 @@ import com.discovery.channel.audit.AuditLogger;
 import com.discovery.channel.authenticator.Authenticator;
 import com.discovery.channel.authenticator.Role;
 import com.discovery.channel.exception.AuthenticationException;
+import com.discovery.channel.exception.IllegalArgumentException;
 import com.discovery.channel.exception.NoResultsFoundException;
 import com.discovery.channel.exception.ValidationException;
 import com.discovery.channel.model.Container;
 import com.discovery.channel.model.Record;
+import com.discovery.channel.model.RecordState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
 
-import javax.validation.Valid;
-import javax.validation.Validation;
 import java.sql.Connection;
 import java.sql.Date;
 import java.sql.PreparedStatement;
@@ -127,6 +127,10 @@ public class ContainerController {
             throw new AuthenticationException(String.format("User %d is not authenticated to create record", userId));
         }
 
+        if (container.getChildRecordIds().size() < 1){
+            throw new IllegalArgumentException("Containers must be created with at least one child record.");
+        }
+
         if (container.getChildRecordIds().size() > 1){
             try {
                 validateRecordsCanBeAddedToSameContainer(container.getChildRecordIds(), userId);
@@ -136,26 +140,40 @@ public class ContainerController {
             }
         }
 
+        Record baseRecord = RecordController.getRecordById(container.getChildRecordIds().get(0), userId);
+        String locationCode = LocationController.getLocationCodeById(container.getLocationId()).toUpperCase();
+
+        if (baseRecord.getLocationId() != container.getLocationId()) {
+            throw new ValidationException(String.format("Could not create container in %s with records in %s.",
+                    LocationController.getLocationNameByLocationId(container.getLocationId()),
+                    baseRecord.getLocation()));
+        }
+
+        int year = Calendar.getInstance().get(Calendar.YEAR);
+        String maxNumber = getMaxContainerNumber(year, locationCode);
+        String ggg = String.format("%03d", maxNumber != null ?
+                Integer.parseInt(
+                        maxNumber.substring(maxNumber.indexOf("/") + 1,
+                        maxNumber.indexOf("-"))) + 1 :
+                1);
+        container.setContainerNumber(year + "/" + ggg + "-" + locationCode);
+        container.setStateId(RecordState.ARCHIVED_LOCAL.getId());
+        container.setConsignmentCode(baseRecord.getConsignmentCode());
+        container.setScheduleId(baseRecord.getScheduleId());
+        container.setTypeId(baseRecord.getTypeId());
+
         LOGGER.info("Passed all validation checks. Creating container {}", container);
 
-        Date createdAt = new Date(Calendar.getInstance().getTimeInMillis());
-        container.setCreatedAt(createdAt);
-        container.setUpdatedAt(createdAt);
         int newContainerId = saveContainerToDb(container);
 
         if (!StringUtils.isEmpty(container.getNotes())){
             NoteTableController.saveNotesForContainer(newContainerId, container.getNotes());
         }
 
-        // update container information on records it contains
-        if (container.getChildRecordIds().size() >= 1){
-            addRecordToContainer(container, RecordController.getRecordById(container.getChildRecordIds().get(0), userId));
-        }
-
         LOGGER.info("Created container. Container Id {}", newContainerId);
         AuditLogger.log(userId, AuditLogger.Target.CONTAINER, newContainerId, AuditLogger.ACTION.CREATE);
 
-        // update records to point to the new container
+        // Update records to point to the new container
         for (int recordId : container.getChildRecordIds()){
             RecordController.setRecordContainer(recordId, newContainerId);
         }
@@ -203,6 +221,10 @@ public class ContainerController {
         }
         // validate all records have the same scheduleId
         int scheduleId = records.get(0).getScheduleId();
+        if (scheduleId == 0) {
+            throw new ValidationException(String.format("Record %s has no retention schedule.",
+                    records.get(0).getNumber()));
+        }
         for (Record r : records){
             if (r.getScheduleId() != scheduleId){
                 throw new ValidationException("Record with id '" + r.getId() +
@@ -223,9 +245,30 @@ public class ContainerController {
         }
     }
 
+    private static final String GET_MAX_CONTAINER_NUMBER =
+            "SELECT Number " +
+            "FROM containers " +
+            "WHERE Number LIKE ? " +
+            "ORDER BY Number DESC";
+    private static String getMaxContainerNumber(int year, String locationCode) throws SQLException {
+        try (Connection connection = DbConnect.getConnection();
+            PreparedStatement ps = connection.prepareStatement(GET_MAX_CONTAINER_NUMBER)) {
+            ps.setString(1, year + "/___-" + locationCode);
+            LOGGER.info("Max container number query: %s", ps.toString());
+            try (ResultSet rs = ps.executeQuery()){
+                if (rs.next()) {
+                    return rs.getString("Number");
+                } else {
+                    return null;
+                }
+            }
+        }
+    }
+
     private static final String CREATE_CONTAINER =
-            "INSERT INTO containers(Id, Number, Title, CreatedAt, UpdatedAt)" +
-                    "VALUES(?, ?, ?, ?, ?)";
+            "INSERT INTO containers " +
+            "(Id, Number, Title, ConsignmentCode, StateId, LocationId, ScheduleId, TypeId, CreatedAt, UpdatedAt) " +
+            "VALUES(?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())";
     private static int saveContainerToDb(Container c) throws SQLException {
         try (Connection connection = DbConnect.getConnection();
              PreparedStatement ps = connection.prepareStatement(CREATE_CONTAINER)) {
@@ -235,8 +278,11 @@ public class ContainerController {
             ps.setInt(1, id);
             ps.setString(2, c.getContainerNumber());
             ps.setString(3, c.getTitle());
-            ps.setDate(4, c.getCreatedAt());
-            ps.setDate(5, c.getUpdatedAt());
+            ps.setString(4, c.getConsignmentCode());
+            ps.setInt(5, c.getStateId());
+            ps.setInt(6, c.getLocationId());
+            ps.setInt(7, c.getScheduleId());
+            ps.setInt(8, c.getTypeId());
             ps.executeUpdate();
             return id;
         }
@@ -290,7 +336,6 @@ public class ContainerController {
             }
         }
     }
-
 
     private static final String REMOVE_CONTAINER_RECORD_INFORMATION =
             "UPDATE containers " +
