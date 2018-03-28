@@ -337,4 +337,18 @@ public class RouteHandler {
         return RecordController.prepareToDestroyRecords(form, userId);
     }
 
+    /**
+     * Get records given record ids
+     *
+     * @param  ids
+     * @return list of records
+     */
+    @RequestMapping(
+            value = "records",
+            params = {"ids","userId"},
+            method = RequestMethod.GET)
+    public List<Record> getMultipleRecords(@RequestParam("ids") List<Integer> ids, @RequestParam("userId") int userId) throws SQLException {
+        return RecordController.getRecordsByIds(ids, true);
+    }
+
 }
