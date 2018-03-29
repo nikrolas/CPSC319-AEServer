@@ -345,7 +345,7 @@ public class RouteHandler {
      * @return httpstatus 200 if success, error message with record(s) that don't not have ClosedAt
      */
     @RequestMapping(
-            value = "mostrecentclosedat/{id}",
+            value = "containers/{id}/closedAt",
             params = {"userId"},
             method = RequestMethod.GET)
     public ResponseEntity<?> getTheMostRecentClosedAt(@PathVariable("id") Integer containerId, @RequestParam("userId") int userId) throws SQLException {
