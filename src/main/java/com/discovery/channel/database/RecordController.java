@@ -471,11 +471,7 @@ public class RecordController {
 
     private static boolean deleteRecord(Record record, int userId) throws SQLException {
         // TODO : audit log
-
-        if (record == null) {
-            throw new NoResultsFoundException(String.format("Record %d does not exist", record.getId()));
-        }
-
+        
         if (!Authenticator.isUserAuthenticatedForLocation(userId, record.getLocationId())) {
             throw new AuthenticationException(String.format("User %d is not authenticated to delete record under location %d", userId, record.getLocationId()));
         }
@@ -490,7 +486,7 @@ public class RecordController {
             ps.setInt(1, record.getId());
             rowsModified = ps.executeUpdate();
         }
-        
+
         // 3. Delete notes
         NoteTableController.deleteNotesForRecord(record.getId());
 
