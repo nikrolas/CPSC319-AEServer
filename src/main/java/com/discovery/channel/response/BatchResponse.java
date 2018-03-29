@@ -12,7 +12,7 @@ import java.util.List;
 @Getter
 public class BatchResponse {
     @JsonFormat(with = JsonFormat.Feature.ACCEPT_SINGLE_VALUE_AS_ARRAY)
-    List<Response> responseList = new ArrayList<>();
+    private List<Response> responseList = new ArrayList<>();
 
     @AllArgsConstructor
     @Getter

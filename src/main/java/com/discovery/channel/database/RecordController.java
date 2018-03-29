@@ -471,7 +471,7 @@ public class RecordController {
 
     private static boolean deleteRecord(Record record, int userId) throws SQLException {
         // TODO : audit log
-        
+
         if (!Authenticator.isUserAuthenticatedForLocation(userId, record.getLocationId())) {
             throw new AuthenticationException(String.format("User %d is not authenticated to delete record under location %d", userId, record.getLocationId()));
         }
