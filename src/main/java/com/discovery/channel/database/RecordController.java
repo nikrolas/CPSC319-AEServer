@@ -490,11 +490,11 @@ public class RecordController {
             ps.setInt(1, record.getId());
             rowsModified = ps.executeUpdate();
         }
-
-        AuditLogger.log(userId, AuditLogger.Target.RECORD, record.getId(), AuditLogger.ACTION.DELETE);
-
+        
         // 3. Delete notes
         NoteTableController.deleteNotesForRecord(record.getId());
+
+        AuditLogger.log(userId, AuditLogger.Target.RECORD, record.getId(), AuditLogger.ACTION.DELETE);
 
         return rowsModified == 1;
     }
