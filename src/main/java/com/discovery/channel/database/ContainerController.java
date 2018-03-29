@@ -143,12 +143,6 @@ public class ContainerController {
         Record baseRecord = RecordController.getRecordById(container.getChildRecordIds().get(0), userId);
         String locationCode = LocationController.getLocationCodeById(container.getLocationId()).toUpperCase();
 
-        if (baseRecord.getLocationId() != container.getLocationId()) {
-            throw new ValidationException(String.format("Could not create container in %s with records in %s.",
-                    LocationController.getLocationNameByLocationId(container.getLocationId()),
-                    baseRecord.getLocation()));
-        }
-
         int year = Calendar.getInstance().get(Calendar.YEAR);
         String maxNumber = getMaxContainerNumber(year, locationCode);
         String ggg = String.format("%03d", maxNumber != null ?
@@ -187,7 +181,7 @@ public class ContainerController {
             records.add(RecordController.getRecordById(recordId, userId));
         }
         if (records.size() <= 1) return;
-        // validate all records have the same consignmentCode
+        // Validate all records have the same consignmentCode
         String consignmentCode = records.get(0).getConsignmentCode();
         for (Record r : records){
             if (!r.getConsignmentCode().equals(consignmentCode)){
@@ -195,7 +189,7 @@ public class ContainerController {
                         "' has a consignmentCode that differs from at least one other record");
             }
         }
-        // validate all records have the same stateId
+        // Validate all records have the same stateId
         int stateId = records.get(0).getStateId();
         for (Record r : records){
             if (r.getStateId() != stateId){
@@ -203,7 +197,7 @@ public class ContainerController {
                         "' has a stateId that differs from at least one other record");
             }
         }
-        // validate all records have the same locationId
+        // Validate all records have the same locationId
         int locationId = records.get(0).getLocationId();
         for (Record r : records){
             if (r.getLocationId() != locationId){
@@ -211,7 +205,7 @@ public class ContainerController {
                         "' has a locationId that differs from at least one other record");
             }
         }
-        // validate all records have the same typeId
+        // Validate all records have the same typeId
         int typeId = records.get(0).getTypeId();
         for (Record r : records){
             if (r.getTypeId() != typeId){
@@ -219,7 +213,7 @@ public class ContainerController {
                         "' has a typeId that differs from at least one other record");
             }
         }
-        // validate all records have the same scheduleId
+        // Validate all records have the same scheduleId
         int scheduleId = records.get(0).getScheduleId();
         if (scheduleId == 0) {
             throw new ValidationException(String.format("Record %s has no retention schedule.",

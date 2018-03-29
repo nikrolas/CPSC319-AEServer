@@ -640,9 +640,13 @@ public class RecordController {
     }
 
     private static final String SET_RECORD_CONTAINER =
-            "UPDATE records " +
-            "SET StateId = (SELECT StateId FROM containers WHERE Id = ?), " +
-                "ClosedAt = NOW(), UpdatedAt = NOW(), ContainerId = ? WHERE Id = ?";
+            "UPDATE records AS R" +
+                "(SELECT StateId, LocationId " +
+                "FROM containers WHERE Id = ?) AS C " +
+            "SET R.StateId = C.StateId, " +
+                "R.LocationId = C.LocationId, " +
+                "ClosedAt = NOW(), UpdatedAt = NOW(), ContainerId = ? " +
+            "WHERE R.Id = ?";
 
     public static void setRecordContainer(int recordId, int containerId) throws SQLException {
         try (Connection conn = DbConnect.getConnection();
