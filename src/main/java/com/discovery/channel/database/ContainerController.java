@@ -100,7 +100,7 @@ public class ContainerController {
                 Container container =  parseResultSet(rs);
                 if (!Authenticator.canUserViewLocation(userId, container.getLocationId())) {
                     throw new AuthenticationException(String.format("You do not have permission to view containers at %s. ",
-                            container.getLocationName());
+                            container.getLocationName()));
                 }
                 return container;
             }
