@@ -107,11 +107,53 @@ public class ContainerController {
         }
     }
 
+    /**
+     * Get containers by ids
+     *
+     * @param ids
+     * @return List of containers
+     */
+    public static List<Container> getContainersByIds(List<Integer> ids) throws SQLException {
+        List<Container> containers = new ArrayList<>();
+
+        if (ids == null || ids.isEmpty()) {
+            return containers;
+        }
+
+        String str = "SELECT * FROM containers WHERE Id IN (";
+
+        String query = completeIdsInQuery(ids, str);
+
+        try (Connection connection = DbConnect.getConnection();
+             PreparedStatement ps = connection.prepareStatement(query)) {
+            try (ResultSet resultSet = ps.executeQuery()) {
+                while (resultSet.next()) {
+                    Container container = parseResultSet(resultSet);
+                    loadContainerDetail(container);
+                    containers.add(container);
+                }
+            }
+        }
+        return containers;
+    }
+
     //todo: consider moving this to a more general location to be used by other controllers
     public static void verifyResultNotEmpty(ResultSet rs) throws SQLException {
         if (!rs.isBeforeFirst()){
             throw new NoResultsFoundException("The query returned no results");
         }
+    }
+
+    private static String completeIdsInQuery(List<Integer> ids, String str){
+        Iterator<Integer> idsIterator = ids.iterator();
+        while(idsIterator.hasNext())
+        {
+            str = str + idsIterator.next().toString();
+            if(idsIterator.hasNext()){
+                str = str + ",";
+            }
+        }
+        return str + ")";
     }
 
     /**
@@ -466,58 +508,4 @@ public class ContainerController {
         }
     }
 
-    /**
-     * Get containers by ids
-     *
-     * @param ids
-     * @return List of containers
-     */
-    public static List<Container> getContainersByIds(List<Integer> ids, boolean verbose) throws SQLException {
-        List<Container> containers = new ArrayList<>();
-
-        if (ids == null || ids.isEmpty()) {
-            return containers;
-        }
-
-        String str = "SELECT * FROM containers WHERE Id IN (";
-
-        String query = buildString(ids, str);
-
-        try (Connection connection = DbConnect.getConnection();
-             PreparedStatement ps = connection.prepareStatement(query)) {
-            try (ResultSet resultSet = ps.executeQuery()) {
-                while (resultSet.next()) {
-                    Container container = parseResultSet(resultSet);
-                    if (verbose) {
-                        loadContainerDetail(container);
-                    }
-                    containers.add(container);
-                }
-            }
-        }
-        return containers;
-    }
-
-    /**
-     * build sql statement
-     *
-     * @param ids
-     * @param str
-     * @return sql statement
-     */
-    private static String buildString(List<Integer> ids, String str){
-
-        Iterator<Integer> idsIterator = ids.iterator();
-        while(idsIterator.hasNext())
-        {
-            str = str + idsIterator.next().toString();
-            if(idsIterator.hasNext()){
-                str = str + ",";
-            }
-        }
-
-        str = str + ")";
-
-        return str;
-    }
 }
