@@ -362,7 +362,7 @@ public class RouteHandler {
             params = {"ids","userId"},
             method = RequestMethod.GET)
     public List<Container> getMultipleContainers(@RequestParam("ids") List<Integer> ids, @RequestParam("userId") int userId) throws SQLException {
-        return ContainerController.getContainersByIds(ids, true);
+        return ContainerController.getContainersByIds(ids);
     }
 
 }
