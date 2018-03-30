@@ -426,7 +426,7 @@ public class ContainerController {
     private static final String DELETE_CONTAINERS＿BY_ID =
             "DELETE FROM containers" + " WHERE Id = ?";
 
-    public static final void deleteOneContainer(Integer id) throws SQLException {
+    private static final void deleteOneContainer(Integer id) throws SQLException {
 
         try (Connection connection = DbConnect.getConnection();
              PreparedStatement ps = connection.prepareStatement(DELETE_CONTAINERS＿BY_ID)) {
@@ -446,21 +446,21 @@ public class ContainerController {
         if (!Authenticator.authenticate(userId, Role.ADMINISTRATOR) && !Authenticator.authenticate(userId, Role.RMC)) {
             throw new AuthenticationException(String.format("You are not authenticated to delete container."));
         }
-
         Map<String, Object> errorResponse = new HashMap<>();
-        List<Integer> failedId = new ArrayList<>();
-        List<String> failedNum = new ArrayList<>();
-
+        List<String> listOfContainerNumbers = new ArrayList<>();
 
         for (Integer id : ids) {
+            Container container = ContainerController.getContainerById(id, userId);
             if (!getRecordIdsInContainer(id).isEmpty()) {
-                failedId.add(id);
-                Record record = RecordController.getRecordById(id, userId);
-                failedNum.add(record.getNumber());
+                listOfContainerNumbers.add(container.getContainerNumber());
             }
         }
 
-        if(failedId.isEmpty()) {
+        if(!listOfContainerNumbers.isEmpty()){
+            errorResponse.put("containerNumber", listOfContainerNumbers);
+        }
+
+        if(errorResponse.isEmpty()) {
             LOGGER.info("Passed all validation checks. Deleting container {}", ids);
             for (Integer id : ids) {
                 deleteOneContainer(id);
@@ -468,9 +468,7 @@ public class ContainerController {
             }
             return new ResponseEntity<>(HttpStatus.OK);
         }else{
-            errorResponse.put("ids", failedId);
-            errorResponse.put("numbers", failedNum);
-            errorResponse.put("error", "Container(s) not empty");
+            errorResponse.put("error", "The container(s) are not empty and still contain records");
             return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
         }
     }
