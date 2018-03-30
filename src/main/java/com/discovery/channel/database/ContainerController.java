@@ -99,7 +99,8 @@ public class ContainerController {
                 rs.next();
                 Container container =  parseResultSet(rs);
                 if (!Authenticator.canUserViewLocation(userId, container.getLocationId())) {
-                    throw new AuthenticationException("You are not allowed to view at this location " + container.getLocationName() + ".");
+                    throw new AuthenticationException(String.format("You do not have permission to view containers at %s. ",
+                            container.getLocationName());
                 }
                 return container;
             }
@@ -253,25 +254,25 @@ public class ContainerController {
     public static void validateContainerChangeForRecord(Record record, Container destinationContainer) throws SQLException {
         if (isContainerEmpty(destinationContainer)) return;
         if (!destinationContainer.getConsignmentCode().equals(record.getConsignmentCode()))
-            throw new ValidationException("tried to add record to container with consignmentCode: '" +
-                    destinationContainer.getConsignmentCode() + "', but record has consignment code of '" +
-                    record.getConsignmentCode() + "'.");
+            throw new ValidationException(String.format(
+                    "Tried to add record to container with consignmentCode: '%s', but record has consignment code of '%s'.",
+                    destinationContainer.getConsignmentCode(), record.getConsignmentCode()));
         if (destinationContainer.getTypeId() != record.getTypeId())
-            throw new ValidationException("tried to add record to container with record type: '" +
-                    destinationContainer.getType() + "', but record has record type of '" +
-                record.getType() + "'.");
+            throw new ValidationException(String.format(
+                    "Tried to add record to container with record type: '%s', but record has record type of '%s'.",
+                    destinationContainer.getType(), record.getType()));
         if (destinationContainer.getLocationId() != record.getLocationId())
-            throw new ValidationException("tried to add record to container with location: '" +
-                    destinationContainer.getLocationName() + "', but record has location '" +
-                    record.getLocation() + "'.");
+            throw new ValidationException(String.format(
+                    "Tried to add record to container with location: '%s', but record has location '%s'." +
+                    destinationContainer.getLocationName(), record.getLocation()));
         if (destinationContainer.getScheduleId() != record.getScheduleId())
-            throw new ValidationException("tried to add record to container with schedule: '" +
-                    destinationContainer.getScheduleName() + "', but record has schedule '" +
-                    record.getSchedule() + "'.");
+            throw new ValidationException(String.format(
+                    "Tried to add record to container with schedule: '%s', but record has schedule '%s'." +
+                    destinationContainer.getScheduleName(), record.getSchedule()));
         if (destinationContainer.getStateId() != record.getStateId())
-            throw new ValidationException("tried to add record to container with type: '" +
-                    destinationContainer.getConsignmentCode() + "', but record has consignment code of '" +
-                    record.getConsignmentCode() + "'.");
+            throw new ValidationException(String.format(
+                    "Tried to add record to container with type: '%s', but record has consignment code of '%s'." +
+                    destinationContainer.getConsignmentCode(), record.getConsignmentCode()));
     }
 
     private static boolean isContainerEmpty(Container container) throws SQLException {

@@ -369,7 +369,7 @@ public class RecordController {
                 numberPattern.matchLocation(
                         LocationController.getLocationCodeById(record.getId()),
                         record.getNumber())) {
-            throw new IllegalArgumentException(String.format("Invalid record number: %s for record type %s.",
+            throw new IllegalArgumentException(String.format("Invalid record number: %s, for record type %s.",
                     record.getNumber(), record.getType()));
         }
 
@@ -787,7 +787,7 @@ public class RecordController {
 
         int colonCount = StringUtils.countOccurrencesOf(number, ":");
         if (colonCount > 1) {
-            throw new IllegalArgumentException(String.format("Unsupported volume format for create volume: %s.", number));
+            throw new IllegalArgumentException(String.format("Unsupported volume format for volume creation: %s.", number));
         } else if (colonCount == 1) {
             String[] pieces = baseRecord.getNumber().split(":");
             baseNumber = pieces[0];
