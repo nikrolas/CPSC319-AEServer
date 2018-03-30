@@ -9,7 +9,7 @@ import com.discovery.channel.exception.NoResultsFoundException;
 import com.discovery.channel.exception.ValidationException;
 import com.discovery.channel.model.Container;
 import com.discovery.channel.model.Record;
-import com.discovery.channel.model.RecordState;
+import com.discovery.channel.model.RetentionSchedule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -65,8 +65,8 @@ public class ContainerController {
         if (isContainerEmpty(container)) return;
         container.setType(RecordTypeController.getTypeName(container.getTypeId()));
         container.setLocationName(LocationController.getLocationNameByLocationId(container.getLocationId()));
-        Map<String, String> schedule = RetentionScheduleController.getRetentionSchedule(container.getScheduleId());
-        container.setScheduleName(schedule.get("Name"));
+        RetentionSchedule schedule = RetentionScheduleController.getRetentionSchedule(container.getScheduleId());
+        container.setScheduleName(schedule.getName());
         container.setState(StateController.getStateName(container.getStateId()));
     }
 
@@ -100,18 +100,61 @@ public class ContainerController {
                 rs.next();
                 Container container =  parseResultSet(rs);
                 if (!Authenticator.canUserViewLocation(userId, container.getLocationId())) {
-                    throw new AuthenticationException("User " + userId + " is not allowed to view this location " + container.getLocationName());
+                    throw new AuthenticationException(String.format("You do not have permission to view containers at %s. ",
+                            container.getLocationName()));
                 }
                 return container;
             }
         }
     }
 
+    /**
+     * Get containers by ids
+     *
+     * @param ids
+     * @return List of containers
+     */
+    public static List<Container> getContainersByIds(List<Integer> ids) throws SQLException {
+        List<Container> containers = new ArrayList<>();
+
+        if (ids == null || ids.isEmpty()) {
+            return containers;
+        }
+
+        String str = "SELECT * FROM containers WHERE Id IN (";
+
+        String query = completeIdsInQuery(ids, str);
+
+        try (Connection connection = DbConnect.getConnection();
+             PreparedStatement ps = connection.prepareStatement(query)) {
+            try (ResultSet resultSet = ps.executeQuery()) {
+                while (resultSet.next()) {
+                    Container container = parseResultSet(resultSet);
+                    loadContainerDetail(container);
+                    containers.add(container);
+                }
+            }
+        }
+        return containers;
+    }
+
     //todo: consider moving this to a more general location to be used by other controllers
     public static void verifyResultNotEmpty(ResultSet rs) throws SQLException {
         if (!rs.isBeforeFirst()){
-            throw new NoResultsFoundException("The query returned no results");
+            throw new NoResultsFoundException("This container does not exist.");
         }
+    }
+
+    private static String completeIdsInQuery(List<Integer> ids, String str){
+        Iterator<Integer> idsIterator = ids.iterator();
+        while(idsIterator.hasNext())
+        {
+            str = str + idsIterator.next().toString();
+            if(idsIterator.hasNext()){
+                str = str + ",";
+            }
+        }
+        return str + ")";
     }
 
     /**
@@ -124,7 +167,7 @@ public class ContainerController {
      */
     public static final Container createContainer(Container container, int userId) throws SQLException, AuthenticationException{
         if (!Authenticator.authenticate(userId, Role.ADMINISTRATOR) && !Authenticator.authenticate(userId, Role.RMC)) {
-            throw new AuthenticationException(String.format("User %d is not authenticated to create record", userId));
+            throw new AuthenticationException(String.format("You do not have permission to create containers."));
         }
 
         if (container.getChildRecordIds().size() < 1){
@@ -135,8 +178,17 @@ public class ContainerController {
             try {
                 validateRecordsCanBeAddedToSameContainer(container.getChildRecordIds(), userId);
             } catch (ValidationException e){
-                throw new ValidationException("Could not create container with the following record ids: "
-                        + container.getChildRecordIds() + ". Reason: "+ e.getMessage());
+                String recordNumbers = "";
+                List<Record> listOfRecords = RecordController.getRecordsByIds(container.getChildRecordIds(), false);
+                for(Record r : listOfRecords){
+                    if(recordNumbers != ""){
+                        recordNumbers = r.getNumber();
+                    }else{
+                        recordNumbers = recordNumbers.concat(",") + r.getNumber();
+                    }
+                }
+                throw new ValidationException("Could not create container with the following records: "
+                        + recordNumbers + ". Reason: "+ e.getMessage() + ".");
             }
         }
 
@@ -190,32 +242,32 @@ public class ContainerController {
         String consignmentCode = records.get(0).getConsignmentCode();
         for (Record r : records){
             if (!r.getConsignmentCode().equals(consignmentCode)){
-                throw new ValidationException("Record with id '" + r.getId() +
-                        "' has a consignmentCode that differs from at least one other record");
+                throw new ValidationException("Record '" + r.getNumber() +
+                        "' has a consignmentCode that differs from at least one other record.");
             }
         }
         // Validate all records have the same stateId
         int stateId = records.get(0).getStateId();
         for (Record r : records){
             if (r.getStateId() != stateId){
-                throw new ValidationException("Record with id '" + r.getId() +
-                        "' has a stateId that differs from at least one other record");
+                throw new ValidationException("Record '" + r.getNumber() +
+                        "' has a stateId that differs from at least one other record.");
             }
         }
         // Validate all records have the same locationId
         int locationId = records.get(0).getLocationId();
         for (Record r : records){
             if (r.getLocationId() != locationId){
-                throw new ValidationException("Record with id '" + r.getId() +
-                        "' has a locationId that differs from at least one other record");
+                throw new ValidationException("Record '" + r.getNumber() +
+                        "' has a locationId that differs from at least one other record.");
             }
         }
         // Validate all records have the same typeId
         int typeId = records.get(0).getTypeId();
         for (Record r : records){
             if (r.getTypeId() != typeId){
-                throw new ValidationException("Record with id '" + r.getId() +
-                        "' has a typeId that differs from at least one other record");
+                throw new ValidationException("Record '" + r.getNumber() +
+                        "' has a typeId that differs from at least one other record.");
             }
         }
         // Validate all records have the same scheduleId
@@ -226,8 +278,8 @@ public class ContainerController {
         }
         for (Record r : records){
             if (r.getScheduleId() != scheduleId){
-                throw new ValidationException("Record with id '" + r.getId() +
-                        "' has a scheduleId that differs from at least one other record");
+                throw new ValidationException("Record '" + r.getNumber() +
+                        "' has a scheduleId that differs from at least one other record.");
             }
         }
     }
@@ -290,25 +342,25 @@ public class ContainerController {
     public static void validateContainerChangeForRecord(Record record, Container destinationContainer) throws SQLException {
         if (isContainerEmpty(destinationContainer)) return;
         if (!destinationContainer.getConsignmentCode().equals(record.getConsignmentCode()))
-            throw new ValidationException("tried to add record to container with consignmentCode: '" +
-                    destinationContainer.getConsignmentCode() + "', but record has consignment code of '" +
-                    record.getConsignmentCode() + "'");
+            throw new ValidationException(String.format(
+                    "Tried to add record to container with consignmentCode: '%s', but record has consignment code of '%s'.",
+                    destinationContainer.getConsignmentCode(), record.getConsignmentCode()));
         if (destinationContainer.getTypeId() != record.getTypeId())
-            throw new ValidationException("tried to add record to container with record type: '" +
-                    destinationContainer.getType() + "', but record has record type of '" +
-                record.getType() + "'");
+            throw new ValidationException(String.format(
+                    "Tried to add record to container with record type: '%s', but record has record type of '%s'.",
+                    destinationContainer.getType(), record.getType()));
         if (destinationContainer.getLocationId() != record.getLocationId())
-            throw new ValidationException("tried to add record to container with location: '" +
-                    destinationContainer.getLocationName() + "', but record has location '" +
-                    record.getLocation() + "'");
+            throw new ValidationException(String.format(
+                    "Tried to add record to container with location: '%s', but record has location '%s'." +
+                    destinationContainer.getLocationName(), record.getLocation()));
         if (destinationContainer.getScheduleId() != record.getScheduleId())
-            throw new ValidationException("tried to add record to container with schedule: '" +
-                    destinationContainer.getScheduleName() + "', but record has schedule '" +
-                    record.getSchedule() + "'");
+            throw new ValidationException(String.format(
+                    "Tried to add record to container with schedule: '%s', but record has schedule '%s'." +
+                    destinationContainer.getScheduleName(), record.getSchedule()));
         if (destinationContainer.getStateId() != record.getStateId())
-            throw new ValidationException("tried to add record to container with type: '" +
-                    destinationContainer.getConsignmentCode() + "', but record has consignment code of '" +
-                    record.getConsignmentCode() + "'");
+            throw new ValidationException(String.format(
+                    "Tried to add record to container with type: '%s', but record has consignment code of '%s'." +
+                    destinationContainer.getConsignmentCode(), record.getConsignmentCode()));
     }
 
     private static boolean isContainerEmpty(Container container) throws SQLException {
@@ -373,7 +425,7 @@ public class ContainerController {
      */
     public static Container updateContainer(int containerId, Container container, int userId) throws SQLException{
         if (!Authenticator.authenticate(userId, Role.ADMINISTRATOR) && !Authenticator.authenticate(userId, Role.RMC)) {
-            throw new AuthenticationException(String.format("User %d is not authenticated to update record", userId));
+            throw new AuthenticationException(String.format("You do not have permission to update containers."));
         }
         LOGGER.info("Passed all validation checks. Updating Container {}", container); //todo this message could be better
 
@@ -403,9 +455,9 @@ public class ContainerController {
     private static final String GET_CONTAINER_BY_NUMBER =
             "SELECT * FROM containers " +
             "WHERE LocationId IN " +
-            "( SELECT LocationId  " +
-            "FROM locations l  LEFT JOIN userlocations ul ON (ul.LocationId = l.Id ) " +
-            "WHERE l.Restricted = false OR ul.UserId = ?) " +
+                "( SELECT LocationId  " +
+                "FROM locations l  LEFT JOIN userlocations ul ON (ul.LocationId = l.Id ) " +
+                "WHERE l.Restricted = false OR ul.UserId = ?) " +
             "AND Number LIKE ? " +
             "ORDER BY Number ASC " +
             "LIMIT ?, ?";
@@ -431,9 +483,9 @@ public class ContainerController {
     private static final String GET_CONTAINER_COUNT_BY_NUMBER =
             "SELECT COUNT(*) FROM containers " +
             "WHERE LocationId IN" +
-            "( SELECT LocationId  " +
-            "FROM locations l  LEFT JOIN userlocations ul ON (ul.LocationId = l.Id ) " +
-            "WHERE l.Restricted = false OR ul.UserId = ?) " +
+                "( SELECT LocationId  " +
+                "FROM locations l  LEFT JOIN userlocations ul ON (ul.LocationId = l.Id ) " +
+                "WHERE l.Restricted = false OR ul.UserId = ?) " +
             "AND Number LIKE ? ";
     public static int getContainerCountByNumber(String number, int userId) throws SQLException {
         try (Connection connection = DbConnect.getConnection();
@@ -444,8 +496,8 @@ public class ContainerController {
                 if (rs.next()) {
                     return rs.getInt(1);
                 } else {
-                    LOGGER.error(String.format("Could not get count of containers: %s", number));
-                    throw new SQLException(String.format("Could not get count of containers: %s", number));
+                    LOGGER.error(String.format("Could not get count of containers: %s.", number));
+                    throw new SQLException(String.format("Could not get count of containers: %s.", number));
                 }
             }
         }
@@ -461,12 +513,12 @@ public class ContainerController {
     private static final String DELETE_CONTAINERS＿BY_ID =
             "DELETE FROM containers" + " WHERE Id = ?";
 
-    public static final void deleteOneContainer(Integer id) throws SQLException {
+    private static final void deleteOneContainer(Integer id) throws SQLException {
 
         try (Connection connection = DbConnect.getConnection();
              PreparedStatement ps = connection.prepareStatement(DELETE_CONTAINERS＿BY_ID)) {
             LOGGER.info("Deleting container {}", id);
-            ps.setInt(1, Integer.valueOf(id));
+            ps.setInt(1, id);
             ps.executeUpdate();
         }
     }
@@ -479,23 +531,23 @@ public class ContainerController {
      */
     public static final ResponseEntity<?> deleteContainers(List<Integer> ids, Integer userId) throws SQLException{
         if (!Authenticator.authenticate(userId, Role.ADMINISTRATOR) && !Authenticator.authenticate(userId, Role.RMC)) {
-            throw new AuthenticationException(String.format("User %d is not authenticated to delete record", userId));
+            throw new AuthenticationException(String.format("You do not have permission to delete containers."));
         }
-
         Map<String, Object> errorResponse = new HashMap<>();
-        List<Integer> failedId = new ArrayList<>();
-        List<String> failedNum = new ArrayList<>();
-
+        List<String> listOfContainerNumbers = new ArrayList<>();
 
         for (Integer id : ids) {
+            Container container = ContainerController.getContainerById(id, userId);
             if (!getRecordIdsInContainer(id).isEmpty()) {
-                failedId.add(id);
-                Record record = RecordController.getRecordById(id, userId);
-                failedNum.add(record.getNumber());
+                listOfContainerNumbers.add(container.getContainerNumber());
             }
         }
 
-        if(failedId.isEmpty()) {
+        if(!listOfContainerNumbers.isEmpty()){
+            errorResponse.put("containerNumber", listOfContainerNumbers);
+        }
+
+        if(errorResponse.isEmpty()) {
             LOGGER.info("Passed all validation checks. Deleting container {}", ids);
             for (Integer id : ids) {
                 deleteOneContainer(id);
@@ -503,10 +555,9 @@ public class ContainerController {
             }
             return new ResponseEntity<>(HttpStatus.OK);
         }else{
-            errorResponse.put("ids", failedId);
-            errorResponse.put("numbers", failedNum);
-            errorResponse.put("error", "Container(s) not empty");
+            errorResponse.put("error", "The container(s) are not empty and still contain records");
             return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
         }
     }
+
 }

@@ -12,18 +12,19 @@ import java.util.List;
 @Getter
 public class BatchResponse {
     @JsonFormat(with = JsonFormat.Feature.ACCEPT_SINGLE_VALUE_AS_ARRAY)
-    List<Response> responseList = new ArrayList<>();
+    private List<Response> responseList = new ArrayList<>();
 
     @AllArgsConstructor
     @Getter
     @Setter
     public class Response {
         private int id;
+        private String number;
         private String msg;
         private boolean status;
     }
 
-    public void addResponse(int id, String msg, boolean status) {
-        responseList.add(new Response(id, msg, status));
+    public void addResponse(int id, String number, String msg, boolean status) {
+        responseList.add(new Response(id, number, msg, status));
     }
 }

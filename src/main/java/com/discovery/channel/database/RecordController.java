@@ -86,7 +86,7 @@ public class RecordController {
                     return rs.getInt(1);
                 } else {
                     LOGGER.error(String.format("Could not get count of records: %s", number));
-                    throw new SQLException(String.format("Could not get count of records: %s", number));
+                    throw new SQLException(String.format("Could not get count of records: %s.", number));
                 }
             }
         }
@@ -100,7 +100,7 @@ public class RecordController {
             throw new IllegalArgumentException("Page number and results per page must be at least 1.");
         }
         if (!(searchRecord || searchContainer)) {
-            throw new IllegalArgumentException("Search must include at least one of the following: {record, container}");
+            throw new IllegalArgumentException("Search must include at least one of the following: {record, container}.");
         }
 
         int recordCount = 0;
@@ -177,29 +177,24 @@ public class RecordController {
      */
     private static final String GET_RECORD_BY_ID =
             "SELECT * " +
-            "FROM records WHERE Id = ?";
+                    "FROM records WHERE Id = ?";
     public static Record getRecordById(Integer id, int userId) throws SQLException {
         try (Connection connection = DbConnect.getConnection();
              PreparedStatement ps = connection.prepareStatement(GET_RECORD_BY_ID)) {
             ps.setInt(1, id);
             try (ResultSet resultSet = ps.executeQuery()) {
-                verifyResultNotEmpty(resultSet);
-                resultSet.next();
-                Record record = parseResultSet(resultSet);
-                loadRecordDetail(record);
-                if (!Authenticator.canUserViewLocation(userId, record.getLocationId())) {
-                    throw new AuthenticationException("User " + userId + " is not allowed to view records on location " + record.getLocation());
+                if (resultSet.next()) {
+                    Record record = parseResultSet(resultSet);
+                    loadRecordDetail(record);
+                    if (!Authenticator.canUserViewLocation(userId, record.getLocationId())) {
+                        throw new AuthenticationException("User " + userId + " is not allowed to view records on location " + record.getLocation());
+                    }
+                    return record;
+                } else {
+                    LOGGER.info("Record {} does not exist", id);
+                    throw new NoResultsFoundException(String.format("Record %d does not exist.", id));
                 }
-                return record;
             }
-        }
-    }
-
-    //todo: consider moving this to a more general location to be used by other controllers
-    public static void verifyResultNotEmpty(ResultSet rs) throws SQLException {
-        if (!rs.isBeforeFirst()) {
-            LOGGER.info("Record {} does not exist");
-            throw new NoResultsFoundException("The query returned no results");
         }
     }
 
@@ -219,7 +214,7 @@ public class RecordController {
 
         String query = "SELECT * FROM records WHERE Id IN (";
 
-        String idStr = buildString(ids, query);
+        String idStr = completeIdsInQuery(ids, query);
 
         try (Connection connection = DbConnect.getConnection();
              PreparedStatement ps = connection.prepareStatement(idStr)) {
@@ -249,9 +244,9 @@ public class RecordController {
         record.setState(StateController.getStateName(record.getStateId()));
         record.setContainerNumber(getContainerNumber(record.getContainerId()));
 
-        Map<String, String> schedule = RetentionScheduleController.getRetentionSchedule(record.getScheduleId());
-        record.setSchedule(schedule.get("Name"));
-        record.setScheduleYear(Integer.valueOf(schedule.get("Years")));
+        RetentionSchedule schedule = RetentionScheduleController.getRetentionSchedule(record.getScheduleId());
+        record.setSchedule(schedule.getName());
+        record.setScheduleYear(schedule.getYears());
 
         // Load classifications
         List<Integer> classIds = getRecordClassifications(record.getId());
@@ -357,12 +352,14 @@ public class RecordController {
      * @return
      */
     public static Record createRecord (Record record, int userId) throws SQLException {
+
         if (!Authenticator.authenticate(userId, Role.ADMINISTRATOR) && !Authenticator.authenticate(userId, Role.RMC)) {
-            throw new AuthenticationException(String.format("User %d is not authenticated to create record", userId));
+            throw new AuthenticationException(String.format("You do not have permission to create records."));
         }
 
         if (!Authenticator.isUserAuthenticatedForLocation(userId, record.getLocationId())) {
-            throw new AuthenticationException(String.format("User %d is not authenticated to create record under location %d", userId, record.getLocationId()));
+            throw new AuthenticationException(String.format("You do not have permission to create records in %s.",
+                    LocationController.getLocationNameByLocationId(record.getLocationId())));
         }
 
 
@@ -372,7 +369,8 @@ public class RecordController {
                 numberPattern.matchLocation(
                         LocationController.getLocationCodeById(record.getLocationId()),
                         record.getNumber())) {
-            throw new IllegalArgumentException(String.format("Invalid record number: %s for record type %d", record.getNumber(), record.getTypeId()));
+            throw new IllegalArgumentException(String.format("Invalid record number: %s, for record type %s.",
+                    record.getNumber(), record.getType()));
         }
 
         record.setNumber(numberPattern.fillAutoGenField(record.getNumber()));
@@ -469,34 +467,29 @@ public class RecordController {
     private static final String DELETE_RECORD_BY_ID = "DELETE FROM records " +
             "where Id=?";
 
-    private static boolean deleteRecord(Integer id, int userId) throws SQLException {
+    private static boolean deleteRecord(Record record, int userId) throws SQLException {
         // TODO : audit log
 
-        Record record = getRecordById(id, userId);
-
-        if (record == null) {
-            throw new NoResultsFoundException(String.format("Record %d does not exist", id));
-        }
-
         if (!Authenticator.isUserAuthenticatedForLocation(userId, record.getLocationId())) {
-            throw new AuthenticationException(String.format("User %d is not authenticated to delete record under location %d", userId, record.getLocationId()));
+            throw new AuthenticationException(String.format("You do not have permission to delete records in %s.",
+                    record.getLocation()));
         }
 
-        LOGGER.info("About to delete record {}", id);
+        LOGGER.info("About to delete record {}", record.getId());
 
         // 1. Delete from records
         // 2. Classifications are deleted because of database constraint
         int rowsModified = 0;
         try (Connection conn = DbConnect.getConnection();
              PreparedStatement ps = conn.prepareStatement(DELETE_RECORD_BY_ID)) {
-            ps.setInt(1, id);
+            ps.setInt(1, record.getId());
             rowsModified = ps.executeUpdate();
         }
 
-        AuditLogger.log(userId, AuditLogger.Target.RECORD, id, AuditLogger.ACTION.DELETE);
-
         // 3. Delete notes
-        NoteTableController.deleteNotesForRecord(id);
+        NoteTableController.deleteNotesForRecord(record.getId());
+
+        AuditLogger.log(userId, AuditLogger.Target.RECORD, record.getId(), AuditLogger.ACTION.DELETE);
 
         return rowsModified == 1;
     }
@@ -510,19 +503,16 @@ public class RecordController {
         }
 
         if (!Authenticator.authenticate(userId, Role.ADMINISTRATOR) && !Authenticator.authenticate(userId, Role.RMC)) {
-            throw new AuthenticationException(String.format("User %d is not authenticated to delete record", userId));
+            throw new AuthenticationException(String.format("You do not have permission to delete records."));
         }
 
         for (int recordId : form.getRecordIds()) {
+            Record record = getRecordById(recordId, userId);
             try {
-                if (deleteRecord(recordId, userId)) {
-                    response.addResponse(recordId, "", true);
-                } else {
-                    response.addResponse(recordId, "", false);
-                }
+                response.addResponse(recordId, record.getNumber(), "", deleteRecord(record, userId));
             } catch (Exception e) {
                 LOGGER.error(e.getMessage());
-                response.addResponse(recordId, e.getMessage(), false);
+                response.addResponse(recordId, record.getNumber(), e.getMessage(), false);
             }
         }
         return response;
@@ -541,33 +531,32 @@ public class RecordController {
             "WHERE Id= ?";
 
     public static void updateRecord(Integer id, int userId, UpdateRecordForm updateForm) throws SQLException {
-        if (!Authenticator.authenticate(userId, Role.ADMINISTRATOR) && !Authenticator.authenticate(userId, Role.RMC)) {
-            throw new AuthenticationException(String.format("User %d is not authenticated to update record", userId));
-        }
 
         Record record = getRecordById(id, userId);
 
+        if (!Authenticator.authenticate(userId, Role.ADMINISTRATOR) && !Authenticator.authenticate(userId, Role.RMC)) {
+            throw new AuthenticationException(String.format("You do not have permission to update records."));
+        }
+
         if (record == null) {
-            throw new NoResultsFoundException(String.format("Record %d does not exist", id));
+            throw new NoResultsFoundException(String.format("Record %s does not exist.", record.getNumber()));
         }
 
         if (!Authenticator.isUserAuthenticatedForLocation(userId, record.getLocationId())) {
-            throw new AuthenticationException(String.format("User %d is not authenticated to update record under location %d", userId, record.getLocationId()));
-        }
-
-        // RMC can't move a record to a location tht they're not a part of
-        if (!Authenticator.isUserAuthenticatedForLocation(userId, record.getLocationId())) {
-            throw new AuthenticationException(String.format("User %d is not authenticated to update record under location %d", userId, record.getLocationId()));
+            throw new AuthenticationException(String.format("You do not have permission to update records at %s.",
+                    record.getLocation()));
         }
 
         // Only certain types of states are valid for certain retention schedules
         if (!RecordState.fromId(updateForm.getStateId()).isValidforRetentionSchedule(updateForm.getScheduleId() > 0)) {
-            throw new IllegalArgumentException(String.format("State %d is not valid for retention schedule %d", updateForm.getStateId(), updateForm.getScheduleId()));
+            throw new IllegalArgumentException(String.format("State %s is not valid for retention schedule %s.",
+                    StateController.getStateName(updateForm.getStateId()),
+                    RetentionScheduleController.getRetentionSchedule(updateForm.getScheduleId()).getName()));
         }
 
         // Validate classifications
         if (!Classification.validateClassification(updateForm.getClassifications())) {
-            throw new IllegalArgumentException(String.format("Classification %s is not valid", updateForm.getClassifications()));
+            throw new IllegalArgumentException(String.format("Classification %s is not valid.", updateForm.getClassifications()));
         }
 
         // Validate container update
@@ -776,16 +765,18 @@ public class RecordController {
     public static Record createVolume(Integer id, int userId, Boolean copyNotes) throws SQLException{
         if (!Authenticator.authenticate(userId, Role.ADMINISTRATOR) &&
                 !Authenticator.authenticate(userId, Role.RMC)) {
-            throw new AuthenticationException(String.format("User %d is not authenticated to create volume", userId));
+            throw new AuthenticationException(String.format("You do not have permission to create volumes."));
         }
 
         Record baseRecord = getRecordById(id, userId);
         if (baseRecord == null) {
-            throw new IllegalArgumentException(String.format("Unable to create new volume from record id %d. Record does not exist.", id));
+            throw new IllegalArgumentException(String.format("Unable to create new volume from record %s. Record does not exist.",
+                    baseRecord.getNumber()));
         }
 
         if (!Authenticator.isUserAuthenticatedForLocation(userId, baseRecord.getLocationId())) {
-            throw new AuthenticationException(String.format("User %d is not authenticated to create volume under location %d", userId, baseRecord.getLocationId()));
+            throw new AuthenticationException(String.format("You do not have permission to create volumes in %s.",
+                    baseRecord.getLocation()));
         }
 
         // Check colon count to increment volume
@@ -794,14 +785,14 @@ public class RecordController {
 
         int colonCount = StringUtils.countOccurrencesOf(number, ":");
         if (colonCount > 1) {
-            throw new IllegalArgumentException(String.format("Unsupported volume format for create volume %s.", baseRecord.getNumber()));
+            throw new IllegalArgumentException(String.format("Unsupported volume format for volume creation: %s.", number));
         } else if (colonCount == 1) {
             String[] pieces = baseRecord.getNumber().split(":");
             baseNumber = pieces[0];
             int newVolume = Integer.parseInt(pieces[1]) + 1;
             if (newVolume > 99) {
                 throw new IllegalArgumentException(String.format(
-                        "Unable to create volume %d for record %s. Volume numbers over 99 currently not supported.",
+                        "Unable to create volume :%d for record %s. Volume numbers over 99 currently not supported.",
                         newVolume, number));
             }
             number = String.format("%s:%02d", baseNumber, newVolume);
@@ -819,7 +810,7 @@ public class RecordController {
                 while (rs.next()) {
                     if (!rs.getBoolean("latestVolume")) {
                         throw new IllegalArgumentException(String.format(
-                                "Unable to create new volume from record number %s. New volumes can only be created from latest existing volume.",
+                                "Unable to create new volume from record %s. New volumes can only be created from latest existing volume.",
                                 baseRecord.getNumber()));
                     }
                 }
@@ -887,21 +878,20 @@ public class RecordController {
     private static final String RETENTION_NOT_END = "The record's retention period has not ended yet.";
     public static ResponseEntity<?> prepareToDestroyRecords(RecordsForm ids, int userId) throws SQLException {
 
-        User user = UserController.getUserByUserTableId(userId);
 
         if (!Authenticator.authenticate(userId, Role.RMC) && !Authenticator.authenticate(userId, Role.ADMINISTRATOR)) {
-            throw new AuthenticationException(String.format("User %s is not authenticated to destroy record(s)", user.getUserId()));
+            throw new AuthenticationException(String.format("You do not have permission to destroy records."));
         }
 
         List<Integer> failedIds = new ArrayList<>();
-        List<String> failedNmbers = new ArrayList<>();
+        List<String> failedNumbers = new ArrayList<>();
         Date currentDate = new Date(Calendar.getInstance().getTimeInMillis());
         HashMap<String, Object> errorResponse = new HashMap<>();
 
         List<Record> listOfRecords = getRecordsByIds(ids.getRecordIds(), true);
-        Map<String, List<String>> noClosedAt = DestructionDateController.checkRecordsClosedAt(listOfRecords);
+        Map<String, Object> noClosedAt = DestructionDateController.checkRecordsClosedAt(listOfRecords);
 
-        if(!noClosedAt.get("id").isEmpty()){
+        if(noClosedAt.get("id") != null){
             LOGGER.info("Record id(s) do not have ClosedAt", noClosedAt.get("id"));
             errorResponse.put("id", noClosedAt.get("id"));
             errorResponse.put("number", noClosedAt.get("number"));
@@ -915,12 +905,12 @@ public class RecordController {
                             Date destructionDate = new Date(DestructionDateController.addYearToTheLatestClosureDate(record.getScheduleYear(), record.getClosedAt()));
                             if (destructionDate.compareTo(currentDate) > 0) {
                                 failedIds.add(record.getId());
-                                failedNmbers.add(record.getNumber());
+                                failedNumbers.add(record.getNumber());
                             }
                         }
                     } else {
                         LOGGER.info("Record id {} does not exist", record.getId());
-                        String output = String.format("Record %s does not exist", record.getNumber());
+                        String output = String.format("Record %s does not exist.", record.getNumber());
                         new ResponseEntity<>(output, HttpStatus.BAD_REQUEST);
                     }
                 }
@@ -933,7 +923,7 @@ public class RecordController {
                 } else {
                     LOGGER.info("Records destruction date(s) not passed yet");
                     errorResponse.put("id", failedIds);
-                    errorResponse.put("number", failedNmbers);
+                    errorResponse.put("number", failedNumbers);
                     errorResponse.put("error", RETENTION_NOT_END);
                 }
             }else{
@@ -951,27 +941,19 @@ public class RecordController {
      * @throws SQLException
      */
     public static void destroyRecords(List<Integer> ids) throws SQLException {
-
-        String query = "UPDATE records" + " SET StateId = " + RecordState.DESTROYED.getId() + " , UpdatedAt = now() " + "WHERE Id IN (";
-        String destroyRecordsQuery = buildString(ids, query);
+        String query = "UPDATE records "
+                + "SET StateId = " + RecordState.DESTROYED.getId()
+                + " , UpdatedAt = now() "
+                + " , ContainerId = 0 WHERE Id IN (";
+        String destroyRecordsQuery = completeIdsInQuery(ids, query);
 
         try (Connection conn = DbConnect.getConnection();
              PreparedStatement ps = conn.prepareStatement(destroyRecordsQuery)){
             ps.executeUpdate();
-
         }
     }
 
-
-    /**
-     * build sql statement
-     *
-     * @param ids
-     * @param str
-     * @return sql statement
-     */
-    private static String buildString(List<Integer> ids, String str){
-
+    private static String completeIdsInQuery(List<Integer> ids, String str){
         Iterator<Integer> idsIterator = ids.iterator();
         while(idsIterator.hasNext())
         {
@@ -980,9 +962,6 @@ public class RecordController {
                 str = str + ",";
             }
         }
-
-        str = str + ")";
-
-        return str;
+        return str + ")";
     }
 }
