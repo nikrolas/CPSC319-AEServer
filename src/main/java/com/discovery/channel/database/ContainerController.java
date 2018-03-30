@@ -141,8 +141,12 @@ public class ContainerController {
         }
 
         Record baseRecord = RecordController.getRecordById(container.getChildRecordIds().get(0), userId);
-        String locationCode = LocationController.getLocationCodeById(container.getLocationId()).toUpperCase();
+        container.setConsignmentCode(baseRecord.getConsignmentCode());
+        container.setScheduleId(baseRecord.getScheduleId());
+        container.setTypeId(baseRecord.getTypeId());
+        container.setLocationId(baseRecord.getLocationId());
 
+        String locationCode = LocationController.getLocationCodeById(container.getLocationId()).toUpperCase();
         int year = Calendar.getInstance().get(Calendar.YEAR);
         String maxNumber = getMaxContainerNumber(year, locationCode);
         int maxNumberParsed = maxNumber != null ?
@@ -154,12 +158,11 @@ public class ContainerController {
             throw new ValidationException(String.format("Could not create container in %s. Max number of containers reached. Please wait until next year.",
                     LocationController.getLocationNameByLocationId(container.getLocationId())));
         }
+
         String ggg = String.format("%03d", maxNumberParsed);
         container.setContainerNumber(year + "/" + ggg + "-" + locationCode);
         container.setStateId(RecordState.ARCHIVED_LOCAL.getId());
-        container.setConsignmentCode(baseRecord.getConsignmentCode());
-        container.setScheduleId(baseRecord.getScheduleId());
-        container.setTypeId(baseRecord.getTypeId());
+
 
         LOGGER.info("Passed all validation checks. Creating container {}", container);
 
@@ -320,7 +323,7 @@ public class ContainerController {
             "SET StateId = ?, LocationId = ?, ScheduleId = ?, TypeId = ?, ConsignmentCode = ?, UpdatedAt = NOW() " +
             "WHERE Id = ?";
     public static void addRecordToContainer(Container container, Record record) throws SQLException {
-        if (container.getChildRecordIds().size() == 0){
+        if (container.getChildRecordIds().size() == 0) {
 
             try (Connection connection = DbConnect.getConnection();
                  PreparedStatement ps = connection.prepareStatement(UPDATE_CONTAINER_RECORD_INFORMATION)) {

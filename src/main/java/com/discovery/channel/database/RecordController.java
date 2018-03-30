@@ -640,7 +640,7 @@ public class RecordController {
     }
 
     private static final String SET_RECORD_CONTAINER =
-            "UPDATE records AS R" +
+            "UPDATE records AS R, " +
                 "(SELECT StateId, LocationId " +
                 "FROM containers WHERE Id = ?) AS C " +
             "SET R.StateId = C.StateId, " +
