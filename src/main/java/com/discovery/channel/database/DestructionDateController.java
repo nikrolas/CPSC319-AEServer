@@ -148,10 +148,6 @@ public class DestructionDateController {
 
         List<Record> listOfRecords = RecordController.getRecordsByIds(listOfRecordIds, true);
 
-        if(listOfRecordIds.isEmpty()){
-            throw new NoResultsFoundException(String.format("Container %s does not contain record(s)", container.getContainerNumber()));
-        }
-
         Map<String, Object> listOfRecordsWithoutClosureDate = checkRecordsClosedAt(listOfRecords);
         Object anyRecordNotHaveClosedAt = listOfRecordsWithoutClosureDate.get("id");
 
