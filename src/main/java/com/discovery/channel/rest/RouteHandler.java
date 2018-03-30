@@ -218,7 +218,8 @@ public class RouteHandler {
     @RequestMapping(
             value = "container",
             params = {"userId"},
-            method = RequestMethod.POST)
+            method = RequestMethod.POST,
+            consumes = MediaType.APPLICATION_JSON_UTF8_VALUE)
     public ResponseEntity<Container> createContainer(@RequestParam("userId") int userId,
                                                      @RequestBody Container container)  throws SQLException{
         return new ResponseEntity<>(ContainerController.createContainer(container, userId), HttpStatus.CREATED);

@@ -29,12 +29,12 @@ public class LocationController {
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     return rs.getString("Code");
+                } else {
+                    throw new SQLException(String.format("Unable to retrieve location code for location id: %d.", id));
                 }
             }
         }
-        return "";
     }
-
 
     /**
      * Load Location Name given Location Id
