@@ -177,29 +177,24 @@ public class RecordController {
      */
     private static final String GET_RECORD_BY_ID =
             "SELECT * " +
-            "FROM records WHERE Id = ?";
+                    "FROM records WHERE Id = ?";
     public static Record getRecordById(Integer id, int userId) throws SQLException {
         try (Connection connection = DbConnect.getConnection();
              PreparedStatement ps = connection.prepareStatement(GET_RECORD_BY_ID)) {
             ps.setInt(1, id);
             try (ResultSet resultSet = ps.executeQuery()) {
-                verifyResultNotEmpty(resultSet);
-                resultSet.next();
-                Record record = parseResultSet(resultSet);
-                loadRecordDetail(record);
-                if (!Authenticator.canUserViewLocation(userId, record.getLocationId())) {
-                    throw new AuthenticationException("User " + userId + " is not allowed to view records on location " + record.getLocation());
+                if (resultSet.next()) {
+                    Record record = parseResultSet(resultSet);
+                    loadRecordDetail(record);
+                    if (!Authenticator.canUserViewLocation(userId, record.getLocationId())) {
+                        throw new AuthenticationException("User " + userId + " is not allowed to view records on location " + record.getLocation());
+                    }
+                    return record;
+                } else {
+                    LOGGER.info("Record {} does not exist", id);
+                    throw new NoResultsFoundException(String.format("Record %d does not exist.", id));
                 }
-                return record;
             }
-        }
-    }
-
-    //todo: consider moving this to a more general location to be used by other controllers
-    public static void verifyResultNotEmpty(ResultSet rs) throws SQLException {
-        if (!rs.isBeforeFirst()) {
-            LOGGER.info("Record {} does not exist");
-            throw new NoResultsFoundException("The query returned no results");
         }
     }
 
@@ -219,7 +214,7 @@ public class RecordController {
 
         String query = "SELECT * FROM records WHERE Id IN (";
 
-        String idStr = buildString(ids, query);
+        String idStr = completeIdsInQuery(ids, query);
 
         try (Connection connection = DbConnect.getConnection();
              PreparedStatement ps = connection.prepareStatement(idStr)) {
@@ -944,27 +939,19 @@ public class RecordController {
      * @throws SQLException
      */
     public static void destroyRecords(List<Integer> ids) throws SQLException {
-
-        String query = "UPDATE records" + " SET StateId = " + RecordState.DESTROYED.getId() + " , UpdatedAt = now() " + "WHERE Id IN (";
-        String destroyRecordsQuery = buildString(ids, query);
+        String query = "UPDATE records "
+                + "SET StateId = " + RecordState.DESTROYED.getId()
+                + " , UpdatedAt = now() "
+                + " , ContainerId = 0 WHERE Id IN (";
+        String destroyRecordsQuery = completeIdsInQuery(ids, query);
 
         try (Connection conn = DbConnect.getConnection();
              PreparedStatement ps = conn.prepareStatement(destroyRecordsQuery)){
             ps.executeUpdate();
-
         }
     }
 
-
-    /**
-     * build sql statement
-     *
-     * @param ids
-     * @param str
-     * @return sql statement
-     */
-    private static String buildString(List<Integer> ids, String str){
-
+    private static String completeIdsInQuery(List<Integer> ids, String str){
         Iterator<Integer> idsIterator = ids.iterator();
         while(idsIterator.hasNext())
         {
@@ -973,9 +960,6 @@ public class RecordController {
                 str = str + ",";
             }
         }
-
-        str = str + ")";
-
-        return str;
+        return str + ")";
     }
 }
