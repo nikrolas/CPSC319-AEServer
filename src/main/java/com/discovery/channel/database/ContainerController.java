@@ -149,7 +149,7 @@ public class ContainerController {
 
         // update container information on records it contains
         if (container.getChildRecordIds().size() >= 1){
-            addRecordToContainer(container, RecordController.getRecordById(container.getChildRecordIds().get(0), userId));
+            addRecordToContainer(getContainerById(newContainerId, userId), RecordController.getRecordById(container.getChildRecordIds().get(0), userId));
         }
 
         LOGGER.info("Created container. Container Id {}", newContainerId);

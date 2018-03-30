@@ -123,18 +123,24 @@ class ContainerControllerTest {
         assertTrue(c.getChildRecordIds().size() == 0);
     }
 
-//    @Test
-//    void createNewContainerHappyPathWithRecords() throws SQLException, JSONException {
-//
-//
-//        Container sampleContainer = createValidNewContainerRequest("TEST - HappyPathTitle","TEST - HappyPathNumber", new LinkedList<>());
-//        Container c = ContainerController.createContainer(sampleContainer, RMC_USER_ID);
-//        assertTrue(c.getContainerNumber().equals("TEST - HappyPathNumber"));
-//        assertTrue(c.getTitle().equals("TEST - HappyPathTitle"));
-//        assertTrue(c.getUpdatedAt().toString().equals(LocalDate.now().toString()));
-//        assertTrue(c.getCreatedAt().toString().equals(LocalDate.now().toString()));
-//        assertTrue(c.getChildRecordIds().size() == 0);
-//    }
+    @Test
+    void createNewContainerHappyPathWithRecords() throws SQLException, JSONException {
+        List<Integer> recordIds = new LinkedList<>(Arrays.asList(r1.getId(),r2.getId()));
+
+        Container sampleContainer = createValidNewContainerRequest("TEST - HappyPathTitle","TEST - HappyPathNumber", recordIds);
+        Container c = ContainerController.createContainer(sampleContainer, RMC_USER_ID);
+        assertTrue(c.getContainerNumber().equals("TEST - HappyPathNumber"));
+        assertTrue(c.getTitle().equals("TEST - HappyPathTitle"));
+        assertTrue(c.getChildRecordIds().size() == 2);
+        assertTrue(c.getLocationId() == LOCATION_ID);
+        assertTrue(c.getLocationName().equals("Edmonton"));
+        assertTrue(c.getScheduleId() == SCHEDULE_ID);
+        String schedName = c.getScheduleName();
+//        assertTrue(c.getLocationName().equals("Edmonton"));
+        assertTrue(c.getTypeId() == TYPE_ID);
+        String typename = c.getType();
+        assertTrue(c.getConsignmentCode().equals(CONSIGNMENT_CODE));
+    }
 
     @Test
     void createNewContainerUnauthorizedUser() throws SQLException, JSONException {
