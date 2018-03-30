@@ -140,11 +140,6 @@ public class ContainerController {
             }
         }
 
-        Record baseRecord = RecordController.getRecordById(container.getChildRecordIds().get(0), userId);
-        container.setConsignmentCode(baseRecord.getConsignmentCode());
-        container.setScheduleId(baseRecord.getScheduleId());
-        container.setTypeId(baseRecord.getTypeId());
-
         String locationCode = LocationController.getLocationCodeById(container.getLocationId()).toUpperCase();
         int year = Calendar.getInstance().get(Calendar.YEAR);
         String maxNumber = getMaxContainerNumber(year, locationCode);
@@ -158,10 +153,13 @@ public class ContainerController {
                     LocationController.getLocationNameByLocationId(container.getLocationId())));
         }
 
+        Record baseRecord = RecordController.getRecordById(container.getChildRecordIds().get(0), userId);
+        container.setConsignmentCode(baseRecord.getConsignmentCode());
+        container.setScheduleId(baseRecord.getScheduleId());
+        container.setTypeId(baseRecord.getTypeId());
         String ggg = String.format("%03d", maxNumberParsed);
         container.setContainerNumber(year + "/" + ggg + "-" + locationCode);
         container.setStateId(RecordState.ARCHIVED_LOCAL.getId());
-
 
         LOGGER.info("Passed all validation checks. Creating container {}", container);
 
