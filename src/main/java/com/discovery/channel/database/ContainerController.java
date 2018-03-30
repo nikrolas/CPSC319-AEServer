@@ -145,11 +145,16 @@ public class ContainerController {
 
         int year = Calendar.getInstance().get(Calendar.YEAR);
         String maxNumber = getMaxContainerNumber(year, locationCode);
-        String ggg = String.format("%03d", maxNumber != null ?
+        int maxNumberParsed = maxNumber != null ?
                 Integer.parseInt(
                         maxNumber.substring(maxNumber.indexOf("/") + 1,
-                        maxNumber.indexOf("-"))) + 1 :
-                1);
+                                maxNumber.indexOf("-"))) + 1 :
+                1;
+        if (maxNumberParsed > 999) {
+            throw new ValidationException(String.format("Could not create container in %s. Max number of containers reached. Please wait until next year.",
+                    LocationController.getLocationNameByLocationId(container.getLocationId())));
+        }
+        String ggg = String.format("%03d", maxNumberParsed);
         container.setContainerNumber(year + "/" + ggg + "-" + locationCode);
         container.setStateId(RecordState.ARCHIVED_LOCAL.getId());
         container.setConsignmentCode(baseRecord.getConsignmentCode());
