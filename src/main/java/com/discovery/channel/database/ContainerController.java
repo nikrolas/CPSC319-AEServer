@@ -8,6 +8,7 @@ import com.discovery.channel.exception.NoResultsFoundException;
 import com.discovery.channel.exception.ValidationException;
 import com.discovery.channel.model.Container;
 import com.discovery.channel.model.Record;
+import com.discovery.channel.model.RecordState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -73,7 +74,7 @@ public class ContainerController {
 
     private static final String GET_RECORD_IDS_IN_CONTAINER =
             "SELECT Id FROM records " +
-            "WHERE ContainerId = ?";
+            "WHERE ContainerId = ? AND StateId != " + RecordState.DESTROYED.getId();
     static final List<Integer> getRecordIdsInContainer(int containerId) throws SQLException{
         List<Integer> recordIds = new LinkedList<>();
         try (Connection connection = DbConnect.getConnection();
