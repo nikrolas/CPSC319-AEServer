@@ -214,7 +214,7 @@ public class RecordController {
 
         String query = "SELECT * FROM records WHERE Id IN (";
 
-        String idStr = buildString(ids, query);
+        String idStr = completeIdsInQuery(ids, query);
 
         try (Connection connection = DbConnect.getConnection();
              PreparedStatement ps = connection.prepareStatement(idStr)) {
@@ -939,27 +939,19 @@ public class RecordController {
      * @throws SQLException
      */
     public static void destroyRecords(List<Integer> ids) throws SQLException {
-
-        String query = "UPDATE records" + " SET StateId = " + RecordState.DESTROYED.getId() + " , UpdatedAt = now() " + "WHERE Id IN (";
-        String destroyRecordsQuery = buildString(ids, query);
+        String query = "UPDATE records "
+                + "SET StateId = " + RecordState.DESTROYED.getId()
+                + " , UpdatedAt = now() "
+                + " , ContainerId = 0 WHERE Id IN (";
+        String destroyRecordsQuery = completeIdsInQuery(ids, query);
 
         try (Connection conn = DbConnect.getConnection();
              PreparedStatement ps = conn.prepareStatement(destroyRecordsQuery)){
             ps.executeUpdate();
-
         }
     }
 
-
-    /**
-     * build sql statement
-     *
-     * @param ids
-     * @param str
-     * @return sql statement
-     */
-    private static String buildString(List<Integer> ids, String str){
-
+    private static String completeIdsInQuery(List<Integer> ids, String str){
         Iterator<Integer> idsIterator = ids.iterator();
         while(idsIterator.hasNext())
         {
@@ -968,9 +960,6 @@ public class RecordController {
                 str = str + ",";
             }
         }
-
-        str = str + ")";
-
-        return str;
+        return str + ")";
     }
 }
