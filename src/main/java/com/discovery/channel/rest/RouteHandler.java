@@ -351,4 +351,18 @@ public class RouteHandler {
         return RecordController.getRecordsByIds(ids, true);
     }
 
+    /**
+     * Get containers given container ids
+     *
+     * @param  ids
+     * @return list of containers
+     */
+    @RequestMapping(
+            value = "containers",
+            params = {"ids","userId"},
+            method = RequestMethod.GET)
+    public List<Container> getMultipleContainers(@RequestParam("ids") List<Integer> ids, @RequestParam("userId") int userId) throws SQLException {
+        return ContainerController.getContainersByIds(ids);
+    }
+
 }
