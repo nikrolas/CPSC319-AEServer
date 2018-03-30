@@ -115,9 +115,8 @@ public class UserController {
      */
     // TODO user could have multiple locations
     public static final String GET_LOCATION_ID_BY_USER_TABLE_ID =
-            "SELECT LocationId " + "FROM userlocations WHERE UserId = ?";
+            "SELECT LocationId FROM userlocations WHERE UserId = ?";
     private static int getLocationIdByUserTableId(Integer id) throws SQLException{
-
         try (Connection con = DbConnect.getConnection();
              PreparedStatement ps = con.prepareStatement(GET_LOCATION_ID_BY_USER_TABLE_ID)) {
             ps.setInt(1, id);
@@ -135,7 +134,7 @@ public class UserController {
 
     public static void verifyResultNotEmpty(ResultSet rs) throws SQLException {
         if (!rs.isBeforeFirst()){
-            throw new NoResultsFoundException("The query returned no results");
+            throw new NoResultsFoundException("This user does not exist.");
         }
     }
 
