@@ -13,8 +13,10 @@ import java.util.List;
 public class RecordTypeController {
 
 
-    private static String GET_ALL_TYPES = "SELECT * " +
-            "FROM recordtypes";
+    private static String GET_ALL_TYPES =
+            "SELECT rt.Id, rt.Name, rt.NumberPattern, rs.Name AS Schedule " +
+            "FROM recordtypes rt " +
+            "LEFT JOIN retentionschedules rs ON rt.DefaultScheduleId = rs.Id";
     public static List<RecordType> getAllRecordTypes() throws SQLException {
         List<RecordType> recordTypes = new ArrayList<>();
         try(Connection conn = DbConnect.getConnection();
