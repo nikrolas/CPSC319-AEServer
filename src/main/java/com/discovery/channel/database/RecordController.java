@@ -882,9 +882,9 @@ public class RecordController {
         HashMap<String, Object> errorResponse = new HashMap<>();
 
         List<Record> listOfRecords = getRecordsByIds(ids.getRecordIds(), true);
-        Map<String, List<String>> noClosedAt = DestructionDateController.checkRecordsClosedAt(listOfRecords);
+        Map<String, Object> noClosedAt = DestructionDateController.checkRecordsClosedAt(listOfRecords);
 
-        if(!noClosedAt.get("id").isEmpty()){
+        if(noClosedAt.get("id") != null){
             LOGGER.info("Record id(s) do not have ClosedAt", noClosedAt.get("id"));
             errorResponse.put("id", noClosedAt.get("id"));
             errorResponse.put("number", noClosedAt.get("number"));
