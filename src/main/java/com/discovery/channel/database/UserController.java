@@ -134,7 +134,7 @@ public class UserController {
 
     public static void verifyResultNotEmpty(ResultSet rs) throws SQLException {
         if (!rs.isBeforeFirst()){
-            throw new NoResultsFoundException("No results were found.");
+            throw new NoResultsFoundException("This user does not exist.");
         }
     }
 
