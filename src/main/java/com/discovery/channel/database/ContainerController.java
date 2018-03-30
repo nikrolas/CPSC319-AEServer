@@ -144,7 +144,6 @@ public class ContainerController {
         container.setConsignmentCode(baseRecord.getConsignmentCode());
         container.setScheduleId(baseRecord.getScheduleId());
         container.setTypeId(baseRecord.getTypeId());
-        container.setLocationId(baseRecord.getLocationId());
 
         String locationCode = LocationController.getLocationCodeById(container.getLocationId()).toUpperCase();
         int year = Calendar.getInstance().get(Calendar.YEAR);
