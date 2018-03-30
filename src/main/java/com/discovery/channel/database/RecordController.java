@@ -111,7 +111,7 @@ public class RecordController {
             recordCount = getRecordCountByNumber(number, userId);
             containerCount = ContainerController.getContainerCountByNumber(number, userId);
 
-            if (recordCount > page * pageSize) {
+            if (recordCount >= page * pageSize) {
                 documents = (List)getRecordPageByNumber(number, userId, page, pageSize);
             }
             else if (recordCount > (page - 1) * pageSize &&
@@ -177,29 +177,24 @@ public class RecordController {
      */
     private static final String GET_RECORD_BY_ID =
             "SELECT * " +
-            "FROM records WHERE Id = ?";
+                    "FROM records WHERE Id = ?";
     public static Record getRecordById(Integer id, int userId) throws SQLException {
         try (Connection connection = DbConnect.getConnection();
              PreparedStatement ps = connection.prepareStatement(GET_RECORD_BY_ID)) {
             ps.setInt(1, id);
             try (ResultSet resultSet = ps.executeQuery()) {
-                verifyResultNotEmpty(resultSet);
-                resultSet.next();
-                Record record = parseResultSet(resultSet);
-                loadRecordDetail(record);
-                if (!Authenticator.canUserViewLocation(userId, record.getLocationId())) {
-                    throw new AuthenticationException("User " + userId + " is not allowed to view records on location " + record.getLocation());
+                if (resultSet.next()) {
+                    Record record = parseResultSet(resultSet);
+                    loadRecordDetail(record);
+                    if (!Authenticator.canUserViewLocation(userId, record.getLocationId())) {
+                        throw new AuthenticationException("User " + userId + " is not allowed to view records on location " + record.getLocation());
+                    }
+                    return record;
+                } else {
+                    LOGGER.info("Record {} does not exist", id);
+                    throw new NoResultsFoundException(String.format("Record %d does not exist.", id));
                 }
-                return record;
             }
-        }
-    }
-
-    //todo: consider moving this to a more general location to be used by other controllers
-    public static void verifyResultNotEmpty(ResultSet rs) throws SQLException {
-        if (!rs.isBeforeFirst()) {
-            LOGGER.info("Record {} does not exist");
-            throw new NoResultsFoundException("The query returned no results.");
         }
     }
 
