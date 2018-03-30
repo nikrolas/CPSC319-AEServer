@@ -338,6 +338,7 @@ public class RouteHandler {
     }
 
 
+
     /**
      * Get the most recent ClosedAt given a container id
      *
@@ -350,6 +351,20 @@ public class RouteHandler {
             method = RequestMethod.GET)
     public ResponseEntity<?> getTheMostRecentClosedAt(@PathVariable("id") Integer containerId, @RequestParam("userId") int userId) throws SQLException {
         return DestructionDateController.getTheMostRecentClosedAt(containerId, userId);
+    }
+
+    /**
+     * Get records given record ids
+     *
+     * @param  ids
+     * @return list of records
+     */
+    @RequestMapping(
+            value = "records",
+            params = {"ids","userId"},
+            method = RequestMethod.GET)
+    public List<Record> getMultipleRecords(@RequestParam("ids") List<Integer> ids, @RequestParam("userId") int userId) throws SQLException {
+        return RecordController.getRecordsByIds(ids, true);
     }
 
 }
