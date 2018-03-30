@@ -8,14 +8,13 @@ import com.discovery.channel.exception.NoResultsFoundException;
 import com.discovery.channel.exception.ValidationException;
 import com.discovery.channel.model.Container;
 import com.discovery.channel.model.Record;
+import com.discovery.channel.model.RetentionSchedule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
 
-import javax.validation.Valid;
-import javax.validation.Validation;
 import java.sql.Connection;
 import java.sql.Date;
 import java.sql.PreparedStatement;
@@ -65,8 +64,8 @@ public class ContainerController {
         if (isContainerEmpty(container)) return;
         container.setType(RecordTypeController.getTypeName(container.getTypeId()));
         container.setLocationName(LocationController.getLocationNameByLocationId(container.getLocationId()));
-        Map<String, String> schedule = RetentionScheduleController.getRetentionSchedule(container.getScheduleId());
-        container.setScheduleName(schedule.get("Name"));
+        RetentionSchedule schedule = RetentionScheduleController.getRetentionSchedule(container.getScheduleId());
+        container.setScheduleName(schedule.getName());
         container.setState(StateController.getStateName(container.getStateId()));
     }
 
@@ -110,7 +109,7 @@ public class ContainerController {
     //todo: consider moving this to a more general location to be used by other controllers
     public static void verifyResultNotEmpty(ResultSet rs) throws SQLException {
         if (!rs.isBeforeFirst()){
-            throw new NoResultsFoundException("The query returned no results.");
+            throw new NoResultsFoundException("No results were found.");
         }
     }
 
@@ -124,7 +123,7 @@ public class ContainerController {
      */
     public static final Container createContainer(Container container, int userId) throws SQLException, AuthenticationException{
         if (!Authenticator.authenticate(userId, Role.ADMINISTRATOR) && !Authenticator.authenticate(userId, Role.RMC)) {
-            throw new AuthenticationException(String.format("You are not authenticated to create container."));
+            throw new AuthenticationException(String.format("You do not have permission to create containers."));
         }
 
         if (container.getChildRecordIds().size() > 1){
@@ -140,7 +139,7 @@ public class ContainerController {
                         recordNumbers = recordNumbers.concat(",") + r.getNumber();
                     }
                 }
-                throw new ValidationException("Could not create container with the following record numbers: "
+                throw new ValidationException("Could not create container with the following records: "
                         + recordNumbers + ". Reason: "+ e.getMessage() + ".");
             }
         }
@@ -338,7 +337,7 @@ public class ContainerController {
      */
     public static Container updateContainer(int containerId, Container container, int userId) throws SQLException{
         if (!Authenticator.authenticate(userId, Role.ADMINISTRATOR) && !Authenticator.authenticate(userId, Role.RMC)) {
-            throw new AuthenticationException(String.format("You are not authenticated to update container %s.", container.getContainerNumber()));
+            throw new AuthenticationException(String.format("You do not have permission to update containers."));
         }
         LOGGER.info("Passed all validation checks. Updating Container {}", container); //todo this message could be better
 
@@ -368,9 +367,9 @@ public class ContainerController {
     private static final String GET_CONTAINER_BY_NUMBER =
             "SELECT * FROM containers " +
             "WHERE LocationId IN " +
-            "( SELECT LocationId  " +
-            "FROM locations l  LEFT JOIN userlocations ul ON (ul.LocationId = l.Id ) " +
-            "WHERE l.Restricted = false OR ul.UserId = ?) " +
+                "( SELECT LocationId  " +
+                "FROM locations l  LEFT JOIN userlocations ul ON (ul.LocationId = l.Id ) " +
+                "WHERE l.Restricted = false OR ul.UserId = ?) " +
             "AND Number LIKE ? " +
             "ORDER BY Number ASC " +
             "LIMIT ?, ?";
@@ -396,9 +395,9 @@ public class ContainerController {
     private static final String GET_CONTAINER_COUNT_BY_NUMBER =
             "SELECT COUNT(*) FROM containers " +
             "WHERE LocationId IN" +
-            "( SELECT LocationId  " +
-            "FROM locations l  LEFT JOIN userlocations ul ON (ul.LocationId = l.Id ) " +
-            "WHERE l.Restricted = false OR ul.UserId = ?) " +
+                "( SELECT LocationId  " +
+                "FROM locations l  LEFT JOIN userlocations ul ON (ul.LocationId = l.Id ) " +
+                "WHERE l.Restricted = false OR ul.UserId = ?) " +
             "AND Number LIKE ? ";
     public static int getContainerCountByNumber(String number, int userId) throws SQLException {
         try (Connection connection = DbConnect.getConnection();
@@ -444,7 +443,7 @@ public class ContainerController {
      */
     public static final ResponseEntity<?> deleteContainers(List<Integer> ids, Integer userId) throws SQLException{
         if (!Authenticator.authenticate(userId, Role.ADMINISTRATOR) && !Authenticator.authenticate(userId, Role.RMC)) {
-            throw new AuthenticationException(String.format("You are not authenticated to delete container."));
+            throw new AuthenticationException(String.format("You do not have permission to delete containers."));
         }
 
         Map<String, Object> errorResponse = new HashMap<>();

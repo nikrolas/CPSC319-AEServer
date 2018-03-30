@@ -249,9 +249,9 @@ public class RecordController {
         record.setState(StateController.getStateName(record.getStateId()));
         record.setContainerNumber(getContainerNumber(record.getContainerId()));
 
-        Map<String, String> schedule = RetentionScheduleController.getRetentionSchedule(record.getScheduleId());
-        record.setSchedule(schedule.get("Name"));
-        record.setScheduleYear(Integer.valueOf(schedule.get("Years")));
+        RetentionSchedule schedule = RetentionScheduleController.getRetentionSchedule(record.getScheduleId());
+        record.setSchedule(schedule.getName());
+        record.setScheduleYear(schedule.getYears());
 
         // Load classifications
         List<Integer> classIds = getRecordClassifications(record.getId());
@@ -359,11 +359,12 @@ public class RecordController {
     public static Record createRecord (Record record, int userId) throws SQLException {
 
         if (!Authenticator.authenticate(userId, Role.ADMINISTRATOR) && !Authenticator.authenticate(userId, Role.RMC)) {
-            throw new AuthenticationException(String.format("You are not authenticated to create record."));
+            throw new AuthenticationException(String.format("You do not have permission to create records."));
         }
 
         if (!Authenticator.isUserAuthenticatedForLocation(userId, record.getLocationId())) {
-            throw new AuthenticationException(String.format("You are not authenticated to create record under location %s.", record.getLocationId()));
+            throw new AuthenticationException(String.format("You do not have permission to create records in %s.",
+                    LocationController.getLocationNameByLocationId(record.getLocationId())));
         }
 
 
@@ -373,7 +374,8 @@ public class RecordController {
                 numberPattern.matchLocation(
                         LocationController.getLocationCodeById(record.getId()),
                         record.getNumber())) {
-            throw new IllegalArgumentException(String.format("Invalid record number: %s for record type %s.", record.getNumber(), record.getType()));
+            throw new IllegalArgumentException(String.format("Invalid record number: %s for record type %s.",
+                    record.getNumber(), record.getType()));
         }
 
         record.setNumber(numberPattern.fillAutoGenField(record.getNumber()));
@@ -480,7 +482,8 @@ public class RecordController {
         }
 
         if (!Authenticator.isUserAuthenticatedForLocation(userId, record.getLocationId())) {
-            throw new AuthenticationException(String.format("You are not authenticated to delete record %s under location %s.", record.getNumber(), record.getLocation()));
+            throw new AuthenticationException(String.format("You do not have permission to delete records in %s.",
+                    record.getLocation()));
         }
 
         LOGGER.info("About to delete record {}", id);
@@ -511,7 +514,7 @@ public class RecordController {
         }
 
         if (!Authenticator.authenticate(userId, Role.ADMINISTRATOR) && !Authenticator.authenticate(userId, Role.RMC)) {
-            throw new AuthenticationException(String.format("You are not authenticated to delete record."));
+            throw new AuthenticationException(String.format("You do not have permission to delete records."));
         }
 
         for (int recordId : form.getRecordIds()) {
@@ -546,7 +549,7 @@ public class RecordController {
         Record record = getRecordById(id, userId);
 
         if (!Authenticator.authenticate(userId, Role.ADMINISTRATOR) && !Authenticator.authenticate(userId, Role.RMC)) {
-            throw new AuthenticationException(String.format("You are not authenticated to update record %s.", record.getNumber()));
+            throw new AuthenticationException(String.format("You do not have permission to update records."));
         }
 
         if (record == null) {
@@ -554,19 +557,15 @@ public class RecordController {
         }
 
         if (!Authenticator.isUserAuthenticatedForLocation(userId, record.getLocationId())) {
-            throw new AuthenticationException(String.format("You are not authenticated to update record %s under location %s.", record.getNumber(), record.getLocation()));
-        }
-
-        // RMC can't move a record to a location tht they're not a part of
-        if (!Authenticator.isUserAuthenticatedForLocation(userId, record.getLocationId())) {
-            throw new AuthenticationException(String.format("You are not authenticated to update record %s under location %s.", record.getNumber(), record.getLocation()));
+            throw new AuthenticationException(String.format("You do not have permission to update records at %s.",
+                    record.getLocation()));
         }
 
         // Only certain types of states are valid for certain retention schedules
         if (!RecordState.fromId(updateForm.getStateId()).isValidforRetentionSchedule(updateForm.getScheduleId() > 0)) {
             throw new IllegalArgumentException(String.format("State %s is not valid for retention schedule %s.",
                     StateController.getStateName(updateForm.getStateId()),
-                    RetentionScheduleController.getRetentionSchedule(updateForm.getScheduleId()).get("Name")));
+                    RetentionScheduleController.getRetentionSchedule(updateForm.getScheduleId()).getName()));
         }
 
         // Validate classifications
@@ -773,7 +772,7 @@ public class RecordController {
     public static Record createVolume(Integer id, int userId, Boolean copyNotes) throws SQLException{
         if (!Authenticator.authenticate(userId, Role.ADMINISTRATOR) &&
                 !Authenticator.authenticate(userId, Role.RMC)) {
-            throw new AuthenticationException(String.format("You are not authenticated to create volume."));
+            throw new AuthenticationException(String.format("You do not have permission to create volumes."));
         }
 
         Record baseRecord = getRecordById(id, userId);
@@ -783,8 +782,8 @@ public class RecordController {
         }
 
         if (!Authenticator.isUserAuthenticatedForLocation(userId, baseRecord.getLocationId())) {
-            throw new AuthenticationException(String.format("You are not authenticated to create volume %s under location %s.",
-                    baseRecord.getNumber(), baseRecord.getLocation()));
+            throw new AuthenticationException(String.format("You do not have permission to create volumes in %s.",
+                    baseRecord.getLocation()));
         }
 
         // Check colon count to increment volume
@@ -793,14 +792,14 @@ public class RecordController {
 
         int colonCount = StringUtils.countOccurrencesOf(number, ":");
         if (colonCount > 1) {
-            throw new IllegalArgumentException(String.format("Unsupported volume format for create volume %s.", baseRecord.getNumber()));
+            throw new IllegalArgumentException(String.format("Unsupported volume format for create volume: %s.", number));
         } else if (colonCount == 1) {
             String[] pieces = baseRecord.getNumber().split(":");
             baseNumber = pieces[0];
             int newVolume = Integer.parseInt(pieces[1]) + 1;
             if (newVolume > 99) {
                 throw new IllegalArgumentException(String.format(
-                        "Unable to create volume %d for record %s. Volume numbers over 99 currently not supported.",
+                        "Unable to create volume :%d for record %s. Volume numbers over 99 currently not supported.",
                         newVolume, number));
             }
             number = String.format("%s:%02d", baseNumber, newVolume);
@@ -818,7 +817,7 @@ public class RecordController {
                 while (rs.next()) {
                     if (!rs.getBoolean("latestVolume")) {
                         throw new IllegalArgumentException(String.format(
-                                "Unable to create new volume from record number %s. New volumes can only be created from latest existing volume.",
+                                "Unable to create new volume from record %s. New volumes can only be created from latest existing volume.",
                                 baseRecord.getNumber()));
                     }
                 }
@@ -888,11 +887,11 @@ public class RecordController {
 
 
         if (!Authenticator.authenticate(userId, Role.RMC) && !Authenticator.authenticate(userId, Role.ADMINISTRATOR)) {
-            throw new AuthenticationException(String.format("You are not authenticated to destroy record."));
+            throw new AuthenticationException(String.format("You do not have permission to destroy records."));
         }
 
         List<Integer> failedIds = new ArrayList<>();
-        List<String> failedNmbers = new ArrayList<>();
+        List<String> failedNumbers = new ArrayList<>();
         Date currentDate = new Date(Calendar.getInstance().getTimeInMillis());
         HashMap<String, Object> errorResponse = new HashMap<>();
 
@@ -913,7 +912,7 @@ public class RecordController {
                             Date destructionDate = new Date(DestructionDateController.addYearToTheLatestClosureDate(record.getScheduleYear(), record.getClosedAt()));
                             if (destructionDate.compareTo(currentDate) > 0) {
                                 failedIds.add(record.getId());
-                                failedNmbers.add(record.getNumber());
+                                failedNumbers.add(record.getNumber());
                             }
                         }
                     } else {
@@ -931,7 +930,7 @@ public class RecordController {
                 } else {
                     LOGGER.info("Records destruction date(s) not passed yet");
                     errorResponse.put("id", failedIds);
-                    errorResponse.put("number", failedNmbers);
+                    errorResponse.put("number", failedNumbers);
                     errorResponse.put("error", RETENTION_NOT_END);
                 }
             }else{
