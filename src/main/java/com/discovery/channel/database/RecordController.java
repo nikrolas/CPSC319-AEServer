@@ -944,7 +944,7 @@ public class RecordController {
         String query = "UPDATE records "
                 + "SET StateId = " + RecordState.DESTROYED.getId()
                 + " , UpdatedAt = now() "
-                + " , ContainerId = 0 WHERE Id IN (";
+                + " , ContainerId = null WHERE Id IN (";
         String destroyRecordsQuery = completeIdsInQuery(ids, query);
 
         try (Connection conn = DbConnect.getConnection();
