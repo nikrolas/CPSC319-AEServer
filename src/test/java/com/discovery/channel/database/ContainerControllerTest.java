@@ -5,16 +5,10 @@ import com.discovery.channel.exception.NoResultsFoundException;
 import com.discovery.channel.form.RecordsForm;
 import com.discovery.channel.model.Container;
 import com.discovery.channel.model.Record;
-import org.apache.logging.log4j.core.util.ArrayUtils;
-import org.json.JSONArray;
 import org.json.JSONException;
-import org.json.JSONObject;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.remoting.rmi.RmiBasedExporter;
-import org.springframework.web.bind.annotation.ResponseStatus;
 
 import java.sql.Date;
 import java.sql.SQLException;
