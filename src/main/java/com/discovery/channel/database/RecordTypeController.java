@@ -27,7 +27,7 @@ public class RecordTypeController {
                             rs.getInt("Id"),
                             rs.getString("Name"),
                             rs.getString("NumberPattern"),
-                            rs.getInt("Schedule")));
+                            rs.getString("Schedule")));
                 }
             }
         }

@@ -9,5 +9,5 @@ public class RecordType {
     private int typeId;
     private String typeName;
     private String numberPattern;
-    private int defaultSchedule;
+    private String defaultSchedule;
 }
