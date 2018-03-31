@@ -539,6 +539,10 @@ public class ContainerController {
 
         for (Integer id : ids) {
             Container container = ContainerController.getContainerById(id, userId);
+            if(!Authenticator.isUserAuthenticatedForLocation(userId, container.getLocationId())){
+                throw new AuthenticationException(String.format("You do not have permission to delete container %s from your location.",
+                        container.getContainerNumber()));
+            }
             if (!getRecordIdsInContainer(id).isEmpty()) {
                 listOfContainerNumbers.add(container.getContainerNumber());
             }
