@@ -507,12 +507,13 @@ public class RecordController {
         }
 
         for (int recordId : form.getRecordIds()) {
-            Record record = getRecordById(recordId, userId);
+            Record record = null;
             try {
+                record = getRecordById(recordId, userId);
                 response.addResponse(recordId, record.getNumber(), "", deleteRecord(record, userId));
             } catch (Exception e) {
                 LOGGER.error(e.getMessage());
-                response.addResponse(recordId, record.getNumber(), e.getMessage(), false);
+                response.addResponse(recordId, record == null ? "" : record.getNumber(), e.getMessage(), false);
             }
         }
         return response;
