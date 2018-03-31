@@ -2,15 +2,13 @@ package com.discovery.channel.database;
 
 import com.discovery.channel.exception.AuthenticationException;
 import com.discovery.channel.exception.NoResultsFoundException;
+import com.discovery.channel.form.RecordsForm;
 import com.discovery.channel.model.Container;
 import com.discovery.channel.model.Record;
-import org.json.JSONArray;
 import org.json.JSONException;
-import org.json.JSONObject;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.ResponseStatus;
 
 import java.sql.Date;
 import java.sql.SQLException;
@@ -109,47 +107,206 @@ class ContainerControllerTest {
         assertTrue(e.getMessage().contains("Column 'Number' cannot be null"));
     }
 
-//    @Test
-//    void deleteOneContainer() throws SQLException, JSONException{
-//        Container sampleContainer = createValidNewContainerRequest("TESTING_FOR_DELETE", "2018");
-//        Container c = ContainerController.createContainer(sampleContainer, RMC_USER_ID);
-//
-//        ResponseEntity responseStatus = ContainerController.deleteContainers(String.valueOf(c.getContainerId()), RMC_USER_ID);
-//        assertEquals(responseStatus.getStatusCode(), HttpStatus.OK);
-//    }
+    @Test
+    void deleteOneContainer() throws SQLException{
+        // create list of records
+        List<Integer> listOfRecordIds = new ArrayList<>();
+        Record r = createOneRecord();
+        listOfRecordIds.add(r.getId());
 
-//    @Test
-//    void deleteMultipuleContainers() throws SQLException, JSONException{
-//        Container sampleContainer = createValidNewContainerRequest("TESTING_FOR_DELETE", "2018");
-//        Container c = ContainerController.createContainer(sampleContainer, RMC_USER_ID);
-//
-//        Container sampleContainer2 = createValidNewContainerRequest("TESTING_FOR_DELETE_2", "2018-2");
-//        Container c2 = ContainerController.createContainer(sampleContainer2, RMC_USER_ID);
-//
-//        String ids = String.valueOf(c.getContainerId()) + "," + String.valueOf(c2.getContainerId());
-//        ResponseEntity responseStatus = ContainerController.deleteContainers(ids, RMC_USER_ID);
-//        assertEquals(responseStatus.getStatusCode(), HttpStatus.OK);
-//    }
-//
-//    @Test
-//    void  deleteOneContainerWithRecords() throws SQLException{
-//        Container c = ContainerController.getContainerById(16348, RMC_USER_ID);
-//        ResponseEntity responseStatus = ContainerController.deleteContainers(String.valueOf(c.getContainerId()), RMC_USER_ID);
-//        assertEquals(responseStatus.getStatusCode(), HttpStatus.PRECONDITION_FAILED);
-//    }
-//
-//    @Test
-//    void deleteContainersWithRecords() throws SQLException{
-//        Container c1 = ContainerController.getContainerById(16348, RMC_USER_ID);
-//        Container c2 = ContainerController.getContainerById(16349, RMC_USER_ID);
-//        String ids = String.valueOf(c1.getContainerId()) + "," + String.valueOf(c2.getContainerId());
-//        ResponseEntity responseStatus = ContainerController.deleteContainers(ids, RMC_USER_ID);
-//        assertEquals(responseStatus.getStatusCode(), HttpStatus.PRECONDITION_FAILED);
-//    }
+        // create container contain at least one record
+        Container sampleContainer = createValidNewContainerWithRecords("TESTING_FOR_DELETE", "2018", listOfRecordIds);
+        Container c = ContainerController.createContainer(sampleContainer, RMC_USER_ID);
+
+        List<Integer> listOfContainerIds = new ArrayList<>();
+        listOfContainerIds.add(c.getContainerId());
+
+        RecordsForm rf = new RecordsForm();
+        rf.setRecordIds(listOfRecordIds);
+
+        // destroy records
+        RecordController.prepareToDestroyRecords(rf, RMC_USER_ID);
+
+        // container should be empty
+        assertTrue(ContainerController.getRecordIdsInContainer(c.getContainerId()).isEmpty());
+
+        // delete container
+        ResponseEntity responseStatus = ContainerController.deleteContainers(listOfContainerIds, RMC_USER_ID);
+        assertEquals(responseStatus.getStatusCode(), HttpStatus.OK);
+
+        // should not find container
+        Exception e = assertThrows(NoResultsFoundException.class, () -> {
+            ContainerController.getContainerById(c.getContainerId(), RMC_USER_ID);
+        });
+
+        // clean up
+        RecordController.deleteRecords(RMC_USER_ID, rf);
+    }
+
+    @Test
+    void deleteMultipuleContainers() throws SQLException{
+
+        List<Integer> onelistOfRecordIds = new ArrayList<>();
+        Record r = createOneRecord();
+        onelistOfRecordIds.add(r.getId());
+
+        List<Integer> seclistOfRecordIds = new ArrayList<>();
+        Record r2 = createOneRecord();
+        seclistOfRecordIds.add(r2.getId());
+
+        Container sampleContainer = createValidNewContainerWithRecords("TESTING_FOR_DELETE", "2018", onelistOfRecordIds);
+        Container c = ContainerController.createContainer(sampleContainer, RMC_USER_ID);
+
+        Container sampleContainer2 = createValidNewContainerWithRecords("TESTING_FOR_DELETE_2", "2018-2", seclistOfRecordIds);
+        Container c2 = ContainerController.createContainer(sampleContainer2, RMC_USER_ID);
+
+        RecordsForm rf = new RecordsForm();
+        rf.setRecordIds(onelistOfRecordIds);
+
+        RecordController.prepareToDestroyRecords(rf, RMC_USER_ID);
+
+        RecordsForm rf2 = new RecordsForm();
+        rf2.setRecordIds(seclistOfRecordIds);
+
+        RecordController.prepareToDestroyRecords(rf2, RMC_USER_ID);
+
+        assertTrue(ContainerController.getRecordIdsInContainer(c.getContainerId()).isEmpty());
+        assertTrue(ContainerController.getRecordIdsInContainer(c2.getContainerId()).isEmpty());
+
+        List<Integer> listOfContainerIds = new ArrayList<>();
+        listOfContainerIds.add(c.getContainerId());
+        listOfContainerIds.add(c2.getContainerId());
+
+        ResponseEntity responseStatus = ContainerController.deleteContainers(listOfContainerIds, RMC_USER_ID);
+        assertEquals(responseStatus.getStatusCode(), HttpStatus.OK);
+
+        Exception e = assertThrows(NoResultsFoundException.class, () -> {
+            ContainerController.getContainerById(c.getContainerId(), RMC_USER_ID);
+        });
+
+        Exception e1 = assertThrows(NoResultsFoundException.class, () -> {
+            ContainerController.getContainerById(c2.getContainerId(), RMC_USER_ID);
+        });
+
+        RecordController.deleteRecords(RMC_USER_ID, rf);
+        RecordController.deleteRecords(RMC_USER_ID, rf2);
+
+    }
+
+    @Test
+    void  deleteOneContainerWithBadRole() throws SQLException{
+
+        List<Integer> listOfRecordIds = new ArrayList<>();
+        Record r = createOneRecord();
+        listOfRecordIds.add(r.getId());
+
+        Container sampleContainer = createValidNewContainerWithRecords("TESTING_FOR_DELETE_BAD_ROLE", "2018", listOfRecordIds);
+        Container c = ContainerController.createContainer(sampleContainer, RMC_USER_ID);
+
+        List<Integer> listOfContainerIds = new ArrayList<>();
+        listOfContainerIds.add(c.getContainerId());
+
+        RecordsForm rf = new RecordsForm();
+        rf.setRecordIds(listOfRecordIds);
+
+        RecordController.prepareToDestroyRecords(rf, RMC_USER_ID);
+
+        assertTrue(ContainerController.getRecordIdsInContainer(c.getContainerId()).isEmpty());
+
+        Exception e = assertThrows(AuthenticationException.class, () -> {
+            ContainerController.deleteContainers(listOfContainerIds, NON_RMC_USER_ID);
+        });
+
+        ContainerController.deleteContainers(listOfContainerIds, RMC_USER_ID);
+        RecordController.deleteRecords(RMC_USER_ID, rf);
+    }
+
+    @Test
+    void deleteOneContainerWithRecords() throws SQLException{
+        List<Integer> listOfRecordIds = new ArrayList<>();
+        Record r = createOneRecord();
+        Record r2 = createOneRecord();
+        listOfRecordIds.add(r.getId());
+        listOfRecordIds.add(r2.getId());
+
+        Container sampleContainer = createValidNewContainerWithRecords("TESTING_FOR_DELETE_CONTAINER_CONTAINING_RECORDS", "2018", listOfRecordIds);
+        Container c = ContainerController.createContainer(sampleContainer, RMC_USER_ID);
+
+        List<Integer> listOfContainerIds = new ArrayList<>();
+        listOfContainerIds.add(c.getContainerId());
+
+        assertTrue(!ContainerController.getRecordIdsInContainer(c.getContainerId()).isEmpty());
+        ResponseEntity responseStatus = ContainerController.deleteContainers(listOfContainerIds, RMC_USER_ID);
+        assertEquals(responseStatus.getStatusCode(), HttpStatus.BAD_REQUEST);
 
 
-    private Container createValidNewContainerRequest(String title, String number) throws JSONException{
-        return new Container(0, number, title, null, null, null, 1, 5, 1, 8, null, null, null);
+        RecordsForm rf = new RecordsForm();
+        rf.setRecordIds(listOfRecordIds);
+
+        RecordController.prepareToDestroyRecords(rf, RMC_USER_ID);
+        ContainerController.deleteContainers(listOfContainerIds, RMC_USER_ID);
+
+        RecordController.deleteRecords(RMC_USER_ID, rf);
+
+    }
+
+    @Test
+    void deleteContainerWithBadLocation() throws  SQLException{
+        List<Integer> listOfRecordIds = new ArrayList<>();
+        Record r = createOneRecord();
+        Record r2 = createOneRecord();
+        listOfRecordIds.add(r.getId());
+        listOfRecordIds.add(r2.getId());
+
+        Container sampleContainer = createValidNewContainerWithRecords("TESTING_FOR_DELETE_CONTAINER_BAD_LOCATION", "2018", listOfRecordIds);
+        Container c = ContainerController.createContainer(sampleContainer, RMC_USER_ID);
+
+        List<Integer> listOfContainerIds = new ArrayList<>();
+        listOfContainerIds.add(c.getContainerId());
+
+        RecordsForm rf = new RecordsForm();
+        rf.setRecordIds(listOfRecordIds);
+
+        RecordController.prepareToDestroyRecords(rf, RMC_USER_ID);
+
+        assertTrue(ContainerController.getRecordIdsInContainer(c.getContainerId()).isEmpty());
+
+        Exception e = assertThrows(AuthenticationException.class, () -> {
+            ContainerController.deleteContainers(listOfContainerIds, 390);
+        });
+
+        ContainerController.deleteContainers(listOfContainerIds, RMC_USER_ID);
+        RecordController.deleteRecords(RMC_USER_ID, rf);
+
+    }
+
+
+
+    private Container createValidNewContainerRequest(String title, String number)  {
+
+        return new Container(0, number, title, null, null, null,
+                1, 5, 1, 8, null, null, null);
+    }
+
+    private Container createValidNewContainerWithRecords(String title, String number, List<Integer> listOfRecordIds) throws SQLException {
+
+        return new Container(0, number, title, null, null, null,
+                1, 5, 1, 8, null, listOfRecordIds, null);
+    }
+
+    private  Record createOneRecord() throws SQLException{
+        List<Integer> classIds = new ArrayList<>();
+        classIds.add(1052);
+        classIds.add(14);
+
+        // schedule id 209 is 0 year
+        Record r = new Record("test", "EDM-2018", 209, 3, "RF011329724",
+                0, 5, classIds,
+                "CREATED FOR TESTING -- testDeleteContainer");
+
+        Record record = RecordController.createRecord(r, RMC_USER_ID);
+
+        return record;
     }
 
 
