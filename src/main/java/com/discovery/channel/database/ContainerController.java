@@ -9,6 +9,7 @@ import com.discovery.channel.exception.NoResultsFoundException;
 import com.discovery.channel.exception.ValidationException;
 import com.discovery.channel.model.Container;
 import com.discovery.channel.model.Record;
+import com.discovery.channel.model.RecordState;
 import com.discovery.channel.model.RetentionSchedule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
