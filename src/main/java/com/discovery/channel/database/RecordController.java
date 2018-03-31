@@ -891,7 +891,7 @@ public class RecordController {
         List<Record> listOfRecords = getRecordsByIds(ids.getRecordIds(), true);
         Map<String, Object> noClosedAt = DestructionDateController.checkRecordsClosedAt(listOfRecords);
 
-        if(noClosedAt.get("id") != null){
+        if(!noClosedAt.isEmpty()){
             LOGGER.info("Record id(s) do not have ClosedAt", noClosedAt.get("id"));
             errorResponse.put("id", noClosedAt.get("id"));
             errorResponse.put("number", noClosedAt.get("number"));
@@ -903,7 +903,7 @@ public class RecordController {
                     if (record != null) {
                         if (record.getStateId() != RecordState.DESTROYED.getId()) {
                             Date destructionDate = new Date(DestructionDateController.addYearToTheLatestClosureDate(record.getScheduleYear(), record.getClosedAt()));
-                            if (destructionDate.compareTo(currentDate) > 0) {
+                            if (destructionDate.compareTo(currentDate) >= 0) {
                                 failedIds.add(record.getId());
                                 failedNumbers.add(record.getNumber());
                             }

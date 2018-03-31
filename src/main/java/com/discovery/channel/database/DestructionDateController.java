@@ -34,11 +34,14 @@ public class DestructionDateController {
         int scheduleYear = 0;
 
         List<Record> listOfRecords = RecordController.getRecordsByIds(listOfRecordIds, true);
+
+        if(listOfRecords.isEmpty()){
+            throw new NoResultsFoundException("No records found.");
+        }
+
         Map<String, Object> listOfRecordsWithoutClosureDate = checkRecordsClosedAt(listOfRecords);
-        Object anyRecordNotHaveClosedAt = listOfRecordsWithoutClosureDate.get("id");
 
-        if(anyRecordNotHaveClosedAt == null && !listOfRecords.isEmpty()){
-
+        if(listOfRecordsWithoutClosureDate.isEmpty()){
 
             LOGGER.info("Getting the latest closure date given ids {}", listOfRecordIds);
 
@@ -122,9 +125,11 @@ public class DestructionDateController {
             }
         }
 
-        response.put("number", recordNumbers);
-        response.put("id", recordIds);
-        response.put("error", "Record(s) do not have ClosedAt");
+        if(!recordIds.isEmpty()) {
+            response.put("number", recordNumbers);
+            response.put("id", recordIds);
+            response.put("error", "Record(s) do not have ClosedAt");
+        }
 
         return response;
     }
@@ -149,13 +154,12 @@ public class DestructionDateController {
         List<Record> listOfRecords = RecordController.getRecordsByIds(listOfRecordIds, false);
 
         Map<String, Object> listOfRecordsWithoutClosureDate = checkRecordsClosedAt(listOfRecords);
-        Object anyRecordNotHaveClosedAt = listOfRecordsWithoutClosureDate.get("id");
 
         Date currentClosedAt;
         Date theLatestClosedAt = null;
 
 
-        if(anyRecordNotHaveClosedAt == null){
+        if(listOfRecordsWithoutClosureDate.isEmpty()){
 
             LOGGER.info("Getting the latest closure date given ids {}", listOfRecordIds);
 
