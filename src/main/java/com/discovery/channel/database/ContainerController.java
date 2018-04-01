@@ -11,6 +11,7 @@ import com.discovery.channel.model.Container;
 import com.discovery.channel.model.Record;
 import com.discovery.channel.model.RecordState;
 import com.discovery.channel.model.RetentionSchedule;
+import com.mysql.jdbc.Statement;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -330,7 +331,7 @@ public class ContainerController {
                     "VALUES(?, ?, ?, ?, ?, ?, ?, NOW(), NOW())";
     private static int saveContainerToDb(Container c) throws SQLException {
         try (Connection connection = DbConnect.getConnection();
-             PreparedStatement ps = connection.prepareStatement(CREATE_CONTAINER)) {
+             PreparedStatement ps = connection.prepareStatement(CREATE_CONTAINER, Statement.RETURN_GENERATED_KEYS)) {
 
             ps.setString(1, c.getContainerNumber());
             ps.setString(2, c.getTitle());
