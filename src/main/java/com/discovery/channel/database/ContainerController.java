@@ -255,14 +255,6 @@ public class ContainerController {
                         "' has a consignmentCode that differs from at least one other record.");
             }
         }
-        // Validate all records have the same stateId
-        int stateId = records.get(0).getStateId();
-        for (Record r : records){
-            if (r.getStateId() != stateId){
-                throw new ValidationException("Record '" + r.getNumber() +
-                        "' has a stateId that differs from at least one other record.");
-            }
-        }
         // Validate all records have the same locationId
         int locationId = records.get(0).getLocationId();
         for (Record r : records){
@@ -289,18 +281,6 @@ public class ContainerController {
             if (r.getScheduleId() != scheduleId){
                 throw new ValidationException("Record '" + r.getNumber() +
                         "' has a scheduleId that differs from at least one other record.");
-            }
-        }
-    }
-
-    private static final String GET_MAX_CONTAINER_ID =
-            "SELECT MAX(Id) FROM containers";
-    private static int getNewContainerId() throws SQLException {
-        try (Connection connection = DbConnect.getConnection();
-             PreparedStatement ps = connection.prepareStatement(GET_MAX_CONTAINER_ID)) {
-            try (ResultSet rs = ps.executeQuery()){
-                rs.next();
-                return rs.getInt("MAX(Id)") + 1;
             }
         }
     }
@@ -359,11 +339,13 @@ public class ContainerController {
     }
 
     public static void validateContainerChangeForRecord(Record record, Container destinationContainer) throws SQLException {
-        if (isContainerEmpty(destinationContainer)) return;
-        if (!destinationContainer.getConsignmentCode().equals(record.getConsignmentCode()))
+        if (!destinationContainer.getConsignmentCode().equals(record.getConsignmentCode())) {
             throw new ValidationException(String.format(
                     "Tried to add record to container with consignmentCode: '%s', but record has consignment code of '%s'.",
                     destinationContainer.getConsignmentCode(), record.getConsignmentCode()));
+        }
+        if (isContainerEmpty(destinationContainer)) return;
+
         if (destinationContainer.getTypeId() != record.getTypeId())
             throw new ValidationException(String.format(
                     "Tried to add record to container with record type: '%s', but record has record type of '%s'.",
@@ -372,32 +354,26 @@ public class ContainerController {
             throw new ValidationException(String.format(
                     "Tried to add record to container with schedule: '%s', but record has schedule '%s'." +
                     destinationContainer.getScheduleName(), record.getSchedule()));
-        if (destinationContainer.getStateId() != record.getStateId())
-            throw new ValidationException(String.format(
-                    "Tried to add record to container with type: '%s', but record has consignment code of '%s'." +
-                    destinationContainer.getConsignmentCode(), record.getConsignmentCode()));
     }
 
-    private static boolean isContainerEmpty(Container container) throws SQLException {
+    private static boolean isContainerEmpty(Container container) {
         return container.getChildRecordIds().isEmpty();
     }
 
     private static final String UPDATE_CONTAINER_RECORD_INFORMATION =
             "UPDATE containers " +
-            "SET StateId = ?, LocationId = ?, ScheduleId = ?, TypeId = ?, ConsignmentCode = ?, UpdatedAt = NOW() " +
+            "SET ScheduleId = ?, TypeId = ?, UpdatedAt = NOW() " +
             "WHERE Id = ?";
-    public static void addRecordToContainer(Container container, Record record) throws SQLException {
+    public static void updateContainerRecordInformation(Container container, Record record) throws SQLException {
+        // no need to update container information if adding a record to a container that already has records
         if (container.getChildRecordIds().size() == 0) {
 
             try (Connection connection = DbConnect.getConnection();
                  PreparedStatement ps = connection.prepareStatement(UPDATE_CONTAINER_RECORD_INFORMATION)) {
 
-                ps.setInt(1, record.getStateId());
-                ps.setInt(2, record.getLocationId());
-                ps.setInt(3, record.getScheduleId());
-                ps.setInt(4, record.getTypeId());
-                ps.setString(5, record.getConsignmentCode());
-                ps.setInt(6, container.getContainerId());
+                ps.setInt(1, record.getScheduleId());
+                ps.setInt(2, record.getTypeId());
+                ps.setInt(3, container.getContainerId());
                 ps.executeUpdate();
             }
         }
@@ -405,7 +381,7 @@ public class ContainerController {
 
     private static final String REMOVE_CONTAINER_RECORD_INFORMATION =
             "UPDATE containers " +
-            "SET StateId = ?, LocationId = ?, ScheduleId = ?, TypeId = ?, ConsignmentCode = ?, UpdatedAt = NOW() " +
+            "SET ScheduleId = ?, TypeId = ?, UpdatedAt = NOW() " +
             "WHERE Id = ?";
     /**
      * Clear a information about the kinds of records in the container
@@ -418,10 +394,7 @@ public class ContainerController {
              PreparedStatement ps = connection.prepareStatement(REMOVE_CONTAINER_RECORD_INFORMATION)) {
             ps.setNull(1, java.sql.Types.INTEGER);
             ps.setNull(2, java.sql.Types.INTEGER);
-            ps.setNull(3, java.sql.Types.INTEGER);
-            ps.setNull(4, java.sql.Types.INTEGER);
-            ps.setString(5, null);
-            ps.setInt(6, containerId);
+            ps.setInt(3, containerId);
             ps.executeUpdate();
         }
     }

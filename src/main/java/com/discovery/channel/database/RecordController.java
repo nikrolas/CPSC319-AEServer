@@ -605,7 +605,7 @@ public class RecordController {
         // Update container information and/or set record closedAt date if need to
         if (isContainerChanged(record, updateForm.getContainerId())) {
             if (destinationContainer != null) {
-                ContainerController.addRecordToContainer(destinationContainer, record);
+                ContainerController.updateContainerRecordInformation(destinationContainer, record);
                 setRecordContainer(id, destinationContainer.getContainerId());
             } else if (ContainerController.getContainerById(record.getContainerId(), userId).getChildRecordIds().size() == 0) {
                 ContainerController.clearContainerRecordInformation(record.getContainerId());
@@ -615,19 +615,8 @@ public class RecordController {
         AuditLogger.log(userId, AuditLogger.Target.RECORD, id, AuditLogger.ACTION.UPDATE);
     }
 
-    private static boolean isContainerChanged(Record record, int containerId) throws SQLException {
+    private static boolean isContainerChanged(Record record, int containerId) {
         return record.getContainerId() != containerId;
-    }
-
-    private static final String SET_CLOSED_AT_DATE =
-            "UPDATE records SET closedAt = NOW(), updatedAt = NOW() WHERE id = ?";
-
-    private static void setRecordClosedAtDate(Integer recordId) throws SQLException {
-        try (Connection conn = DbConnect.getConnection();
-             PreparedStatement ps = conn.prepareStatement(SET_CLOSED_AT_DATE)) {
-            ps.setInt(1, recordId);
-            ps.executeUpdate();
-        }
     }
 
     private static final String SET_RECORD_CONTAINER =
