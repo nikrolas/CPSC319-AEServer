@@ -66,8 +66,12 @@ public class ContainerController {
         if (isContainerEmpty(container)) return;
         container.setType(RecordTypeController.getTypeName(container.getTypeId()));
         container.setLocationName(LocationController.getLocationNameByLocationId(container.getLocationId()));
-        RetentionSchedule schedule = RetentionScheduleController.getRetentionSchedule(container.getScheduleId());
-        container.setScheduleName(schedule.getName());
+        try {
+            RetentionSchedule schedule = RetentionScheduleController.getRetentionSchedule(container.getScheduleId());
+            container.setScheduleName(schedule.getName());
+        } catch (Exception e) {
+
+        }
         container.setState(StateController.getStateName(container.getStateId()));
     }
 
@@ -455,10 +459,11 @@ public class ContainerController {
      */
     private static final String GET_CONTAINER_BY_NUMBER =
             "SELECT * FROM containers " +
-            "WHERE LocationId IN " +
-                "( SELECT LocationId  " +
+            "WHERE (LocationId IN " +
+                "(SELECT LocationId  " +
                 "FROM locations l  LEFT JOIN userlocations ul ON (ul.LocationId = l.Id ) " +
                 "WHERE l.Restricted = false OR ul.UserId = ?) " +
+            "OR LocationId IS NULL) " +
             "AND Number LIKE ? " +
             "ORDER BY Number ASC " +
             "LIMIT ?, ?";
@@ -483,10 +488,11 @@ public class ContainerController {
 
     private static final String GET_CONTAINER_COUNT_BY_NUMBER =
             "SELECT COUNT(*) FROM containers " +
-            "WHERE LocationId IN" +
-                "( SELECT LocationId  " +
+            "WHERE (LocationId IN" +
+                "(SELECT LocationId  " +
                 "FROM locations l  LEFT JOIN userlocations ul ON (ul.LocationId = l.Id ) " +
                 "WHERE l.Restricted = false OR ul.UserId = ?) " +
+            "OR LocationId IS NULL) " +
             "AND Number LIKE ? ";
     public static int getContainerCountByNumber(String number, int userId) throws SQLException {
         try (Connection connection = DbConnect.getConnection();

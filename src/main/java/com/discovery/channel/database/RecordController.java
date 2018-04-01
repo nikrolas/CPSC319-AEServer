@@ -42,10 +42,11 @@ public class RecordController {
      */
     private static final String GET_RECORD_BY_NUMBER =
             "SELECT * FROM records " +
-            "WHERE LocationId IN " +
-            "( SELECT LocationId  " +
-            "FROM locations l  LEFT JOIN userlocations ul ON (ul.LocationId = l.Id ) " +
-            "WHERE l.Restricted = false OR ul.UserId = ?) " +
+            "WHERE (LocationId IN " +
+                "(SELECT LocationId  " +
+                "FROM locations l  LEFT JOIN userlocations ul ON (ul.LocationId = l.Id ) " +
+                "WHERE l.Restricted = false OR ul.UserId = ?) " +
+            "OR LocationId IS NULL) " +
             "AND records.Number LIKE ? " +
             "ORDER BY Number ASC " +
             " LIMIT ?, ?";
@@ -71,10 +72,11 @@ public class RecordController {
 
     private static final String GET_RECORD_COUNT_BY_NUMBER =
             "SELECT COUNT(*) FROM records " +
-            "WHERE LocationId IN " +
-            "( SELECT LocationId  " +
-            "FROM locations l  LEFT JOIN userlocations ul ON (ul.LocationId = l.Id ) " +
-            "WHERE l.Restricted = false OR ul.UserId = ?) " +
+            "WHERE (LocationId IN " +
+                "(SELECT LocationId  " +
+                "FROM locations l  LEFT JOIN userlocations ul ON (ul.LocationId = l.Id ) " +
+                "WHERE l.Restricted = false OR ul.UserId = ?) " +
+            "OR LocationId IS NULL) " +
             "AND Number LIKE ?";
     public static int getRecordCountByNumber(String number, int userId) throws SQLException {
         try (Connection connection = DbConnect.getConnection();
@@ -123,7 +125,7 @@ public class RecordController {
             }
             else { // recordCount < (page - 1) * pageSize
                 documents = (List)ContainerController.getContainerPageByNumber(number, userId,
-                        page - ((recordCount + pageSize - 1) / pageSize), pageSize, pageSize - (recordCount % pageSize));
+                        page - (recordCount + pageSize - 1) / pageSize, pageSize, recordCount % pageSize);
             }
         }
         else if (searchRecord) {
@@ -137,8 +139,7 @@ public class RecordController {
 
         documents = scrubDocuments(documents, userId);
 
-        return new PagedResults<>(page, (recordCount + containerCount + pageSize - 1) / pageSize,
-                documents);
+        return new PagedResults<>(page, (recordCount + containerCount + pageSize - 1) / pageSize, documents);
     }
 
     /**
@@ -177,7 +178,7 @@ public class RecordController {
      */
     private static final String GET_RECORD_BY_ID =
             "SELECT * " +
-                    "FROM records WHERE Id = ?";
+            "FROM records WHERE Id = ?";
     public static Record getRecordById(Integer id, int userId) throws SQLException {
         try (Connection connection = DbConnect.getConnection();
              PreparedStatement ps = connection.prepareStatement(GET_RECORD_BY_ID)) {

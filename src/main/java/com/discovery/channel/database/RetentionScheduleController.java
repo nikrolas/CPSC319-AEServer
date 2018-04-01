@@ -1,5 +1,6 @@
 package com.discovery.channel.database;
 
+import com.discovery.channel.exception.NoResultsFoundException;
 import com.discovery.channel.model.RetentionSchedule;
 
 import java.sql.Connection;
@@ -57,9 +58,10 @@ public class RetentionScheduleController {
                             rs.getString("Name"),
                             rs.getString("Code"),
                             rs.getInt("Years"));
+                } else {
+                    throw new NoResultsFoundException("No retention schedule found.");
                 }
             }
         }
-        throw new SQLException("Unable to retrieve retention schedule.");
     }
 }
