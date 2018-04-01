@@ -221,6 +221,9 @@ public class ContainerController {
         LOGGER.info("Passed all validation checks. Creating container {}", container);
 
         int newContainerId = saveContainerToDb(container);
+        if (newContainerId < 0) {
+            throw new SQLException("Unable to save container to database.");
+        }
 
         if (!StringUtils.isEmpty(container.getNotes())){
             NoteTableController.saveNotesForContainer(newContainerId, container.getNotes());
@@ -323,24 +326,34 @@ public class ContainerController {
 
     private static final String CREATE_CONTAINER =
             "INSERT INTO containers " +
-            "(Id, Number, Title, ConsignmentCode, StateId, LocationId, ScheduleId, TypeId, CreatedAt, UpdatedAt) " +
-            "VALUES(?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())";
+                    "(Number, Title, ConsignmentCode, StateId, LocationId, ScheduleId, TypeId, CreatedAt, UpdatedAt) " +
+                    "VALUES(?, ?, ?, ?, ?, ?, ?, NOW(), NOW())";
     private static int saveContainerToDb(Container c) throws SQLException {
         try (Connection connection = DbConnect.getConnection();
              PreparedStatement ps = connection.prepareStatement(CREATE_CONTAINER)) {
 
-            int id = getNewContainerId() + 1;
-
-            ps.setInt(1, id);
-            ps.setString(2, c.getContainerNumber());
-            ps.setString(3, c.getTitle());
-            ps.setString(4, c.getConsignmentCode());
-            ps.setInt(5, c.getStateId());
-            ps.setInt(6, c.getLocationId());
-            ps.setInt(7, c.getScheduleId());
-            ps.setInt(8, c.getTypeId());
+            ps.setString(1, c.getContainerNumber());
+            ps.setString(2, c.getTitle());
+            ps.setString(3, c.getConsignmentCode());
+            ps.setInt(4, c.getStateId());
+            ps.setInt(5, c.getLocationId());
+            ps.setInt(6, c.getScheduleId());
+            ps.setInt(7, c.getTypeId());
             ps.executeUpdate();
-            return id;
+
+            int newContainerId = -1;
+            try (ResultSet rs = ps.getGeneratedKeys()) {
+                if (rs.next()) {
+                    newContainerId = rs.getInt(1);
+                }
+            }
+
+            if (newContainerId < 0) {
+                LOGGER.error("Failed to save new container to DB. Returning -1");
+                return -1;
+            }
+
+            return newContainerId;
         }
     }
 
