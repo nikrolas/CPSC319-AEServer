@@ -139,6 +139,10 @@ class ContainerControllerTest {
             ContainerController.getContainerById(c.getContainerId(), RMC_USER_ID);
         });
 
+        // should not find container note
+        assertTrue(NoteTableController.getContainerNotes(c.getContainerId()) == null);
+
+
         // clean up
         RecordController.deleteRecords(RMC_USER_ID, rf);
     }
@@ -184,9 +188,13 @@ class ContainerControllerTest {
             ContainerController.getContainerById(c.getContainerId(), RMC_USER_ID);
         });
 
+        assertTrue(NoteTableController.getContainerNotes(c.getContainerId()) == null);
+
         Exception e1 = assertThrows(NoResultsFoundException.class, () -> {
             ContainerController.getContainerById(c2.getContainerId(), RMC_USER_ID);
         });
+
+        assertTrue(NoteTableController.getContainerNotes(c2.getContainerId()) == null);
 
         RecordController.deleteRecords(RMC_USER_ID, rf);
         RecordController.deleteRecords(RMC_USER_ID, rf2);
