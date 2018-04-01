@@ -619,17 +619,6 @@ public class RecordController {
         return record.getContainerId() != containerId;
     }
 
-    private static final String SET_CLOSED_AT_DATE =
-            "UPDATE records SET closedAt = NOW(), updatedAt = NOW() WHERE id = ?";
-
-    private static void setRecordClosedAtDate(Integer recordId) throws SQLException {
-        try (Connection conn = DbConnect.getConnection();
-             PreparedStatement ps = conn.prepareStatement(SET_CLOSED_AT_DATE)) {
-            ps.setInt(1, recordId);
-            ps.executeUpdate();
-        }
-    }
-
     private static final String SET_RECORD_CONTAINER =
             "UPDATE records AS R, " +
                 "(SELECT StateId, LocationId " +
