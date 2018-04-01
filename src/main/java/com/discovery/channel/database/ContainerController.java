@@ -367,10 +367,6 @@ public class ContainerController {
             throw new ValidationException(String.format(
                     "Tried to add record to container with record type: '%s', but record has record type of '%s'.",
                     destinationContainer.getType(), record.getType()));
-        if (destinationContainer.getLocationId() != record.getLocationId())
-            throw new ValidationException(String.format(
-                    "Tried to add record to container with location: '%s', but record has location '%s'." +
-                    destinationContainer.getLocationName(), record.getLocation()));
         if (destinationContainer.getScheduleId() != record.getScheduleId())
             throw new ValidationException(String.format(
                     "Tried to add record to container with schedule: '%s', but record has schedule '%s'." +

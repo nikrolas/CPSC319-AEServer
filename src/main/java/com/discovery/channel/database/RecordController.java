@@ -606,7 +606,7 @@ public class RecordController {
         if (isContainerChanged(record, updateForm.getContainerId())) {
             if (destinationContainer != null) {
                 ContainerController.addRecordToContainer(destinationContainer, record);
-                setRecordClosedAtDate(id);
+                setRecordContainer(id, destinationContainer.getContainerId());
             } else if (ContainerController.getContainerById(record.getContainerId(), userId).getChildRecordIds().size() == 0) {
                 ContainerController.clearContainerRecordInformation(record.getContainerId());
             }
