@@ -903,6 +903,10 @@ public class RecordController {
                 for (Record record : listOfRecords) {
                     if (record != null) {
                         if (record.getStateId() != RecordState.DESTROYED.getId()) {
+                            if(!Authenticator.isUserAuthenticatedForLocation(userId, record.getLocationId())){
+                                throw new AuthenticationException(String.format("You do not have permission to destroy record %s from your location %s.",
+                                        record.getNumber(), record.getLocation()));
+                            }
                             Date destructionDate = new Date(DestructionDateController.addYearToTheLatestClosureDate(record.getScheduleYear(), record.getClosedAt()));
                             if (destructionDate.compareTo(currentDate) >= 0) {
                                 failedIds.add(record.getId());
