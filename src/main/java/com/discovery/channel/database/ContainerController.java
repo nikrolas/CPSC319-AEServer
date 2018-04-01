@@ -384,20 +384,20 @@ public class ContainerController {
 
     private static final String UPDATE_CONTAINER_RECORD_INFORMATION =
             "UPDATE containers " +
-            "SET StateId = ?, LocationId = ?, ScheduleId = ?, TypeId = ?, ConsignmentCode = ?, UpdatedAt = NOW() " +
+            "SET StateId = ?, ScheduleId = ?, TypeId = ?, ConsignmentCode = ?, UpdatedAt = NOW() " +
             "WHERE Id = ?";
-    public static void addRecordToContainer(Container container, Record record) throws SQLException {
+    public static void updateContainerRecordInformation(Container container, Record record) throws SQLException {
+        // no need to update container information if adding a record to a container that already has records
         if (container.getChildRecordIds().size() == 0) {
 
             try (Connection connection = DbConnect.getConnection();
                  PreparedStatement ps = connection.prepareStatement(UPDATE_CONTAINER_RECORD_INFORMATION)) {
 
                 ps.setInt(1, record.getStateId());
-                ps.setInt(2, record.getLocationId());
-                ps.setInt(3, record.getScheduleId());
-                ps.setInt(4, record.getTypeId());
-                ps.setString(5, record.getConsignmentCode());
-                ps.setInt(6, container.getContainerId());
+                ps.setInt(2, record.getScheduleId());
+                ps.setInt(3, record.getTypeId());
+                ps.setString(4, record.getConsignmentCode());
+                ps.setInt(5, container.getContainerId());
                 ps.executeUpdate();
             }
         }
