@@ -86,7 +86,7 @@ public class NoteTableController {
     }
 
     /**
-     * Delete all chunks of notes for a record
+     * Delete all chunks of notes for a record or a container
      * @param recordId
      * @return
      * @throws SQLException
@@ -101,7 +101,7 @@ public class NoteTableController {
             ps.setInt(2, id);
             rowsUpdated = ps.executeUpdate();
         }
-        LOGGER.info("Deleted {} note entries for record {}", rowsUpdated, id);
+        LOGGER.info("Deleted {} note entries for record or container {}", rowsUpdated, id);
         return rowsUpdated;
     }
 

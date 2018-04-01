@@ -575,6 +575,7 @@ public class ContainerController {
             LOGGER.info("Passed all validation checks. Deleting container {}", ids);
             for (Integer id : ids) {
                 deleteOneContainer(id);
+                NoteTableController.deleteNotesForContainer(id);
                 AuditLogger.log(userId, AuditLogger.Target.CONTAINER, id, AuditLogger.ACTION.DELETE);
             }
             return new ResponseEntity<>(HttpStatus.OK);
