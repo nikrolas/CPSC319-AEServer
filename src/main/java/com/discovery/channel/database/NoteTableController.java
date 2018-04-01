@@ -36,7 +36,7 @@ public class NoteTableController {
                 }
             }
         }
-        return notes;
+        return notes.isEmpty() ? null : notes;
     }
 
     public static String getRecordNotes(int recordId) throws SQLException {
