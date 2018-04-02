@@ -646,7 +646,7 @@ public class RecordController {
                 "R.LocationId = C.LocationId, " +
                 "R.ConsignmentCode = C.ConsignmentCode, " +
                 "UpdatedAt = NOW() " +
-            "WHERE R.Id IN (SELECT Id FROM records WHERE ContainerId = ?)";
+            "WHERE R.ContainerId = ?";
 
     public static void updateRecordContainer(int containerId) throws SQLException {
         try (Connection conn = DbConnect.getConnection();

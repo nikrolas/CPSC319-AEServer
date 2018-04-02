@@ -423,6 +423,19 @@ public class ContainerController {
         if (!Authenticator.authenticate(userId, Role.ADMINISTRATOR) && !Authenticator.authenticate(userId, Role.RMC)) {
             throw new AuthenticationException("You do not have permission to update containers.");
         }
+
+        Container baseContainer = getContainerById(containerId, userId);
+
+        if (!Authenticator.isUserAuthenticatedForLocation(userId, baseContainer.getLocationId())) {
+            throw new AuthenticationException(String.format("You do not have permission to delete records in %s.",
+                    baseContainer.getLocationName()));
+        }
+
+        if (!Authenticator.isUserAuthenticatedForLocation(userId, container.getLocationId())) {
+            throw new AuthenticationException(String.format("You do not have permission to delete records in %s.",
+                    LocationController.getLocationNameByLocationId(container.getLocationId())));
+        }
+
         LOGGER.info("Passed all validation checks. Updating Container {}", container); //todo this message could be better
 
         try (Connection connection = DbConnect.getConnection();
