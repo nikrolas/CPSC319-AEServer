@@ -245,9 +245,11 @@ public class RecordController {
         record.setState(StateController.getStateName(record.getStateId()));
         record.setContainerNumber(getContainerNumber(record.getContainerId()));
 
-        RetentionSchedule schedule = RetentionScheduleController.getRetentionSchedule(record.getScheduleId());
-        record.setSchedule(schedule.getName());
-        record.setScheduleYear(schedule.getYears());
+        try {
+            RetentionSchedule schedule = RetentionScheduleController.getRetentionSchedule(record.getScheduleId());
+            record.setSchedule(schedule.getName());
+            record.setScheduleYear(schedule.getYears());
+        } catch (Exception e) {}
 
         // Load classifications
         List<Integer> classIds = getRecordClassifications(record.getId());
