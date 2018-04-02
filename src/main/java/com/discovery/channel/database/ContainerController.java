@@ -364,8 +364,7 @@ public class ContainerController {
                     destinationContainer.getType(), record.getType()));
         if (destinationContainer.getScheduleId() != record.getScheduleId())
             throw new ValidationException(String.format(
-                    "Tried to add record to container with schedule: '%s', but record has schedule '%s'." +
-                    destinationContainer.getScheduleName(), record.getSchedule()));
+                    "Tried to add record to container with schedule: '%s', but record has schedule '%s'.", destinationContainer.getScheduleName(), record.getSchedule()));
     }
 
     private static boolean isContainerEmpty(Container container) {
