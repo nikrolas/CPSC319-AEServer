@@ -283,6 +283,14 @@ public class ContainerController {
                         "' has a scheduleId that differs from at least one other record.");
             }
         }
+
+        // Validate all records are not already contained
+        for (Record r : records) {
+            if (r.getContainerId() != 0) {
+                throw new ValidationException("Record '" + r.getNumber() +
+                        "' is already contained in Container '" + r.getContainerId() + "'.");
+            }
+        }
     }
 
     private static final String GET_MAX_CONTAINER_NUMBER =
