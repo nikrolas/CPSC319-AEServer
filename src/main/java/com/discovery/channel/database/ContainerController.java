@@ -180,21 +180,21 @@ public class ContainerController {
             throw new IllegalArgumentException("Containers must be created with at least one child record.");
         }
 
-        if (container.getChildRecordIds().size() > 1){
+        if (container.getChildRecordIds().size() >= 1){
             try {
                 validateRecordsCanBeAddedToSameContainer(container.getChildRecordIds(), userId);
             } catch (ValidationException e){
                 String recordNumbers = "";
                 List<Record> listOfRecords = RecordController.getRecordsByIds(container.getChildRecordIds(), false);
                 for(Record r : listOfRecords){
-                    if(recordNumbers != ""){
+                    if(recordNumbers == ""){
                         recordNumbers = r.getNumber();
                     }else{
                         recordNumbers = recordNumbers.concat(",") + r.getNumber();
                     }
                 }
                 throw new ValidationException("Could not create container with the following records: "
-                        + recordNumbers + ". Reason: "+ e.getMessage() + ".");
+                        + recordNumbers + ". Reason: "+ e.getMessage());
             }
         }
 
@@ -246,7 +246,25 @@ public class ContainerController {
         for (Integer recordId : recordIds) {
             records.add(RecordController.getRecordById(recordId, userId));
         }
+
+        // Validate all records are not already contained
+        for (Record r : records) {
+            LOGGER.info(String.format("Record is in container: %d", r.getContainerId()));
+            if (r.getContainerId() != 0) {
+                throw new ValidationException("Record '" + r.getNumber() +
+                        "' is already contained in Container '" + r.getContainerId() + "'.");
+            }
+        }
+
+        // Validate record has retention schedule
+        int scheduleId = records.get(0).getScheduleId();
+        if (scheduleId == 0) {
+            throw new ValidationException(String.format("Record %s has no retention schedule.",
+                    records.get(0).getNumber()));
+        }
+
         if (records.size() <= 1) return;
+
         // Validate all records have the same consignmentCode
         String consignmentCode = records.get(0).getConsignmentCode();
         for (Record r : records){
@@ -272,23 +290,10 @@ public class ContainerController {
             }
         }
         // Validate all records have the same scheduleId
-        int scheduleId = records.get(0).getScheduleId();
-        if (scheduleId == 0) {
-            throw new ValidationException(String.format("Record %s has no retention schedule.",
-                    records.get(0).getNumber()));
-        }
         for (Record r : records){
             if (r.getScheduleId() != scheduleId){
                 throw new ValidationException("Record '" + r.getNumber() +
                         "' has a scheduleId that differs from at least one other record.");
-            }
-        }
-
-        // Validate all records are not already contained
-        for (Record r : records) {
-            if (r.getContainerId() != 0) {
-                throw new ValidationException("Record '" + r.getNumber() +
-                        "' is already contained in Container '" + r.getContainerId() + "'.");
             }
         }
     }
@@ -302,7 +307,6 @@ public class ContainerController {
         try (Connection connection = DbConnect.getConnection();
             PreparedStatement ps = connection.prepareStatement(GET_MAX_CONTAINER_NUMBER)) {
             ps.setString(1, year + "/___-" + locationCode);
-            LOGGER.info("Max container number query: %s", ps.toString());
             try (ResultSet rs = ps.executeQuery()){
                 if (rs.next()) {
                     return rs.getString("Number");
