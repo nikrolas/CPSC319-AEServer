@@ -67,10 +67,12 @@ public class Container implements Document{
     public Container(@JsonProperty(value = "title", required = true) String title,
                      @JsonProperty("notes") String notes,
                      @JsonProperty(value = "records", required = true) List<Integer> records,
-                     @JsonProperty(value = "locationId", required = true) int locationId) {
+                     @JsonProperty(value = "locationId", required = true) int locationId,
+                     @JsonProperty("stateId") int stateId) {
         this.title = title;
         this.locationId = locationId;
         this.notes = notes;
         this.childRecordIds = records;
+        this.stateId = stateId;
     }
 }

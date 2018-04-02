@@ -283,6 +283,14 @@ public class ContainerController {
                         "' has a scheduleId that differs from at least one other record.");
             }
         }
+
+        // Validate all records are not already contained
+        for (Record r : records) {
+            if (r.getContainerId() != 0) {
+                throw new ValidationException("Record '" + r.getNumber() +
+                        "' is already contained in Container '" + r.getContainerId() + "'.");
+            }
+        }
     }
 
     private static final String GET_MAX_CONTAINER_NUMBER =
@@ -401,8 +409,8 @@ public class ContainerController {
 
     private static final String UPDATE_CONTAINER =
             "UPDATE containers " +
-                    "SET Number = ?, Title = ?, UpdatedAt = NOW() " +
-                    "WHERE Id = ?";
+            "SET Title = ?, StateId = ?, LocationId = ?, ConsignmentCode = ?, UpdatedAt = NOW() " +
+            "WHERE Id = ?";
     /**
      * Update a container
      *
@@ -413,21 +421,41 @@ public class ContainerController {
      */
     public static Container updateContainer(int containerId, Container container, int userId) throws SQLException{
         if (!Authenticator.authenticate(userId, Role.ADMINISTRATOR) && !Authenticator.authenticate(userId, Role.RMC)) {
-            throw new AuthenticationException(String.format("You do not have permission to update containers."));
+            throw new AuthenticationException("You do not have permission to update containers.");
         }
+
+        Container baseContainer = getContainerById(containerId, userId);
+
+        if (!Authenticator.isUserAuthenticatedForLocation(userId, baseContainer.getLocationId())) {
+            throw new AuthenticationException(String.format("You do not have permission to delete records in %s.",
+                    baseContainer.getLocationName()));
+        }
+
+        if (!Authenticator.isUserAuthenticatedForLocation(userId, container.getLocationId())) {
+            throw new AuthenticationException(String.format("You do not have permission to delete records in %s.",
+                    LocationController.getLocationNameByLocationId(container.getLocationId())));
+        }
+
         LOGGER.info("Passed all validation checks. Updating Container {}", container); //todo this message could be better
 
         try (Connection connection = DbConnect.getConnection();
              PreparedStatement ps = connection.prepareStatement(UPDATE_CONTAINER)) {
 
-            ps.setString(1, container.getContainerNumber());
-            ps.setString(2, container.getTitle());
-            ps.setInt(3, containerId);
+            ps.setString(1, container.getTitle());
+            ps.setInt(2, container.getStateId());
+            ps.setInt(3, container.getLocationId());
+            ps.setString(4, container.getConsignmentCode());
+            ps.setInt(5, containerId);
             ps.executeUpdate();
 
+            // Update container notes
             if (!StringUtils.isEmpty(container.getNotes())){
                 NoteTableController.updateContainerNotes(containerId, container.getNotes());
             }
+
+            // Update record fields to follow container
+            RecordController.updateRecordContainer(containerId);
+
             AuditLogger.log(userId, AuditLogger.Target.CONTAINER, containerId, AuditLogger.ACTION.UPDATE);
 
             return getContainerById(containerId, userId);

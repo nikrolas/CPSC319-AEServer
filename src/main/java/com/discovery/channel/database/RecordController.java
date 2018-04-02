@@ -638,6 +638,25 @@ public class RecordController {
         }
     }
 
+    private static final String UPDATE_RECORD_CONTAINER =
+            "UPDATE records AS R, " +
+                "(SELECT StateId, LocationId, ConsignmentCode " +
+                "FROM containers WHERE Id = ?) AS C " +
+            "SET R.StateId = C.StateId, " +
+                "R.LocationId = C.LocationId, " +
+                "R.ConsignmentCode = C.ConsignmentCode, " +
+                "UpdatedAt = NOW() " +
+            "WHERE R.ContainerId = ?";
+
+    public static void updateRecordContainer(int containerId) throws SQLException {
+        try (Connection conn = DbConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(UPDATE_RECORD_CONTAINER)) {
+            ps.setInt(1, containerId);
+            ps.setInt(2, containerId);
+            ps.executeUpdate();
+        }
+    }
+
     /**
      * Delete old classifications and insert new ones
      * Assuming classification string is valid
@@ -948,15 +967,15 @@ public class RecordController {
         }
     }
 
-    private static String completeIdsInQuery(List<Integer> ids, String str){
+    private static String completeIdsInQuery(List<Integer> ids, String query){
         Iterator<Integer> idsIterator = ids.iterator();
         while(idsIterator.hasNext())
         {
-            str = str + idsIterator.next().toString();
+            query += idsIterator.next().toString();
             if(idsIterator.hasNext()){
-                str = str + ",";
+                query += ",";
             }
         }
-        return str + ")";
+        return query + ")";
     }
 }
