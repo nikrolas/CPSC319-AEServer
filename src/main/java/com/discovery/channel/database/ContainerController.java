@@ -401,7 +401,7 @@ public class ContainerController {
 
     private static final String UPDATE_CONTAINER =
             "UPDATE containers " +
-                    "SET Number = ?, Title = ?, UpdatedAt = NOW() " +
+                    "SET Title = ?, StateId = ?, UpdatedAt = NOW() " +
                     "WHERE Id = ?";
     /**
      * Update a container
@@ -413,21 +413,27 @@ public class ContainerController {
      */
     public static Container updateContainer(int containerId, Container container, int userId) throws SQLException{
         if (!Authenticator.authenticate(userId, Role.ADMINISTRATOR) && !Authenticator.authenticate(userId, Role.RMC)) {
-            throw new AuthenticationException(String.format("You do not have permission to update containers."));
+            throw new AuthenticationException("You do not have permission to update containers.");
         }
         LOGGER.info("Passed all validation checks. Updating Container {}", container); //todo this message could be better
 
         try (Connection connection = DbConnect.getConnection();
              PreparedStatement ps = connection.prepareStatement(UPDATE_CONTAINER)) {
 
-            ps.setString(1, container.getContainerNumber());
-            ps.setString(2, container.getTitle());
+            ps.setString(1, container.getTitle());
+            ps.setInt(2, container.getStateId());
             ps.setInt(3, containerId);
             ps.executeUpdate();
 
+            // Update container notes
             if (!StringUtils.isEmpty(container.getNotes())){
                 NoteTableController.updateContainerNotes(containerId, container.getNotes());
             }
+
+            // Update states of records
+            Container c = getContainerById(containerId, userId);
+            RecordController.setRecordsState(c.getChildRecordIds(), container.getStateId());
+
             AuditLogger.log(userId, AuditLogger.Target.CONTAINER, containerId, AuditLogger.ACTION.UPDATE);
 
             return getContainerById(containerId, userId);

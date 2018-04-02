@@ -638,6 +638,17 @@ public class RecordController {
         }
     }
 
+    public static void setRecordsState(List<Integer> recordIds, int stateId) throws SQLException {
+        String baseQuery = "UPDATE records SET stateId = ? WHERE Id IN (";
+        String SET_RECORDS_STATE = completeIdsInQuery(recordIds, baseQuery);
+
+        try (Connection conn = DbConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(SET_RECORDS_STATE)) {
+            ps.setInt(1, stateId);
+            ps.executeUpdate();
+        }
+    }
+
     /**
      * Delete old classifications and insert new ones
      * Assuming classification string is valid
@@ -948,15 +959,15 @@ public class RecordController {
         }
     }
 
-    private static String completeIdsInQuery(List<Integer> ids, String str){
+    private static String completeIdsInQuery(List<Integer> ids, String query){
         Iterator<Integer> idsIterator = ids.iterator();
         while(idsIterator.hasNext())
         {
-            str = str + idsIterator.next().toString();
+            query += idsIterator.next().toString();
             if(idsIterator.hasNext()){
-                str = str + ",";
+                query += ",";
             }
         }
-        return str + ")";
+        return query + ")";
     }
 }
