@@ -132,7 +132,7 @@ class ContainerControllerTest {
 
         // delete container
         ResponseEntity responseStatus = ContainerController.deleteContainers(listOfContainerIds, RMC_USER_ID);
-        assertEquals(responseStatus.getStatusCode(), HttpStatus.OK);
+        assertEquals(HttpStatus.OK, responseStatus.getStatusCode());
 
         // should not find container
         Exception e = assertThrows(NoResultsFoundException.class, () -> {
@@ -182,7 +182,7 @@ class ContainerControllerTest {
         listOfContainerIds.add(c2.getContainerId());
 
         ResponseEntity responseStatus = ContainerController.deleteContainers(listOfContainerIds, RMC_USER_ID);
-        assertEquals(responseStatus.getStatusCode(), HttpStatus.OK);
+        assertEquals(HttpStatus.OK, responseStatus.getStatusCode());
 
         Exception e = assertThrows(NoResultsFoundException.class, () -> {
             ContainerController.getContainerById(c.getContainerId(), RMC_USER_ID);
@@ -245,7 +245,7 @@ class ContainerControllerTest {
 
         assertTrue(!ContainerController.getRecordIdsInContainer(c.getContainerId()).isEmpty());
         ResponseEntity responseStatus = ContainerController.deleteContainers(listOfContainerIds, RMC_USER_ID);
-        assertEquals(responseStatus.getStatusCode(), HttpStatus.BAD_REQUEST);
+        assertEquals(HttpStatus.BAD_REQUEST, responseStatus.getStatusCode());
 
 
         RecordsForm rf = new RecordsForm();

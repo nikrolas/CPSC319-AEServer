@@ -5,7 +5,9 @@ import com.discovery.channel.exception.AuthenticationException;
 import com.discovery.channel.exception.NoResultsFoundException;
 import com.discovery.channel.form.RecordsForm;
 import com.discovery.channel.form.UpdateRecordForm;
+import com.discovery.channel.model.Container;
 import com.discovery.channel.model.Record;
+import com.discovery.channel.model.RecordState;
 import com.discovery.channel.response.BatchResponse;
 import org.junit.jupiter.api.Test;
 import org.junit.platform.commons.util.StringUtils;
@@ -14,7 +16,9 @@ import org.springframework.http.ResponseEntity;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -24,6 +28,7 @@ public class RecordControllerTest {
     private static final int RESTRICTED_LOCATION_ID = 84;
     private static final int FULL_PRIV_RMC = 600;
     private static final int RMC = 500; // authorized for locations 8 and 5
+
 
     @Test
     public void testGetRecordById() throws SQLException {
@@ -294,7 +299,183 @@ public class RecordControllerTest {
 
     }
 
+    @Test
+    public void testDestroyOneRecord() throws SQLException{
+        Record r = createNewRecordWithoutContainer("TESTING-Destroy", "EDM-2018", 8, 209, 3);
+        Record newRecord = RecordController.createRecord(r, RMC);
 
+        List<Integer> recordIds = new ArrayList<>();
+        recordIds.add(newRecord.getId());
+
+        Container container = createValidNewContainerWithRecords("Test-destroy", "2018", recordIds);
+        Container newContainer = ContainerController.createContainer(container, RMC);
+
+        // check record does have closedat
+        Record record = RecordController.getRecordById(newRecord.getId(), RMC);
+        assertNotNull(record.getClosedAt());
+        // check initial state
+        assertEquals(RecordState.ARCHIVED_LOCAL.getId(), record.getStateId());
+
+        // create form for multiple destroy and delete
+        RecordsForm recordForm = new RecordsForm();
+        recordForm.setRecordIds(recordIds);
+
+        // destroy
+        ResponseEntity response = RecordController.prepareToDestroyRecords(recordForm, RMC);
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        Record updatedRecord = RecordController.getRecordById(newRecord.getId(), RMC);
+        // check state equals to destroyed
+        assertEquals(RecordState.DESTROYED.getId(), updatedRecord.getStateId());
+
+        // remove test record
+        RecordController.deleteRecords(RMC, recordForm);
+
+        // remove test container
+        List<Integer> listOfContainerIds = new ArrayList<>();
+        listOfContainerIds.add(newContainer.getContainerId());
+        ContainerController.deleteContainers(listOfContainerIds, RMC);
+
+    }
+
+    @Test
+    public void testDestroyMultipleRecords()throws SQLException{
+        Record r1 = createNewRecordWithoutContainer("TESTING-Destroy", "EDM-2018", 8, 209, 3);
+        Record newRecord1 = RecordController.createRecord(r1, RMC);
+
+        Record r2 = createNewRecordWithoutContainer("TESTING-Destroy-2", "EDM-2018", 8, 209, 3);
+        Record newRecord2 = RecordController.createRecord(r2, RMC);
+
+        List<Integer> recordIds = new ArrayList<>();
+        recordIds.add(newRecord1.getId());
+        recordIds.add(newRecord2.getId());
+
+        Container container = createValidNewContainerWithRecords("Test-destroy", "2018", recordIds);
+        Container newContainer = ContainerController.createContainer(container, RMC);
+
+        Record record1 = RecordController.getRecordById(newRecord1.getId(), RMC);
+        Record record2 = RecordController.getRecordById(newRecord2.getId(), RMC);
+        assertNotNull(record1.getClosedAt());
+        assertNotNull(record2.getClosedAt());
+        assertEquals(RecordState.ARCHIVED_LOCAL.getId(), record1.getStateId());
+        assertEquals(RecordState.ARCHIVED_LOCAL.getId(), record2.getStateId());
+
+        RecordsForm recordForm = new RecordsForm();
+        recordForm.setRecordIds(recordIds);
+
+
+        ResponseEntity response = RecordController.prepareToDestroyRecords(recordForm, RMC);
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        Record updatedRecord1 = RecordController.getRecordById(record1.getId(), RMC);
+        Record updatedRecord2 = RecordController.getRecordById(record2.getId(), RMC);
+
+        assertEquals(RecordState.DESTROYED.getId(), updatedRecord1.getStateId());
+        assertEquals(RecordState.DESTROYED.getId(), updatedRecord2.getStateId());
+
+
+        RecordController.deleteRecords(RMC, recordForm);
+        List<Integer> listOfContainerIds = new ArrayList<>();
+        listOfContainerIds.add(newContainer.getContainerId());
+        ContainerController.deleteContainers(listOfContainerIds, RMC);
+
+    }
+
+
+    @Test
+    public void testDestroyRecordWithFutureDestructionDate() throws SQLException{
+        Record r = createNewRecordWithoutContainer("TESTING-Destroy", "EDM-2018", 5, 10, 3);
+        Record newRecord = RecordController.createRecord(r, RMC);
+
+        List<Integer> recordIds = new ArrayList<>();
+        recordIds.add(newRecord.getId());
+
+        Container container = createValidNewContainerWithRecords("Test-destroy", "2018", recordIds);
+        Container newContainer = ContainerController.createContainer(container, RMC);
+
+        Record record = RecordController.getRecordById(newRecord.getId(), RMC);
+        assertNotNull(record.getClosedAt());
+        assertEquals(RecordState.ARCHIVED_LOCAL.getId(), record.getStateId());
+
+        RecordsForm recordform = new RecordsForm();
+        recordform.setRecordIds(recordIds);
+
+        ResponseEntity<?> response = RecordController.prepareToDestroyRecords(recordform, RMC);
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+
+        Record updatedRecord = RecordController.getRecordById(newRecord.getId(), RMC);
+        assertEquals(RecordState.ARCHIVED_LOCAL.getId(), updatedRecord.getStateId());
+
+
+        RecordController.deleteRecords(RMC, recordform);
+
+        List<Integer> listOfContainerIds = new ArrayList<>();
+        listOfContainerIds.add(newContainer.getContainerId());
+        ContainerController.deleteContainers(listOfContainerIds, RMC);
+
+    }
+
+    @Test
+    public void testDestroyRecordWithBadLocation() throws SQLException{
+        Record r = createNewRecordWithoutContainer("TESTING-Destroy", "EDM-2018", 51, 209, 3);
+        Record newRecord = RecordController.createRecord(r, 110);
+
+        List<Integer> recordIds = new ArrayList<>();
+        recordIds.add(newRecord.getId());
+
+        Container container = createValidNewContainerWithRecords("Test-destroy", "2018", recordIds);
+        Container newContainer = ContainerController.createContainer(container, 110);
+
+        Record record = RecordController.getRecordById(newRecord.getId(), RMC);
+        assertNotNull(record.getClosedAt());
+        assertEquals(RecordState.ARCHIVED_LOCAL.getId(), record.getStateId());
+
+        RecordsForm recordform = new RecordsForm();
+        recordform.setRecordIds(recordIds);
+
+        AuthenticationException e = assertThrows(AuthenticationException.class, () -> {
+            RecordController.prepareToDestroyRecords(recordform, 400);
+        });
+
+        Record updatedRecord = RecordController.getRecordById(newRecord.getId(), RMC);
+        assertEquals(RecordState.ARCHIVED_LOCAL.getId(), updatedRecord.getStateId());
+
+        RecordController.deleteRecords(RMC, recordform);
+
+        List<Integer> listOfContainerIds = new ArrayList<>();
+        listOfContainerIds.add(newContainer.getContainerId());
+        ContainerController.deleteContainers(listOfContainerIds, RMC);
+    }
+
+    @Test
+    public void testDestroyRecordWithBadRole() throws SQLException{
+        Record r = createNewRecordWithoutContainer("TESTING-Destroy", "EDM-2018", 8, 209, 3);
+        Record newRecord = RecordController.createRecord(r, 400);
+
+        List<Integer> recordIds = new ArrayList<>();
+        recordIds.add(newRecord.getId());
+
+        Container container = createValidNewContainerWithRecords("Test-destroy", "2018", recordIds);
+        Container newContainer = ContainerController.createContainer(container, RMC);
+
+        Record record = RecordController.getRecordById(newRecord.getId(), RMC);
+        assertNotNull(record.getClosedAt());
+        assertEquals(RecordState.ARCHIVED_LOCAL.getId(), record.getStateId());
+
+        RecordsForm recordform = new RecordsForm();
+        recordform.setRecordIds(recordIds);
+
+        AuthenticationException e = assertThrows(AuthenticationException.class, () -> {
+            RecordController.prepareToDestroyRecords(recordform, 99);
+        });
+
+        Record updatedRecord = RecordController.getRecordById(newRecord.getId(), RMC);
+        assertEquals(RecordState.ARCHIVED_LOCAL.getId(), updatedRecord.getStateId());
+
+        RecordController.deleteRecords(RMC, recordform);
+
+        List<Integer> listOfContainerIds = new ArrayList<>();
+        listOfContainerIds.add(newContainer.getContainerId());
+        ContainerController.deleteContainers(listOfContainerIds, RMC);
+    }
 
     @Test
     public void testDestroyOneRecordWtihNoClosedAt()throws SQLException{
@@ -316,7 +497,51 @@ public class RecordControllerTest {
         RecordController.deleteRecords(110, recordForDeletion);
     }
 
+    @Test
+    public void testDestroyRecordsWithNoClosedAtndSuccessCase() throws SQLException{
+        Record r1 = createNewRecordWithoutContainer("TESTING-Destroy", "EDM-2018", 5, 209, 3);
+        Record newRecord1 = RecordController.createRecord(r1, RMC);
 
+        Record r2 = createNewRecordWithoutContainer("TESTING-Destroy-2", "EDM-2018", 5, 209, 3);
+        Record newRecord2 = RecordController.createRecord(r2, RMC);
+
+        List<Integer> recordIds = new ArrayList<>();
+        recordIds.add(newRecord2.getId());
+
+        Container container = createValidNewContainerWithRecords("Test-destroy", "2018", recordIds);
+        Container newContainer = ContainerController.createContainer(container, RMC);
+
+
+        Record failedRecord = RecordController.getRecordById(newRecord1.getId(), RMC);
+        Record goodRecord = RecordController.getRecordById(newRecord2.getId(), RMC);
+        assertTrue(failedRecord.getClosedAt() == null);
+        assertNotNull(goodRecord.getClosedAt());
+        assertEquals(RecordState.ACTIVE.getId(), failedRecord.getStateId());
+        assertEquals(RecordState.ARCHIVED_LOCAL.getId(), goodRecord.getStateId());
+
+        recordIds.add(newRecord1.getId());
+        RecordsForm recordform = new RecordsForm();
+        recordform.setRecordIds(recordIds);
+
+        ResponseEntity<?> response = RecordController.prepareToDestroyRecords(recordform, RMC);
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        Map map = new HashMap<>();
+        map.putAll((Map) response.getBody());
+
+        assertEquals("The record is not closed.",map.get("error"));
+
+        Record updatedFailedRecord = RecordController.getRecordById(failedRecord.getId(), RMC);
+        Record updatedGoodRecord = RecordController.getRecordById(goodRecord.getId(), RMC);
+        assertEquals(RecordState.ACTIVE.getId(), updatedFailedRecord.getStateId());
+        assertEquals(RecordState.ARCHIVED_LOCAL.getId(), updatedGoodRecord.getStateId());
+
+        RecordController.deleteRecords(RMC, recordform);
+
+        List<Integer> listOfContainerIds = new ArrayList<>();
+        listOfContainerIds.add(newContainer.getContainerId());
+        ContainerController.deleteContainers(listOfContainerIds, RMC);
+
+    }
 
     private Record createNewRecordWithoutContainer(String title, String recordNumber,int locationId, int scheduleId, int typeId) {
 
@@ -327,6 +552,12 @@ public class RecordControllerTest {
         return new Record(title, recordNumber, scheduleId, typeId, "RF011329724",
                 0, locationId, classIds,
                 "CREATED FOR TESTING -- testCreateRecord");
+    }
+
+    private Container createValidNewContainerWithRecords(String title, String number, List<Integer> listOfRecordIds) throws SQLException {
+
+        return new Container(0, number, title, null, null, null,
+                1, 5, 1, 8, null, listOfRecordIds, null);
     }
 
 }
