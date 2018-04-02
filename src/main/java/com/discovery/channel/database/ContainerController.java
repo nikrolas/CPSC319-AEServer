@@ -64,17 +64,16 @@ public class ContainerController {
 
     private static void loadContainerDetail(Container container) throws SQLException {
         container.setNotes(NoteTableController.getContainerNotes(container.getContainerId()));
-        if (isContainerEmpty(container)) return;
-        container.setType(RecordTypeController.getTypeName(container.getTypeId()));
         container.setLocationName(LocationController.getLocationNameByLocationId(container.getLocationId()));
+        container.setState(StateController.getStateName(container.getStateId()));
         try {
+            container.setType(RecordTypeController.getTypeName(container.getTypeId()));
             RetentionSchedule schedule = RetentionScheduleController.getRetentionSchedule(container.getScheduleId());
             container.setScheduleName(schedule.getName());
             container.setScheduleYear(schedule.getYears());
         } catch (Exception e) {
 
         }
-        container.setState(StateController.getStateName(container.getStateId()));
     }
 
 
