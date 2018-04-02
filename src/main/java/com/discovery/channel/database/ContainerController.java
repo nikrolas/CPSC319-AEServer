@@ -70,6 +70,7 @@ public class ContainerController {
         try {
             RetentionSchedule schedule = RetentionScheduleController.getRetentionSchedule(container.getScheduleId());
             container.setScheduleName(schedule.getName());
+            container.setScheduleYear(schedule.getYears());
         } catch (Exception e) {
 
         }
