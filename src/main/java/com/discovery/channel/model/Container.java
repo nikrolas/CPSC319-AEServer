@@ -29,6 +29,7 @@ public class Container implements Document{
     private String locationName;
     private int scheduleId;
     private String scheduleName;
+    private int scheduleYear;
     private int typeId;
     private String type;
     private String notes;
