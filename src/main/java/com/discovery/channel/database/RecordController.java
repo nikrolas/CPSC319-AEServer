@@ -638,13 +638,21 @@ public class RecordController {
         }
     }
 
-    public static void setRecordsState(List<Integer> recordIds, int stateId) throws SQLException {
-        String baseQuery = "UPDATE records SET stateId = ? WHERE Id IN (";
-        String SET_RECORDS_STATE = completeIdsInQuery(recordIds, baseQuery);
+    private static final String UPDATE_RECORD_CONTAINER =
+            "UPDATE records AS R, " +
+                "(SELECT StateId, LocationId, ConsignmentCode " +
+                "FROM containers WHERE Id = ?) AS C " +
+            "SET R.StateId = C.StateId, " +
+                "R.LocationId = C.LocationId, " +
+                "R.ConsignmentCode = C.ConsignmentCode, " +
+                "UpdatedAt = NOW() " +
+            "WHERE R.Id IN (SELECT Id FROM records WHERE ContainerId = ?)";
 
+    public static void updateRecordContainer(int containerId) throws SQLException {
         try (Connection conn = DbConnect.getConnection();
-             PreparedStatement ps = conn.prepareStatement(SET_RECORDS_STATE)) {
-            ps.setInt(1, stateId);
+             PreparedStatement ps = conn.prepareStatement(UPDATE_RECORD_CONTAINER)) {
+            ps.setInt(1, containerId);
+            ps.setInt(2, containerId);
             ps.executeUpdate();
         }
     }

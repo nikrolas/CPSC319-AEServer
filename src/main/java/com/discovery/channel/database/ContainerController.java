@@ -401,8 +401,8 @@ public class ContainerController {
 
     private static final String UPDATE_CONTAINER =
             "UPDATE containers " +
-                    "SET Title = ?, StateId = ?, UpdatedAt = NOW() " +
-                    "WHERE Id = ?";
+            "SET Title = ?, StateId = ?, LocationId = ?, ConsignmentCode = ?, UpdatedAt = NOW() " +
+            "WHERE Id = ?";
     /**
      * Update a container
      *
@@ -422,7 +422,9 @@ public class ContainerController {
 
             ps.setString(1, container.getTitle());
             ps.setInt(2, container.getStateId());
-            ps.setInt(3, containerId);
+            ps.setInt(3, container.getLocationId());
+            ps.setString(4, container.getConsignmentCode());
+            ps.setInt(5, containerId);
             ps.executeUpdate();
 
             // Update container notes
@@ -430,9 +432,8 @@ public class ContainerController {
                 NoteTableController.updateContainerNotes(containerId, container.getNotes());
             }
 
-            // Update states of records
-            Container c = getContainerById(containerId, userId);
-            RecordController.setRecordsState(c.getChildRecordIds(), container.getStateId());
+            // Update record fields to follow container
+            RecordController.updateRecordContainer(containerId);
 
             AuditLogger.log(userId, AuditLogger.Target.CONTAINER, containerId, AuditLogger.ACTION.UPDATE);
 
