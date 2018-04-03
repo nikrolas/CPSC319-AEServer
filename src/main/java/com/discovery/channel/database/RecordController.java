@@ -16,6 +16,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
 
+import java.lang.reflect.Type;
 import java.sql.*;
 import java.sql.Date;
 import java.util.*;
@@ -531,7 +532,7 @@ public class RecordController {
      * @throws SQLException
      */
     private static final String UPDATE_RECORD = "UPDATE records " +
-            "SET Title=?, ScheduleId=?, StateId=?, ConsignmentCode=?,ContainerId=?, UpdatedAt=NOW() " +
+            "SET Title=?, ScheduleId=?, StateId=?, ConsignmentCode=?,ContainerId=?, UpdatedAt=NOW(), ClosedAt=? " +
             "WHERE Id= ?";
 
     public static void updateRecord(Integer id, int userId, UpdateRecordForm updateForm) throws SQLException {
@@ -587,8 +588,15 @@ public class RecordController {
             } else {
                 ps.setInt(5, updateForm.getContainerId());
             }
-            ps.setInt(6, id);
+            if(updateForm.getStateId() == RecordState.ARCHIVED_LOCAL.getId()
+                    ||updateForm.getStateId() == RecordState.ARCHIVED_INTERIM.getId()
+                    || updateForm.getStateId() == RecordState.ARCHIVED_PERMANENT.getId()){
+                ps.setString(6, "NOW()");
+            }else if(updateForm.getStateId() == RecordState.ACTIVE.getId()){
+                ps.setNull(6, Types.DATE);
+            }
 
+            ps.setInt(7, id);
             ps.executeUpdate();
         }
 
