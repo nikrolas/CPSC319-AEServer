@@ -768,6 +768,11 @@ public class RecordController {
             "SELECT ?, Title, ScheduleId, TypeId, ConsignmentCode, StateId, ContainerId, LocationId, NOW(), NOW(), ClosedAt " +
             "FROM records " +
             "WHERE Id = ?";
+    private static final String COPY_CLASSIFICATION =
+            "INSERT INTO recordclassifications (RecordId, ClassId, Ordinal) " +
+            "SELECT ?, ClassId, Ordinal " +
+            "FROM recordclassifications " +
+            "WHERE RecordId = ?";
     private static final String COPY_NOTES =
             "INSERT INTO notes (TableId, RowId, Chunk, Text) " +
             "SELECT TableId, ?, Chunk, Text " +
@@ -849,6 +854,12 @@ public class RecordController {
                 LOGGER.error(String.format("Failed to save new volume to DB. Rows modified: %d.", rowsModified));
                 throw new SQLException(String.format("Failed to save new volume to DB. Rows modified: %d.", rowsModified));
             }
+
+            // Copy the classifications
+            ps = conn.prepareStatement(COPY_CLASSIFICATION);
+            ps.setInt(1, newRecordId);
+            ps.setInt(2, id);
+            ps.executeUpdate();
 
             // Copy the notes
             if (copyNotes) {
