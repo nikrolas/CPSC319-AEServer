@@ -19,6 +19,9 @@ import org.springframework.util.StringUtils;
 import java.lang.reflect.Type;
 import java.sql.*;
 import java.sql.Date;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -591,7 +594,8 @@ public class RecordController {
             if(updateForm.getStateId() == RecordState.ARCHIVED_LOCAL.getId()
                     ||updateForm.getStateId() == RecordState.ARCHIVED_INTERIM.getId()
                     || updateForm.getStateId() == RecordState.ARCHIVED_PERMANENT.getId()){
-                ps.setString(6, "NOW()");
+                Date currentTime = new Date(Calendar.getInstance().getTimeInMillis());
+                ps.setDate(6, currentTime);
             }else if(updateForm.getStateId() == RecordState.ACTIVE.getId()){
                 ps.setNull(6, Types.DATE);
             }
