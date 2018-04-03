@@ -46,11 +46,18 @@ public class RecordControllerTest {
 
     @Test
     public void testGetRecordWithRestrictedLocation() throws SQLException {
-        // TODO Better to first create a record of the location and test against that
-        Record record = RecordController.getRecordById(35801, FULL_PRIV_RMC);
+
+        Record r = createNewRecordWithoutContainer("TESTING-Restricted-Location", "EDM-2018", RESTRICTED_LOCATION_ID, 26, 3);
+        Record record = RecordController.createRecord(r, FULL_PRIV_RMC);
         assertNotNull(record);
         // non owner cannot view records of restricted locations
-        assertThrows(AuthenticationException.class, () -> RecordController.getRecordById(35801, RMC));
+        assertThrows(AuthenticationException.class, () -> RecordController.getRecordById(record.getId(), RMC));
+
+        List<Integer> recordIds = new ArrayList<>();
+        recordIds.add(record.getId());
+        RecordsForm recordForDeletion = new RecordsForm();
+        recordForDeletion.setRecordIds(recordIds);
+        RecordController.deleteRecords(FULL_PRIV_RMC, recordForDeletion);
     }
 
     @Test

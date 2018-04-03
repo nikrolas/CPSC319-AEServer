@@ -7,6 +7,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
 import java.sql.SQLException;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
@@ -74,6 +76,27 @@ public class DestructionDateControllerTest {
         listOfRecordIds.add(359);
         ResponseEntity<?>  entity = DestructionDateController.calculateDestructionDate(listOfRecordIds);
         assertEquals(HttpStatus.BAD_REQUEST, entity.getStatusCode());
+    }
+
+
+    @Test
+    void getClosedAtFromContainer() throws SQLException {
+
+        Record record = RecordController.getRecordById(284, FULL_PRIV_RMC);
+        ResponseEntity<?>  entity = DestructionDateController.getTheMostRecentClosedAt(24365, 500);
+        Long actualTime = (Long) entity.getBody();
+        Date date=new Date(actualTime);
+        assertEquals(record.getClosedAt(), date);
+    }
+
+    @Test
+    void getClosedAtFromContainerTwo() throws SQLException {
+
+        Record record = RecordController.getRecordById(154425, FULL_PRIV_RMC);
+        ResponseEntity<?>  entity = DestructionDateController.getTheMostRecentClosedAt(166132, 500);
+        Long actualTime = (Long) entity.getBody();
+        Date date=new Date(actualTime);
+        assertEquals(record.getClosedAt(), date);
     }
 
 
