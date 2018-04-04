@@ -33,7 +33,6 @@ class ContainerControllerTest {
         assertEquals (ids.size(), 13);
     }
 
-    //todo: consider adding a test case for getting 0 records from a container
 
     @Test
     void getNonExistantContainer() {
@@ -86,8 +85,6 @@ class ContainerControllerTest {
         listOfContainerIds.add(c.getContainerId());
         ContainerController.deleteContainers(listOfContainerIds, RMC_USER_ID);
 
-
-
     }
 
     @Test
@@ -114,22 +111,6 @@ class ContainerControllerTest {
 
     }
 
-//    @Test
-//    void createNewContainerMissingNumber() throws SQLException, JSONException {
-//        List<Integer> listOfRecordIds = new ArrayList<>();
-//        Record r = createOneRecord();
-//        listOfRecordIds.add(r.getId());
-//
-//        Container sampleContainer = createValidNewContainerWithRecords("NotMissingTitle",null,listOfRecordIds);
-//
-//        Exception e = assertThrows(Exception.class, () -> {
-//            ContainerController.createContainer(sampleContainer, RMC_USER_ID);
-//        });
-//
-//        RecordsForm rf = new RecordsForm();
-//        rf.setRecordIds(listOfRecordIds);
-//        RecordController.deleteRecords(RMC_USER_ID, rf);
-//    }
 
     @Test
     void createNewContainerUnauthorizedUser() throws SQLException, JSONException {
