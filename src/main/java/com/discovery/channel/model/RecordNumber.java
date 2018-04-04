@@ -1,29 +1,23 @@
 package com.discovery.channel.model;
 
+import com.discovery.channel.database.DbConnect;
+import com.discovery.channel.database.LocationController;
 import com.discovery.channel.exception.IllegalArgumentException;
+import com.discovery.channel.exception.ValidationException;
+import jdk.management.resource.ResourceContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.Random;
 
 public class RecordNumber {
     private static final Logger LOGGER = LoggerFactory.getLogger(RecordNumber.class);
 
     private static final Random RAN = new Random(System.currentTimeMillis());
-
-    /**
-     * Generate three digit random number and convert it to a string
-     * @return
-     */
-    public static String generateRandomNumber(int digit){
-        int randomNum = RAN.nextInt(999);
-        LOGGER.debug("Generated number " + randomNum);
-        if (digit == 3) {
-            return String.format("%03d", randomNum);
-        }else {
-            return String.format("%04d", randomNum);
-        }
-    }
 
     public enum NUMBER_PATTERN{
         CLIENT("KKK-CLIENT.ggg", "[a-zA-Z]{3}-CLIENT"),
@@ -95,14 +89,59 @@ public class RecordNumber {
          * @param recordNumber
          * @return
          */
-        public String fillAutoGenField(String recordNumber) {
+        public String fillAutoGenField(String recordNumber) throws SQLException {
             int index = patternStr.indexOf(AUTO_GEN_PLACE_HOLDER);
             if (index < 0 ) {
                 return recordNumber;
             }
             char separator = patternStr.charAt(index - 1);
             int digit = patternStr.length() - index;
-            return recordNumber + separator + generateRandomNumber(digit);
+
+            String maxNum = findMaxRecordNum( recordNumber + separator);
+            int nextAvailableNum = 0;
+            if (maxNum != null) {
+                nextAvailableNum =  Integer.parseInt(maxNum.substring(index, index + digit)) + 1;
+            }
+
+            String genNum = "";
+            if (digit == 3) {
+                if (nextAvailableNum > 999) {
+                    throw new ValidationException(String.format("Could not create record. Max number of records with number %s.",
+                            recordNumber));
+                }
+                genNum = String.format("%03d", nextAvailableNum);
+            }else {
+                if (nextAvailableNum > 9999) {
+                    throw new ValidationException(String.format("Could not create record. Max number of records with number %s.",
+                            recordNumber));
+                }
+                genNum = String.format("%04d", nextAvailableNum);
+            }
+            return recordNumber + separator + genNum;
+        }
+
+        /**
+         * Find record number with maximum auto generated number
+         *
+         * @param recordNumber
+         * @return
+         * @throws SQLException
+         */
+        private static final String FIND_MAX_RECORD_NUMBER = "SELECT Number " +
+                "FROM records " +
+                "WHERE Number LIKE ? " +
+                "ORDER BY Number DESC";
+        private static String findMaxRecordNum(String recordNumber) throws SQLException {
+            try(Connection conn = DbConnect.getConnection();
+                PreparedStatement ps = conn.prepareStatement(FIND_MAX_RECORD_NUMBER)) {
+                ps.setString(1, "%" + recordNumber + "%");
+                try (ResultSet resultSet = ps.executeQuery()) {
+                    if (resultSet.next()) {
+                        return resultSet.getString("Number");
+                    }
+                }
+            }
+            return null;
         }
 
         /**
@@ -114,9 +153,17 @@ public class RecordNumber {
          */
         public boolean matchLocation(String locationCode, String number) {
             if (this.patternStr.contains("KKK")) {
-                return locationCode.equals(number.substring(0, 3));
+                return locationCode.toUpperCase().equals(number.substring(0, 3));
             }
             return true;
         }
+
+       public String updateWithNewLocationCode(String recordNumber, String newLocationCode) {
+           if (this.patternStr.contains("KKK")) {
+               return  newLocationCode.toUpperCase() + recordNumber.substring(3, recordNumber.length());
+           }
+           LOGGER.debug("This number pattern does not contain location code. Return old record number");
+           return recordNumber;
+       }
     }
 }

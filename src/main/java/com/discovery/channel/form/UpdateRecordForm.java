@@ -1,6 +1,7 @@
 package com.discovery.channel.form;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
 
@@ -16,6 +17,8 @@ public class UpdateRecordForm {
     private int stateId;
     private int containerId;
 
+    private int locationId;
+
     @JsonCreator
     public UpdateRecordForm(@JsonProperty("title") String title,
                             @JsonProperty("scheduleId") int scheduleId,
@@ -23,7 +26,8 @@ public class UpdateRecordForm {
                             @JsonProperty("consignmentCode") String consignmentCode,
                             @JsonProperty("notes") String notes,
                             @JsonProperty("stateId") int stateId,
-                            @JsonProperty("containerId") int containerId) {
+                            @JsonProperty("containerId") int containerId,
+                            @JsonProperty("locationId") int locationId) {
         this.title = title;
         this.scheduleId = scheduleId;
         this.classifications = classifications;
@@ -31,5 +35,6 @@ public class UpdateRecordForm {
         this.notes = notes;
         this.stateId = stateId;
         this.containerId = containerId;
+        this.locationId = locationId;
     }
 }

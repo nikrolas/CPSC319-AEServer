@@ -1,8 +1,8 @@
 package com.discovery.channel.database;
 
-import com.discovery.channel.database.RecordController;
 import com.discovery.channel.exception.AuthenticationException;
 import com.discovery.channel.exception.NoResultsFoundException;
+import com.discovery.channel.exception.ValidationException;
 import com.discovery.channel.form.RecordsForm;
 import com.discovery.channel.form.UpdateRecordForm;
 import com.discovery.channel.model.Container;
@@ -47,7 +47,7 @@ public class RecordControllerTest {
     @Test
     public void testGetRecordWithRestrictedLocation() throws SQLException {
 
-        Record r = createNewRecordWithoutContainer("TESTING-Restricted-Location", "EDM-2018", RESTRICTED_LOCATION_ID, 26, 3);
+        Record r = createNewRecordWithoutContainer("TESTING-Restricted-Location", "PAL-2018", RESTRICTED_LOCATION_ID, 26, 3);
         Record record = RecordController.createRecord(r, FULL_PRIV_RMC);
         assertNotNull(record);
         // non owner cannot view records of restricted locations
@@ -107,7 +107,7 @@ public class RecordControllerTest {
 
     @Test
     public void testCreateRecordwithBadLocation(){
-        Record r = createNewRecordWithoutContainer("TESTING-2", "EDM-2018", 51, 26,9);
+        Record r = createNewRecordWithoutContainer("TESTING-2", "TOR-2018", 51, 26,9);
         AuthenticationException e = assertThrows(AuthenticationException.class, () -> {
             RecordController.createRecord(r, 500);
         });
@@ -129,7 +129,8 @@ public class RecordControllerTest {
                 "445810223",
                 "updating a record",
                 1,
-                0);
+                0,
+                5);
 
         RecordController.updateRecord(record.getId(), 500, form);
         Record updatedRecord = RecordController.getRecordById(recordId, FULL_PRIV_RMC);
@@ -138,6 +139,22 @@ public class RecordControllerTest {
         assertEquals(1, updatedRecord.getScheduleYear());
         assertTrue(updatedRecord.getNotes().contains("updating a record"));
 
+        form = new UpdateRecordForm("TESTING-UPDATE", 10,
+                classIds,
+                "445810223",
+                "updating a record",
+                1,
+                0,
+                8);
+        RecordController.updateRecord(record.getId(), FULL_PRIV_RMC, form);
+        try {
+            updatedRecord = RecordController.getRecordById(recordId, FULL_PRIV_RMC);
+            assertTrue(updatedRecord.getNumber().startsWith("BUR-2018"));
+        } catch (ValidationException e) {
+            // number might be taken
+            assertTrue(e.getMessage().contains("Max number of records with number"));
+        }
+
         List<Integer> recordIds = new ArrayList<>();
         recordIds.add(updatedRecord.getId());
         RecordsForm recordForDeletion = new RecordsForm();
@@ -145,7 +162,7 @@ public class RecordControllerTest {
         RecordController.deleteRecords(500, recordForDeletion);
 
         NoResultsFoundException e = assertThrows(NoResultsFoundException.class, () -> {
-            RecordController.getRecordById(updatedRecord.getId(), FULL_PRIV_RMC);
+            RecordController.getRecordById(recordId, FULL_PRIV_RMC);
         });
 
     }
@@ -165,7 +182,8 @@ public class RecordControllerTest {
                 "anConsignmentCode",
                 "updating a record",
                 1,
-                24372);
+                24372,
+                5);
 
         AuthenticationException e = assertThrows(AuthenticationException.class, () -> {
             RecordController.updateRecord(record.getId(), 43, form);
@@ -198,7 +216,8 @@ public class RecordControllerTest {
                 "anConsignmentCode",
                 "updating a record",
                 1,
-                24372);
+                24372,
+                5);
 
         AuthenticationException e = assertThrows(AuthenticationException.class, () -> {
             RecordController.updateRecord(record.getId(), 478, form);
@@ -276,7 +295,7 @@ public class RecordControllerTest {
 
     @Test
     public void testDeleteMultipleRecordsWithNonExistentRecords() throws SQLException{
-        Record r = createNewRecordWithoutContainer("TESTING-Deletion-1", "EDM-2018", 51, 10, 3);
+        Record r = createNewRecordWithoutContainer("TESTING-Deletion-1", "TOR-2018", 51, 10, 3);
         Record record = RecordController.createRecord(r, 110);
 
         List<Integer> recordIds = new ArrayList<>();
@@ -308,7 +327,7 @@ public class RecordControllerTest {
 
     @Test
     public void testDestroyOneRecord() throws SQLException{
-        Record r = createNewRecordWithoutContainer("TESTING-Destroy", "EDM-2018", 8, 209, 3);
+        Record r = createNewRecordWithoutContainer("TESTING-Destroy", "BUR-2018", 8, 209, 3);
         Record newRecord = RecordController.createRecord(r, RMC);
 
         List<Integer> recordIds = new ArrayList<>();
@@ -346,10 +365,10 @@ public class RecordControllerTest {
 
     @Test
     public void testDestroyMultipleRecords()throws SQLException{
-        Record r1 = createNewRecordWithoutContainer("TESTING-Destroy", "EDM-2018", 8, 209, 3);
+        Record r1 = createNewRecordWithoutContainer("TESTING-Destroy", "BUR-2018", 8, 209, 3);
         Record newRecord1 = RecordController.createRecord(r1, RMC);
 
-        Record r2 = createNewRecordWithoutContainer("TESTING-Destroy-2", "EDM-2018", 8, 209, 3);
+        Record r2 = createNewRecordWithoutContainer("TESTING-Destroy-2", "BUR-2018", 8, 209, 3);
         Record newRecord2 = RecordController.createRecord(r2, RMC);
 
         List<Integer> recordIds = new ArrayList<>();
@@ -422,7 +441,7 @@ public class RecordControllerTest {
 
     @Test
     public void testDestroyRecordWithBadLocation() throws SQLException{
-        Record r = createNewRecordWithoutContainer("TESTING-Destroy", "EDM-2018", 51, 209, 3);
+        Record r = createNewRecordWithoutContainer("TESTING-Destroy", "TOR-2018", 51, 209, 3);
         Record newRecord = RecordController.createRecord(r, 110);
 
         List<Integer> recordIds = new ArrayList<>();
@@ -454,7 +473,7 @@ public class RecordControllerTest {
 
     @Test
     public void testDestroyRecordWithBadRole() throws SQLException{
-        Record r = createNewRecordWithoutContainer("TESTING-Destroy", "EDM-2018", 8, 209, 3);
+        Record r = createNewRecordWithoutContainer("TESTING-Destroy", "BUR-2018", 8, 209, 3);
         Record newRecord = RecordController.createRecord(r, 400);
 
         List<Integer> recordIds = new ArrayList<>();
@@ -486,7 +505,7 @@ public class RecordControllerTest {
 
     @Test
     public void testDestroyOneRecordWtihNoClosedAt()throws SQLException{
-        Record r = createNewRecordWithoutContainer("TESTING-Destroy", "EDM-2018", 51, 10, 3);
+        Record r = createNewRecordWithoutContainer("TESTING-Destroy", "TOR-2018", 51, 10, 3);
         Record record = RecordController.createRecord(r, 110);
 
         List<Integer> recordIds = new ArrayList<>();

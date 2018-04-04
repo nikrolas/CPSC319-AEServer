@@ -3,6 +3,8 @@ package com.discovery.channel.model;
 import com.discovery.channel.model.RecordNumber;
 import org.junit.jupiter.api.Test;
 
+import java.sql.SQLException;
+
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class TestRecordNumber {
@@ -43,7 +45,7 @@ public class TestRecordNumber {
     }
 
     @Test
-    public void testFillAutoGenField() {
+    public void testFillAutoGenField() throws SQLException {
         String filledNum = RecordNumber.NUMBER_PATTERN.CLIENT.fillAutoGenField(VALID_CLIENT);
         assertTrue(filledNum.matches(RecordNumber.NUMBER_PATTERN.CLIENT.regex + "\\.[0-9]{3}"));
 

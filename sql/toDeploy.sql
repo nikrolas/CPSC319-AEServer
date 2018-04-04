@@ -7,6 +7,9 @@ SET FOREIGN_KEY_CHECKS = 0;
 ALTER TABLE records
 MODIFY column Id int(11) auto_increment;
 
+ALTER TABLE records
+ADD CONSTRAINT UK_Records_Num UNIQUE (Number);
+
 ALTER TABLE containers
 MODIFY column Id int(11) auto_increment;
 

@@ -369,7 +369,7 @@ public class RecordController {
         String pattern = RecordTypeController.getNumberPattern(record.getTypeId());
         RecordNumber.NUMBER_PATTERN numberPattern = RecordNumber.NUMBER_PATTERN.fromString(pattern);
         if (!numberPattern.match(record.getNumber()) ||
-                numberPattern.matchLocation(
+                !numberPattern.matchLocation(
                         LocationController.getLocationCodeById(record.getLocationId()),
                         record.getNumber())) {
             throw new IllegalArgumentException(String.format("Invalid record number: %s, for record type %s.",
@@ -531,9 +531,8 @@ public class RecordController {
      * @throws SQLException
      */
     private static final String UPDATE_RECORD = "UPDATE records " +
-            "SET Title=?, ScheduleId=?, StateId=?, ConsignmentCode=?,ContainerId=?, UpdatedAt=NOW() " +
+            "SET Title=?, ScheduleId=?, StateId=?, ConsignmentCode=?,ContainerId=?, UpdatedAt=NOW(), Number=?, LocationId=? " +
             "WHERE Id= ?";
-
     public static void updateRecord(Integer id, int userId, UpdateRecordForm updateForm) throws SQLException {
 
         Record record = getRecordById(id, userId);
@@ -549,6 +548,19 @@ public class RecordController {
         if (!Authenticator.isUserAuthenticatedForLocation(userId, record.getLocationId())) {
             throw new AuthenticationException(String.format("You do not have permission to update records at %s.",
                     record.getLocation()));
+        }
+
+
+        String newRecordNumber = record.getNumber();
+        String pattern = RecordTypeController.getNumberPattern(record.getTypeId());
+        RecordNumber.NUMBER_PATTERN numberPattern = RecordNumber.NUMBER_PATTERN.fromString(pattern);
+        String newLocationCode = LocationController.getLocationCodeById(updateForm.getLocationId());
+        if (!numberPattern.matchLocation(newLocationCode, record.getNumber())) {
+            newRecordNumber = numberPattern.updateWithNewLocationCode(record.getNumber(), newLocationCode);
+            if (doesRecordNumberExist(newRecordNumber)) {
+                LOGGER.info("Record number {} is taken", newRecordNumber);
+                throw new IllegalArgumentException(String.format("Cannot update location id to %d. Associated record number %s has been taken.", updateForm.getLocationId(), newRecordNumber));
+            }
         }
 
         // Only certain types of states are valid for certain retention schedules
@@ -571,7 +583,6 @@ public class RecordController {
         }
 
         LOGGER.info("About to update record {}", id);
-
         try (Connection conn = DbConnect.getConnection();
              PreparedStatement ps = conn.prepareStatement(UPDATE_RECORD)) {
             ps.setString(1, updateForm.getTitle());
@@ -587,9 +598,14 @@ public class RecordController {
             } else {
                 ps.setInt(5, updateForm.getContainerId());
             }
-            ps.setInt(6, id);
 
-            ps.executeUpdate();
+            ps.setString(6, newRecordNumber);
+            ps.setInt(7, updateForm.getLocationId());
+            ps.setInt(8, id);
+
+            if (ps.executeUpdate() == 0) {
+                LOGGER.debug("Failed to update record {}", id);
+            }
         }
 
         // Update classifications if need to
@@ -979,5 +995,20 @@ public class RecordController {
             }
         }
         return query + ")";
+    }
+
+
+    public static final String FIND_RECORD_BY_NUMBER = "SELECT Id FROM records WHERE Number = ?";
+    public static boolean doesRecordNumberExist(String recordNumber) throws SQLException {
+        try(Connection connection = DbConnect.getConnection();
+        PreparedStatement ps = connection.prepareStatement(FIND_RECORD_BY_NUMBER)) {
+            ps.setString(1, recordNumber);
+            try (ResultSet resultSet = ps.executeQuery()) {
+                if (resultSet.next()) {
+                    return true;
+                }
+                return false;
+            }
+        }
     }
 }
