@@ -30,6 +30,10 @@ UPDATE recordtypes SET NumberPattern='KKK-CLIENT.gggg' WHERE Id=70;
 
 # Update location to have restricted flag
 ALTER TABLE locations ADD Restricted BOOLEAN DEFAULT false;
+UPDATE locations SET Restricted = true Where Id IN (84, 97);
+
+# Add containers into notetables
+INSERT into notetables values(79, "Containers");
 
 # Create auditlogs table
 CREATE TABLE IF NOT EXISTS `auditlogs` (
