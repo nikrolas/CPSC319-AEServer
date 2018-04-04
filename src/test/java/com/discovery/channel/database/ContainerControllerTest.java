@@ -5,6 +5,8 @@ import com.discovery.channel.exception.NoResultsFoundException;
 import com.discovery.channel.form.RecordsForm;
 import com.discovery.channel.model.Container;
 import com.discovery.channel.model.Record;
+import com.discovery.channel.model.RecordState;
+import com.discovery.channel.model.State;
 import org.json.JSONException;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
@@ -60,7 +62,6 @@ class ContainerControllerTest {
         assertEquals(c.getLocationId(), 5);
         assertEquals(c.getTypeId(), 32);
         assertEquals(c.getScheduleId(), 44);
-
     }
 
     @Test
@@ -84,7 +85,6 @@ class ContainerControllerTest {
         List<Integer> listOfContainerIds = new ArrayList<>();
         listOfContainerIds.add(c.getContainerId());
         ContainerController.deleteContainers(listOfContainerIds, RMC_USER_ID);
-
     }
 
     @Test
@@ -108,9 +108,7 @@ class ContainerControllerTest {
         List<Integer> listOfContainerIds = new ArrayList<>();
         listOfContainerIds.add(c.getContainerId());
         ContainerController.deleteContainers(listOfContainerIds, RMC_USER_ID);
-
     }
-
 
     @Test
     void createNewContainerUnauthorizedUser() throws SQLException, JSONException {
@@ -130,6 +128,92 @@ class ContainerControllerTest {
         rf.setRecordIds(listOfRecordIds);
         RecordController.deleteRecords(RMC_USER_ID, rf);
 
+    }
+
+    @Test
+    void updateBasicContainerInformation() throws SQLException {
+        // create container
+        List<Integer> listOfRecordIds = new ArrayList<>();
+        Record r = createOneRecord();
+        listOfRecordIds.add(r.getId());
+
+        Container sampleContainer = createValidNewContainerWithRecords("TESTING_FOR_UPDATE", "2018", listOfRecordIds);
+        Container c = ContainerController.createContainer(sampleContainer, RMC_USER_ID);
+
+        // update container
+        c.setNotes("New and improved TEST NOTES");
+        c.setTitle("UPDATE CONTAINER TITLE TEST updated");
+        Container updatedContainer = ContainerController.updateContainer(c.getContainerId(), c, RMC_USER_ID);
+
+        // verify updates
+        assertTrue(updatedContainer.getTitle().equals("UPDATE CONTAINER TITLE TEST updated"));
+        assertTrue(updatedContainer.getNotes().equals("New and improved TEST NOTES"));
+    }
+
+    @Test
+    void updateContainerState() throws SQLException {
+        // create container
+        List<Integer> listOfRecordIds = new ArrayList<>();
+        Record r = createOneRecord();
+        Record r2 = createOneRecord();
+        listOfRecordIds.add(r.getId());
+        listOfRecordIds.add(r2.getId());
+
+        Container sampleContainer = createValidNewContainerWithRecords("TESTING_FOR_UPDATE", "2018", listOfRecordIds);
+        Container c = ContainerController.createContainer(sampleContainer, RMC_USER_ID);
+
+        assertEquals(r.getStateId(), 1);
+        assertTrue(r.getState().equals("Active"));
+        assertEquals(r2.getStateId(), 1);
+        assertTrue(r2.getState().equals("Active"));
+
+        // update container
+        c.setStateId(4);
+        Container updatedContainer = ContainerController.updateContainer(c.getContainerId(), c, RMC_USER_ID);
+
+        // verify updates
+        assertEquals(updatedContainer.getStateId(), 4);
+        assertTrue(updatedContainer.getState().equals("Archived - Interim"));
+
+        r = RecordController.getRecordById(r.getId(), RMC_USER_ID);
+        r2 = RecordController.getRecordById(r2.getId(), RMC_USER_ID);
+        assertEquals(r.getStateId(), 4);
+        assertTrue(r.getState().equals("Archived - Interim"));
+        assertEquals(r2.getStateId(), 4);
+        assertTrue(r2.getState().equals("Archived - Interim"));
+    }
+
+    @Test
+    void updateContainerLocation() throws SQLException {
+        // create container
+        List<Integer> listOfRecordIds = new ArrayList<>();
+        Record r = createOneRecord();
+        Record r2 = createOneRecord();
+        listOfRecordIds.add(r.getId());
+        listOfRecordIds.add(r2.getId());
+
+        Container sampleContainer = createValidNewContainerWithRecords("TESTING_FOR_UPDATE", "2018", listOfRecordIds);
+        Container c = ContainerController.createContainer(sampleContainer, RMC_USER_ID);
+
+        assertEquals(r.getLocationId(), 5);
+        assertTrue(r.getLocation().equals("Edmonton"));
+        assertEquals(r2.getLocationId(), 5);
+        assertTrue(r2.getLocation().equals("Edmonton"));
+
+        // update container
+        c.setLocationId(8);
+        Container updatedContainer = ContainerController.updateContainer(c.getContainerId(), c, RMC_USER_ID);
+
+        // verify updates
+        assertEquals(updatedContainer.getLocationId(), 8);
+        assertTrue(updatedContainer.getLocationName().equals("Burnaby"));
+
+        r = RecordController.getRecordById(r.getId(), RMC_USER_ID);
+        r2 = RecordController.getRecordById(r2.getId(), RMC_USER_ID);
+        assertEquals(r.getLocationId(), 8);
+        assertTrue(r.getLocation().equals("Burnaby"));
+        assertEquals(r2.getLocationId(), 8);
+        assertTrue(r2.getLocation().equals("Burnaby"));
     }
 
     @Test
@@ -223,7 +307,6 @@ class ContainerControllerTest {
 
         RecordController.deleteRecords(RMC_USER_ID, rf);
         RecordController.deleteRecords(RMC_USER_ID, rf2);
-
     }
 
     @Test
@@ -280,7 +363,6 @@ class ContainerControllerTest {
         ContainerController.deleteContainers(listOfContainerIds, RMC_USER_ID);
 
         RecordController.deleteRecords(RMC_USER_ID, rf);
-
     }
 
     @Test
@@ -310,15 +392,6 @@ class ContainerControllerTest {
 
         ContainerController.deleteContainers(listOfContainerIds, RMC_USER_ID);
         RecordController.deleteRecords(RMC_USER_ID, rf);
-
-    }
-
-
-
-    private Container createValidNewContainerRequest(String title, String number)  {
-
-        return new Container(0, number, title, null, null, null,
-                1, 5, 1, 8, null, null, null);
     }
 
     private Container createValidNewContainerWithRecords(String title, String number, List<Integer> listOfRecordIds) throws SQLException {
@@ -341,6 +414,4 @@ class ContainerControllerTest {
 
         return record;
     }
-
-
 }
