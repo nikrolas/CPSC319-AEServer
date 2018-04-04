@@ -588,7 +588,7 @@ public class RecordController {
                 if (new Date(DestructionDateController.addYearToTheLatestClosureDate(record.getScheduleYear(), record.getClosedAt()))
                         .compareTo(new Date(Calendar.getInstance().getTimeInMillis())) >= 0) {
                     throw new ValidationException(
-                            String.format("Cannot destory record %s. Destruction date has not passed yet.", record.getNumber()));
+                            String.format("Cannot destroy record %s. Destruction date has not passed yet.", record.getNumber()));
                 }
             }
         }
