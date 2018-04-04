@@ -31,6 +31,7 @@ public class RecordNumber {
         ACCOUNTING("KKK-XXXX-XXXX.XXX", "[a-zA-Z]{3}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}\\.[a-zA-Z0-9]{3}"),
         CASE_RECORDS__22CHAR("KKK-XXXXXXXXXXXXXXXXXXXXXX", "[a-zA-Z]{3}-[a-zA-Z0-9]{22}"),
         CASE_RECORDS__23CHAR("KKK-XXXXXXXXXXXXXXXXXXXXXXX", "[a-zA-Z]{3}-[a-zA-Z0-9]{23}"),
+        PERSONNEL_CASE_RECORDS("XXX-ZZZ/NN","[a-zA-Z0-9]{3}-[a-zA-Z0-9]{3}/[0-9]{2}"),
         SUBJECT("KKK-yyyy/ggg", "[a-zA-Z]{3}-[0-9]{4}"),
         PROPOSAL("KKK_P_yyyy.ggg", "[a-zA-Z]{3}_P_[0-9]{4}"),
         PROJECT("nnnnzzzz.nn.a.nn.nn[:nn]", "[a-zA-Z0-9]{8}\\.[a-zA-Z0-9]{2}\\.[a-zA-Z0-9]\\.[a-zA-Z0-9]{2}\\.[a-zA-Z0-9]{2}");
