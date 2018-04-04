@@ -6,6 +6,7 @@ import com.discovery.channel.authenticator.Role;
 import com.discovery.channel.exception.AuthenticationException;
 import com.discovery.channel.exception.IllegalArgumentException;
 import com.discovery.channel.exception.NoResultsFoundException;
+import com.discovery.channel.exception.ValidationException;
 import com.discovery.channel.form.RecordsForm;
 import com.discovery.channel.form.UpdateRecordForm;
 import com.discovery.channel.model.*;
@@ -530,8 +531,14 @@ public class RecordController {
      * @param updateForm
      * @throws SQLException
      */
-    private static final String UPDATE_RECORD = "UPDATE records " +
-            "SET Title=?, ScheduleId=?, StateId=?, ConsignmentCode=?,ContainerId=?, UpdatedAt=NOW() " +
+    private static final String UPDATE_RECORD =
+            "UPDATE records " +
+            "SET Title = ?, ScheduleId = ?, StateId = ?, " +
+            "ConsignmentCode = ?,ContainerId = ?, UpdatedAt = NOW(), " +
+            "ClosedAt = CASE " +
+                "WHEN (? = 'close') THEN NOW() " +  // Just closed
+                "WHEN (? = 'open') THEN NULL " +  // Opened
+                "ELSE ClosedAt END " + // Already closed, stays closed
             "WHERE Id= ?";
 
     public static void updateRecord(Integer id, int userId, UpdateRecordForm updateForm) throws SQLException {
@@ -570,7 +577,38 @@ public class RecordController {
             ContainerController.validateContainerChangeForRecord(record, destinationContainer);
         }
 
+        // Check and validate if set to destroyed
+        if (updateForm.getStateId() == RecordState.DESTROYED.getId() &&
+                record.getStateId() != RecordState.DESTROYED.getId()) {
+            if (record.getStateId() != RecordState.ARCHIVED_LOCAL.getId() ||
+                record.getStateId() != RecordState.ARCHIVED_INTERIM.getId() ||
+                record.getStateId() != RecordState.ARCHIVED_PERMANENT.getId()) {
+                throw new ValidationException(String.format("Cannot destroy record %s. It has not been closed yet.", record.getNumber()));
+            } else {
+                if (DestructionDateController.addYearToTheLatestClosureDate(record.getScheduleYear(), record.getClosedAt()) <=
+                        System.currentTimeMillis()) {
+                    throw new ValidationException(
+                            String.format("Cannot destroy record %s. Destruction date has not passed yet.", record.getNumber()));
+                }
+            }
+        }
+
         LOGGER.info("About to update record {}", id);
+        String closeStatus = "";
+
+        // Determine new close status
+        // Update to opened
+        if (updateForm.getStateId() == RecordState.ACTIVE.getId() ||
+            updateForm.getStateId() == RecordState.INACTIVE.getId()) {
+            closeStatus = "open";
+        } else { // Update to closed
+            // Not closed, close it now
+            if (record.getStateId() == RecordState.ACTIVE.getId() ||
+                record.getStateId() == RecordState.INACTIVE.getId()) {
+                closeStatus = "close";
+            }
+            // Already closed, stay closed
+        }
 
         try (Connection conn = DbConnect.getConnection();
              PreparedStatement ps = conn.prepareStatement(UPDATE_RECORD)) {
@@ -587,8 +625,10 @@ public class RecordController {
             } else {
                 ps.setInt(5, updateForm.getContainerId());
             }
-            ps.setInt(6, id);
+            ps.setString(6, closeStatus);
+            ps.setString(7, closeStatus);
 
+            ps.setInt(8, id);
             ps.executeUpdate();
         }
 
