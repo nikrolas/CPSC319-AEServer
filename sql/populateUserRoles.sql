@@ -12,9 +12,9 @@ WHERE users.Id <= 479);
 INSERT INTO userroles (UserId, RoleId)
 (SELECT users.Id,2
 FROM users
-WHERE users.Id > 479)
+WHERE users.Id > 479);
 
-INSERT INTO roles (roles.Id, roles.NAME)
+INSERT INTO roles (roles.Id, roles.Name)
 VALUE (3, 'General');
 
 UPDATE userroles
