@@ -412,7 +412,7 @@ public class ContainerController {
 
     private static final String UPDATE_CONTAINER =
             "UPDATE containers " +
-            "SET Title = ?, StateId = ?, LocationId = ?, ConsignmentCode = ?, UpdatedAt = NOW() " +
+            "SET Title = ?, StateId = ?, LocationId = ?, ConsignmentCode = ?, UpdatedAt = NOW(), Number = ? " +
             "WHERE Id = ?";
     /**
      * Update a container
@@ -439,6 +439,15 @@ public class ContainerController {
                     LocationController.getLocationNameByLocationId(container.getLocationId())));
         }
 
+        String newContainerNumber = baseContainer.getContainerNumber();
+        if (baseContainer.getLocationId() != container.getLocationId()) {
+            String newLocationCode = LocationController.getLocationCodeById(container.getLocationId());
+            newContainerNumber = baseContainer.getContainerNumber().substring(0, baseContainer.getContainerNumber().indexOf("-") + 1) + newLocationCode.toUpperCase();
+            if (containerNumberExist(newContainerNumber)) {
+                throw new ValidationException("Container number " + newContainerNumber + " is taken.");
+            }
+        }
+
         LOGGER.info("Passed all validation checks. Updating Container {}", container); //todo this message could be better
 
         try (Connection connection = DbConnect.getConnection();
@@ -448,7 +457,8 @@ public class ContainerController {
             ps.setInt(2, container.getStateId());
             ps.setInt(3, container.getLocationId());
             ps.setString(4, container.getConsignmentCode());
-            ps.setInt(5, containerId);
+            ps.setString(5, newContainerNumber);
+            ps.setInt(6, containerId);
             ps.executeUpdate();
 
             // Update container notes
@@ -462,6 +472,17 @@ public class ContainerController {
             AuditLogger.log(userId, AuditLogger.Target.CONTAINER, containerId, AuditLogger.ACTION.UPDATE);
 
             return getContainerById(containerId, userId);
+        }
+    }
+
+    private static final String CONTAINER_NUMBER_EXIST = "SELECT Number FROM containers WHERE Number = ?";
+    private static boolean containerNumberExist(String number) throws SQLException {
+        try (Connection conn = DbConnect.getConnection();
+        PreparedStatement ps = conn.prepareStatement(CONTAINER_NUMBER_EXIST)){
+            ps.setString(1, number);
+            try (ResultSet rs = ps.executeQuery()){
+                return rs.next();
+            }
         }
     }
 
