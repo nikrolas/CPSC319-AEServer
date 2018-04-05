@@ -483,7 +483,7 @@ public class RecordController {
 
         // 1. Delete from records
         // 2. Classifications are deleted because of database constraint
-        int rowsModified = 0;
+        int rowsModified;
         try (Connection conn = DbConnect.getConnection();
              PreparedStatement ps = conn.prepareStatement(DELETE_RECORD_BY_ID)) {
             ps.setInt(1, record.getId());
@@ -493,7 +493,8 @@ public class RecordController {
         // 3. Delete notes
         NoteTableController.deleteNotesForRecord(record.getId());
 
-        AuditLogger.log(userId, AuditLogger.Target.RECORD, record.getId(), AuditLogger.ACTION.DELETE);
+        if (rowsModified == 1)
+            AuditLogger.log(userId, AuditLogger.Target.RECORD, record.getId(), AuditLogger.ACTION.DELETE);
 
         return rowsModified == 1;
     }
@@ -926,7 +927,8 @@ public class RecordController {
 
         LOGGER.info("Updated record. Record Id {}", id);
         LOGGER.info("Created record. Record Id {}", newRecordId);
-        // TODO audit log
+        AuditLogger.log(userId, AuditLogger.Target.RECORD, id, AuditLogger.ACTION.UPDATE);
+        AuditLogger.log(userId, AuditLogger.Target.RECORD, newRecordId, AuditLogger.ACTION.CREATE);
         return getRecordById(newRecordId, userId);
     }
 
@@ -940,8 +942,6 @@ public class RecordController {
     private static final String RECORD_IS_NOT_CLOSED = "The record is not closed.";
     private static final String RETENTION_NOT_END = "The record's retention period has not ended yet.";
     public static ResponseEntity<?> prepareToDestroyRecords(RecordsForm ids, int userId) throws SQLException {
-
-
         if (!Authenticator.authenticate(userId, Role.RMC) && !Authenticator.authenticate(userId, Role.ADMINISTRATOR)) {
             throw new AuthenticationException(String.format("You do not have permission to destroy records."));
         }
@@ -959,9 +959,8 @@ public class RecordController {
             errorResponse.put("id", noClosedAt.get("id"));
             errorResponse.put("number", noClosedAt.get("number"));
             errorResponse.put("error", RECORD_IS_NOT_CLOSED);
-
-        }else{
-            if(listOfRecords.size() == ids.getRecordIds().size()) {
+        } else {
+            if (listOfRecords.size() == ids.getRecordIds().size()) {
                 for (Record record : listOfRecords) {
                     if (record != null) {
                         if (record.getStateId() != RecordState.DESTROYED.getId()) {
@@ -985,6 +984,9 @@ public class RecordController {
                 if (failedIds.isEmpty()) {
                     LOGGER.info("Records passed all the checking");
                     destroyRecords(ids.getRecordIds());
+                    for (int id: ids.getRecordIds()) {
+                        AuditLogger.log(userId, AuditLogger.Target.RECORD, id, AuditLogger.ACTION.UPDATE);
+                    }
                     return new ResponseEntity<>(HttpStatus.OK);
 
                 } else {
@@ -1010,8 +1012,8 @@ public class RecordController {
     public static void destroyRecords(List<Integer> ids) throws SQLException {
         String query = "UPDATE records "
                 + "SET StateId = " + RecordState.DESTROYED.getId()
-                + " , UpdatedAt = now() "
-                + " , ContainerId = null WHERE Id IN (";
+                + " , UpdatedAt = NOW() "
+                + " , ContainerId = NULL WHERE Id IN (";
         String destroyRecordsQuery = completeIdsInQuery(ids, query);
 
         try (Connection conn = DbConnect.getConnection();
