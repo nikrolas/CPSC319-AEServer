@@ -236,6 +236,7 @@ public class ContainerController {
         // Update records to point to the new container
         for (int recordId : container.getChildRecordIds()){
             RecordController.setRecordContainer(recordId, newContainerId);
+            AuditLogger.log(userId, AuditLogger.Target.RECORD, recordId, AuditLogger.ACTION.UPDATE);
         }
 
         return getContainerById(newContainerId, userId);
@@ -458,6 +459,10 @@ public class ContainerController {
 
             // Update record fields to follow container
             RecordController.updateRecordContainer(containerId);
+
+            for (int recordId : baseContainer.getChildRecordIds()) {
+                AuditLogger.log(userId, AuditLogger.Target.RECORD, recordId, AuditLogger.ACTION.UPDATE);
+            }
 
             AuditLogger.log(userId, AuditLogger.Target.CONTAINER, containerId, AuditLogger.ACTION.UPDATE);
 
