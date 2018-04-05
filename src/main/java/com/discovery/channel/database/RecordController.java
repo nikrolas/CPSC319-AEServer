@@ -586,7 +586,7 @@ public class RecordController {
                 record.getStateId() != RecordState.ARCHIVED_PERMANENT.getId()) {
                 throw new ValidationException(String.format("Cannot destroy record %s. It has not been closed yet.", record.getNumber()));
             } else {
-                if (DestructionDateController.addYearToTheLatestClosureDate(record.getScheduleYear(), record.getClosedAt()) <=
+                if (DestructionDateController.addYearToTheLatestClosureDate(record.getScheduleYear(), record.getClosedAt()) >=
                         System.currentTimeMillis()) {
                     throw new ValidationException(
                             String.format("Cannot destroy record %s. Destruction date has not passed yet.", record.getNumber()));
