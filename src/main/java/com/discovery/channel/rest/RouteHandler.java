@@ -279,7 +279,7 @@ public class RouteHandler {
     @RequestMapping(
             value = "destructiondate",
             params = {"userId"},
-            method = RequestMethod.GET)
+            method = RequestMethod.POST)
     public ResponseEntity<?> getDestructionDate(@RequestParam("userId") int userId, @RequestBody RecordsForm form) throws SQLException{
         LOGGER.info("Calculating destruction date given ids {}", form.getRecordIds());
         return DestructionDateController.calculateDestructionDate(form.getRecordIds());
